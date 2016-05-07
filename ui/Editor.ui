@@ -78,6 +78,9 @@
      </property>
      <item>
       <widget class="ExplorerWidget" name="explorer">
+       <property name="contextMenuPolicy">
+        <enum>Qt::CustomContextMenu</enum>
+       </property>
        <attribute name="headerVisible">
         <bool>false</bool>
        </attribute>
@@ -193,6 +196,16 @@
   <action name="action_quit">
    <property name="text">
     <string>&amp;Quit</string>
+   </property>
+  </action>
+  <action name="action_texture_export">
+   <property name="text">
+    <string>&amp;Export</string>
+   </property>
+  </action>
+  <action name="action_texture_replace">
+   <property name="text">
+    <string>&amp;Replace</string>
    </property>
   </action>
  </widget>

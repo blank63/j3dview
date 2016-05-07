@@ -104,7 +104,7 @@ class ViewerWidget(QtOpenGL.QGLWidget,metaclass=qt.PropertyOwnerMetaClass):
         self.z_far_changed.connect(self.on_z_far_changed)
         self.fov_changed.connect(self.on_fov_changed)
 
-        self.animation_timer = QtCore.QTimer(self,objectName='animation_timer')
+        self.animation_timer = QtCore.QTimer(self)
         self.animation_timer.timeout.connect(self.on_animation_timer_timeout)
 
         self.pressed_keys = set()

@@ -110,7 +110,7 @@ def pack_textures(stream,textures):
         texture_offset = base + i*Texture.sizeof()
         texture.image_offset = pack_images(texture.images) - texture_offset
 
-    end = stream.tell() #<-?
+    end = stream.tell()
 
     stream.seek(base)
     for texture in textures:

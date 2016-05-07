@@ -15,7 +15,7 @@ import numpy
 
 arguments = dict(
         name='J3D View',
-        version='0.3',
+        version='0.4',
         description='Nintendo GameCube/Wii BMD/BDL file viewer',
         scripts = ['j3dview.py'],
         py_modules=['gl','viewer_widget','explorer_widget','forms'],
