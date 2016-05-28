@@ -445,6 +445,13 @@ if __name__ == '__main__':
     logger.info('PyQt version: %s',QtCore.PYQT_VERSION_STR)
     logger.info('PyOpenGL version: %s',OpenGL.__version__)
 
+    surface_format = QtGui.QSurfaceFormat()
+    surface_format.setRenderableType(QtGui.QSurfaceFormat.OpenGL)
+    surface_format.setVersion(3,3)
+    surface_format.setProfile(QtGui.QSurfaceFormat.CoreProfile)
+    surface_format.setSamples(4)
+    QtGui.QSurfaceFormat.setDefaultFormat(surface_format)
+
     application = QtWidgets.QApplication(sys.argv)
     application.setOrganizationName('BlankSoft')
     application.setApplicationName('J3D View')

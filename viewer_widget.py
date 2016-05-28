@@ -2,7 +2,7 @@ from math import cos,sin,tan,radians
 import os.path
 import numpy
 from OpenGL.GL import *
-from PyQt5 import QtCore,QtWidgets,QtOpenGL,uic
+from PyQt5 import QtCore,QtWidgets
 import qt
 from j3d.opengl import *
 
@@ -51,7 +51,7 @@ def create_frustum_matrix(left,right,bottom,top,near,far):
         numpy.float32)
 
 
-class ViewerWidget(QtOpenGL.QGLWidget,metaclass=qt.PropertyOwnerMetaClass):
+class ViewerWidget(QtWidgets.QOpenGLWidget,metaclass=qt.PropertyOwnerMetaClass):
 
     z_near = qt.Property(float)
     z_far = qt.Property(float)
@@ -75,16 +75,8 @@ class ViewerWidget(QtOpenGL.QGLWidget,metaclass=qt.PropertyOwnerMetaClass):
     def view_matrix(self,matrix):
         self.matrix_block['view_matrix'] = matrix
 
-    def __init__(self,parent=None,shareWidget=None,flags=QtCore.Qt.WindowFlags(0)):
-        display_format = QtOpenGL.QGLFormat()
-        display_format.setVersion(3,3)
-        display_format.setProfile(QtOpenGL.QGLFormat.CoreProfile)
-        display_format.setAlpha(True)
-        display_format.setStencil(False)
-        display_format.setSampleBuffers(True)
-        display_format.setSamples(4)
-
-        super().__init__(display_format,parent,shareWidget,flags)
+    def __init__(self,*args):
+        super().__init__(*args)
 
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
@@ -129,7 +121,7 @@ class ViewerWidget(QtOpenGL.QGLWidget,metaclass=qt.PropertyOwnerMetaClass):
         logger.info('OpenGL version: %s',glGetString(GL_VERSION).decode())
         logger.info('OpenGLSL version: %s',glGetString(GL_SHADING_LANGUAGE_VERSION).decode())
 
-        if self.format().sampleBuffers():
+        if self.format().samples() > 1:
             glEnable(GL_MULTISAMPLE)
 
         self.matrix_block = MatrixBlock(GL_DYNAMIC_DRAW)
@@ -222,7 +214,7 @@ class ViewerWidget(QtOpenGL.QGLWidget,metaclass=qt.PropertyOwnerMetaClass):
         if self.animation is not None and not self.animation.is_finished:
             self.animation.advance_frame()
 
-        self.updateGL()
+        self.update()
 
     def setModel(self,model):
         self.makeCurrent()
