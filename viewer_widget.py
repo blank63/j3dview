@@ -2,7 +2,7 @@ from math import cos,sin,tan,radians
 import os.path
 import numpy
 from OpenGL.GL import *
-from PyQt4 import QtCore,QtGui,QtOpenGL,uic
+from PyQt5 import QtCore,QtWidgets,QtOpenGL,uic
 import qt
 from j3d.opengl import *
 
@@ -109,7 +109,7 @@ class ViewerWidget(QtOpenGL.QGLWidget,metaclass=qt.PropertyOwnerMetaClass):
 
         self.pressed_keys = set()
 
-        QtGui.qApp.aboutToQuit.connect(self.on_application_aboutToQuit)
+        QtWidgets.qApp.aboutToQuit.connect(self.on_application_aboutToQuit)
 
     def update_projection_matrix(self):
         u = self.z_near*tan(radians(self.fov))
@@ -168,7 +168,7 @@ class ViewerWidget(QtOpenGL.QGLWidget,metaclass=qt.PropertyOwnerMetaClass):
 
     @QtCore.pyqtSlot()
     def on_animation_timer_timeout(self):
-        if QtGui.qApp.keyboardModifiers() & QtCore.Qt.ShiftModifier:
+        if QtWidgets.qApp.keyboardModifiers() & QtCore.Qt.ShiftModifier:
             movement_speed = 5*self.movement_speed
             rotation_speed = 5*self.rotation_speed
         else:

@@ -1,7 +1,7 @@
-from PyQt4 import QtCore,QtGui
+from PyQt5 import QtCore,QtWidgets
 
 
-class TextureItem(QtGui.QTreeWidgetItem):
+class TextureItem(QtWidgets.QTreeWidgetItem):
 
     def __init__(self,texture):
         super().__init__()
@@ -21,7 +21,7 @@ class TextureItem(QtGui.QTreeWidgetItem):
         self.setText(0,name)
 
 
-class ExplorerWidget(QtGui.QTreeWidget):
+class ExplorerWidget(QtWidgets.QTreeWidget):
 
     currentTextureChanged = QtCore.pyqtSignal(object)
 
@@ -29,7 +29,7 @@ class ExplorerWidget(QtGui.QTreeWidget):
         super().__init__(*args,**kwargs)
         self.header().close()
         self.model = None
-        self.texture_list = QtGui.QTreeWidgetItem(['Textures'])
+        self.texture_list = QtWidgets.QTreeWidgetItem(['Textures'])
         self.addTopLevelItem(self.texture_list)
         self.currentItemChanged.connect(self.on_currentItemChanged)
 
@@ -43,7 +43,7 @@ class ExplorerWidget(QtGui.QTreeWidget):
         self.texture_list.addChildren([TextureItem(texture) for texture in self.model.textures])
         self.model.textures.entry_changed.connect(self.on_texture_changed)
 
-    @QtCore.pyqtSlot(QtGui.QTreeWidgetItem,QtGui.QTreeWidgetItem)
+    @QtCore.pyqtSlot(QtWidgets.QTreeWidgetItem,QtWidgets.QTreeWidgetItem)
     def on_currentItemChanged(self,current,previous):
         if isinstance(current,TextureItem):
             self.currentTextureChanged.emit(current.texture)

@@ -1,8 +1,8 @@
-from PyQt4 import QtCore,QtGui,uic
+from PyQt5 import QtCore,QtWidgets,uic
 import gx
 
 
-class ViewSettingsForm(QtGui.QWidget):
+class ViewSettingsForm(QtWidgets.QWidget):
 
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
@@ -17,7 +17,7 @@ class ViewSettingsForm(QtGui.QWidget):
         self.rotation_speed.bindProperty(viewer,'rotation_speed',viewer.rotation_speed_changed)
 
 
-class TextureForm(QtGui.QWidget):
+class TextureForm(QtWidgets.QWidget):
 
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)

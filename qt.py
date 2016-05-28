@@ -1,7 +1,7 @@
-from PyQt4 import QtCore,QtGui
+from PyQt5 import QtCore,QtWidgets
 
 
-class ComboBox(QtGui.QComboBox):
+class ComboBox(QtWidgets.QComboBox):
 
     def setItems(self,items):
         self.items = items
@@ -14,7 +14,7 @@ class ComboBox(QtGui.QComboBox):
         self.setCurrentIndex(self.items.index(value))
 
 
-class PropertyUndoCommand(QtGui.QUndoCommand):
+class PropertyUndoCommand(QtWidgets.QUndoCommand):
 
     def __init__(self,property_owner,property_name,old_value,new_value):
         super().__init__()
@@ -25,10 +25,10 @@ class PropertyUndoCommand(QtGui.QUndoCommand):
         #FIXME: Set the text property to something? 
 
     def redo(self):
-        self.property_owner.setProperty(self.property_name,self.new_value)
+        setattr(self.property_owner,self.property_name,self.new_value)
 
     def undo(self):
-        self.property_owner.setProperty(self.property_name,self.old_value)
+        setattr(self.property_owner,self.property_name,self.old_value)
 
 
 class PropertyWidget:
@@ -45,7 +45,7 @@ class PropertyWidget:
 
         self.property_owner = property_owner
         self.property_name = property_name
-        self.setValue(self.property_owner.property(self.property_name))
+        self.setValue(getattr(self.property_owner,self.property_name))
 
         self.property_changed_signal = property_changed_signal
         self.property_changed_signal.connect(self.setValue)
@@ -56,18 +56,18 @@ class PropertyWidget:
     @QtCore.pyqtSlot(object)
     def on_valueChanged(self,value):
         if self.property_owner is None: return
-        old_value = self.property_owner.property(self.property_name)
+        old_value = getattr(self.property_owner,self.property_name)
         if value == old_value: return
         if self.undo_stack is not None:
             self.undo_stack.push(PropertyUndoCommand(self.property_owner,self.property_name,old_value,value))
         else:
-            self.property_owner.setProperty(self.property_name,value)
+            setattr(self.property_owner,self.property_name,value)
 
 
-class PropertyLineEdit(QtGui.QLineEdit,PropertyWidget):
+class PropertyLineEdit(QtWidgets.QLineEdit,PropertyWidget):
 
     def __init__(self,*args,**kwargs):
-        QtGui.QLineEdit.__init__(self,*args,**kwargs)
+        QtWidgets.QLineEdit.__init__(self,*args,**kwargs)
         PropertyWidget.__init__(self)
         self.editingFinished.connect(self.on_editingFinished)
 
@@ -92,19 +92,19 @@ class PropertyComboBox(ComboBox,PropertyWidget):
         self.on_valueChanged(self.itemData(index))
 
 
-class PropertySpinBox(QtGui.QSpinBox,PropertyWidget):
+class PropertySpinBox(QtWidgets.QSpinBox,PropertyWidget):
 
     def __init__(self,*args,**kwargs):
-        QtGui.QSpinBox.__init__(self,*args,**kwargs)
+        QtWidgets.QSpinBox.__init__(self,*args,**kwargs)
         PropertyWidget.__init__(self)
         self.setKeyboardTracking(False)
         self.valueChanged.connect(self.on_valueChanged)
 
 
-class PropertyDoubleSpinBox(QtGui.QDoubleSpinBox,PropertyWidget):
+class PropertyDoubleSpinBox(QtWidgets.QDoubleSpinBox,PropertyWidget):
 
     def __init__(self,*args,**kwargs):
-        QtGui.QSpinBox.__init__(self,*args,**kwargs)
+        QtWidgets.QSpinBox.__init__(self,*args,**kwargs)
         PropertyWidget.__init__(self)
         self.setKeyboardTracking(False)
         self.valueChanged.connect(self.on_valueChanged)
@@ -163,7 +163,7 @@ class PropertyOwnerMetaClass(QtCore.pyqtWrapperType):
 
         getter = property_placeholder.create_getter(name)
         setter = property_placeholder.create_full_setter(name,notify_name)
-        classdict[name] = QtCore.pyqtProperty(property_placeholder.property_type,fget=getter,fset=setter,notify=notify)
+        classdict[name] = property(getter,setter)
 
 
 class Wrapper(QtCore.QObject,metaclass=PropertyOwnerMetaClass):

@@ -19,7 +19,7 @@ if __name__ == '__main__':
 import os.path
 import numpy
 from OpenGL.GL import *
-from PyQt4 import QtCore,QtGui,QtOpenGL,uic
+from PyQt5 import QtCore,QtWidgets,QtGui,QtOpenGL,uic
 import qt
 import gx
 import gx.bti
@@ -118,7 +118,7 @@ class ModelWrapper(qt.Wrapper):
         self.textures = TextureListWrapper(model.textures)
 
 
-class TextureReplaceCommand(QtGui.QUndoCommand):
+class TextureReplaceCommand(QtWidgets.QUndoCommand):
     #TODO: Should something be done about textures that are no longer being
     # used, but are still in the undo stack?
 
@@ -162,12 +162,12 @@ class PreviewWidget(QtOpenGL.QGLWidget):
         glViewport(0,0,width,height)
 
 
-class Editor(QtGui.QMainWindow):
+class Editor(QtWidgets.QMainWindow):
 
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
 
-        self.undo_stack = QtGui.QUndoStack(self,objectName='undo_stack')
+        self.undo_stack = QtWidgets.QUndoStack(self,objectName='undo_stack')
         self.action_undo = self.undo_stack.createUndoAction(self)
         self.action_redo = self.undo_stack.createRedoAction(self)
 
@@ -188,11 +188,21 @@ class Editor(QtGui.QMainWindow):
         self.action_undo.setShortcut(QtGui.QKeySequence.Undo)
         self.action_redo.setShortcut(QtGui.QKeySequence.Redo)
 
+        #XXX It appears that actions have to be manually added to the widget
+        # for shortcuts to work. Possibly a bug?
+        self.addAction(self.action_open_model)
+        self.addAction(self.action_save_model)
+        self.addAction(self.action_save_model_as)
+        self.addAction(self.action_quit)
+        self.addAction(self.action_undo)
+        self.addAction(self.action_redo)
+
         self.view_settings.setViewer(self.viewer)
         self.dock_view_settings.hide()
 
-        self.preview = PreviewWidget(shareWidget=self.viewer)
-        self.dock_preview.setWidget(self.preview)
+        #TODO
+        #self.preview = PreviewWidget(shareWidget=self.viewer)
+        #self.dock_preview.setWidget(self.preview)
 
         self.texture.setUndoStack(self.undo_stack)
 
@@ -253,7 +263,7 @@ class Editor(QtGui.QMainWindow):
         settings.endGroup()
 
     def warning(self,message):
-        QtGui.QMessageBox.warning(self,QtGui.qApp.applicationName(),message)
+        QtWidgets.QMessageBox.warning(self,QtWidgets.qApp.applicationName(),message)
 
     def warning_file_open_failed(self,error):
         self.warning('Could not open file \'{}\': {}'.format(error.filename,error.strerror))
@@ -316,21 +326,21 @@ class Editor(QtGui.QMainWindow):
 
     @QtCore.pyqtSlot(object)
     def on_explorer_currentTextureChanged(self,texture):
-        self.preview.setTexture(texture)
+        #self.preview.setTexture(texture)
         self.texture.setTexture(texture)
 
     @QtCore.pyqtSlot(QtCore.QPoint)
     def on_explorer_customContextMenuRequested(self,position):
         item = self.explorer.itemAt(position)
         if isinstance(item,explorer_widget.TextureItem):
-            menu = QtGui.QMenu(self)
+            menu = QtWidgets.QMenu(self)
             menu.addAction(self.action_texture_export)
             menu.addAction(self.action_texture_replace)
             menu.exec_(self.explorer.mapToGlobal(position))
 
     @QtCore.pyqtSlot()
     def on_action_open_model_triggered(self):
-        file_name = QtGui.QFileDialog.getOpenFileName(
+        file_name,_ = QtWidgets.QFileDialog.getOpenFileName(
                 self,
                 'Open Model',
                 self.windowFilePath(),
@@ -344,7 +354,7 @@ class Editor(QtGui.QMainWindow):
 
     @QtCore.pyqtSlot()
     def on_action_open_animation_triggered(self):
-        file_name = QtGui.QFileDialog.getOpenFileName(
+        file_name,_ = QtWidgets.QFileDialog.getOpenFileName(
                 self,
                 'Open Animation',
                 os.path.dirname(self.windowFilePath()),
@@ -367,7 +377,7 @@ class Editor(QtGui.QMainWindow):
 
     @QtCore.pyqtSlot()
     def on_action_save_model_as_triggered(self):
-        file_name = QtGui.QFileDialog.getSaveFileName(
+        file_name,_ = QtWidgets.QFileDialog.getSaveFileName(
                 self,
                 'Save Model',
                 self.windowFilePath(),
@@ -382,7 +392,7 @@ class Editor(QtGui.QMainWindow):
     @QtCore.pyqtSlot()
     def on_action_texture_export_triggered(self):
         texture = self.explorer.currentItem().texture
-        file_name = QtGui.QFileDialog.getSaveFileName(
+        file_name = QtWidgets.QFileDialog.getSaveFileName(
                 self,
                 'Export Texture',
                 os.path.join(os.path.dirname(self.windowFilePath()),texture.name + '.bti'),
@@ -397,7 +407,7 @@ class Editor(QtGui.QMainWindow):
     @QtCore.pyqtSlot()
     def on_action_texture_replace_triggered(self):
         index = self.explorer.texture_list.indexOfChild(self.explorer.currentItem())
-        file_name = QtGui.QFileDialog.getOpenFileName(
+        file_name = QtWidgets.QFileDialog.getOpenFileName(
                 self,
                 'Open Texture',
                 os.path.dirname(self.windowFilePath()),
@@ -418,16 +428,16 @@ if __name__ == '__main__':
     def excepthook(*exception_info):
         logger.error('unexpected error',exc_info=exception_info)
 
-        message = QtGui.QMessageBox(None)
-        message.setWindowTitle(QtGui.qApp.applicationName())
-        message.setIcon(QtGui.QMessageBox.Critical)
+        message = QtWidgets.QMessageBox(None)
+        message.setWindowTitle(QtWidgets.qApp.applicationName())
+        message.setIcon(QtWidgets.QMessageBox.Critical)
         message.setText('An unexpected error occurred.')
         message.setDetailedText(logging_stream.getvalue())
-        message.setStandardButtons(QtGui.QMessageBox.Ok)
-        message.setDefaultButton(QtGui.QMessageBox.Ok)
+        message.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        message.setDefaultButton(QtWidgets.QMessageBox.Ok)
         message.exec_()
 
-        QtGui.qApp.exit()
+        QtWidgets.qApp.exit()
 
     logger.info('Python version: %s',sys.version)
     logger.info('NumPy version: %s',numpy.version.version)
@@ -435,7 +445,7 @@ if __name__ == '__main__':
     logger.info('PyQt version: %s',QtCore.PYQT_VERSION_STR)
     logger.info('PyOpenGL version: %s',OpenGL.__version__)
 
-    application = QtGui.QApplication(sys.argv)
+    application = QtWidgets.QApplication(sys.argv)
     application.setOrganizationName('BlankSoft')
     application.setApplicationName('J3D View')
 
