@@ -1,4 +1,5 @@
 from btypes.big_endian import *
+from btypes.utils import OffsetPoolPacker,OffsetPoolUnpacker
 import gx
 import gx.texture
 
@@ -51,51 +52,13 @@ class Texture(gx.texture.Texture,Struct):
         return texture
 
 
-class CachedOffsetPacker:
-
-    def __init__(self,stream,pack_function,default_offset_table=None):
-        self.stream = stream
-        self.pack_function = pack_function
-        self.offset_table = default_offset_table if default_offset_table is not None else {}
-
-    def __call__(self,*args):
-        if args in self.offset_table:
-            return self.offset_table[args]
-
-        offset = self.stream.tell()
-        self.pack_function(self.stream,*args)
-        self.offset_table[args] = offset
-        return offset
-
-
-class CachedOffsetUnpacker:
-
-    def __init__(self,stream,unpack_function):
-        self.stream = stream
-        self.unpack_function = unpack_function
-        self.argument_table = {}
-        self.value_table = {}
-
-    def __call__(self,offset,*args):
-        if offset in self.value_table:
-            if args != self.argument_table[offset]:
-                raise ValueError('inconsistent arguments for same offset')
-            return self.value_table[offset]
-
-        self.stream.seek(offset)
-        value = self.unpack_function(self.stream,*args)
-        self.argument_table[offset] = args
-        self.value_table[offset] = value
-        return value
-
-
 def pack_textures(stream,textures):
     base = stream.tell()
 
     stream.write(b'\x00'*Texture.sizeof()*len(textures))
 
-    pack_palette = CachedOffsetPacker(stream,gx.texture.pack_palette)
-    pack_images = CachedOffsetPacker(stream,gx.texture.pack_images)
+    pack_palette = OffsetPoolPacker(stream,gx.texture.pack_palette)
+    pack_images = OffsetPoolPacker(stream,gx.texture.pack_images)
 
     for i,texture in enumerate(textures):
         texture_offset = base + i*Texture.sizeof()
@@ -125,8 +88,8 @@ def unpack_textures(stream,texture_count):
 
     textures = [Texture.unpack(stream) for _ in range(texture_count)]
 
-    unpack_palette = CachedOffsetUnpacker(stream,gx.texture.unpack_palette)
-    unpack_images = CachedOffsetUnpacker(stream,gx.texture.unpack_images)
+    unpack_palette = OffsetPoolUnpacker(stream,gx.texture.unpack_palette)
+    unpack_images = OffsetPoolUnpacker(stream,gx.texture.unpack_images)
 
     for i,texture in enumerate(textures):
         if texture.palette_entry_count == 0: continue

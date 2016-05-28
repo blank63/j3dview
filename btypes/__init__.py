@@ -1,4 +1,4 @@
-"""Module for reading and writing data structures."""
+"""Package for reading and writing data structures."""
 
 from btypes.types import *
 
