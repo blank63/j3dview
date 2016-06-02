@@ -19,7 +19,7 @@ if __name__ == '__main__':
 import os.path
 import numpy
 from OpenGL.GL import *
-from PyQt5 import QtCore,QtWidgets,QtGui,QtOpenGL,uic
+from PyQt5 import QtCore,QtWidgets,QtGui,uic
 import qt
 import gx
 import gx.bti
@@ -136,32 +136,6 @@ class TextureReplaceCommand(QtWidgets.QUndoCommand):
         self.textures[self.index] = self.old_value
 
 
-class PreviewWidget(QtOpenGL.QGLWidget):
-
-    def __init__(self,*args,**kwargs):
-        super().__init__(*args,**kwargs)
-        self.texture = None
-
-    @QtCore.pyqtSlot(object)
-    def setTexture(self,texture):
-        self.texture = texture
-        self.updateGL()
-
-    def paintGL(self):
-        glClearColor(0,0,0,1)
-        glClear(GL_COLOR_BUFFER_BIT)
-        if self.texture is not None and self.height() != 0 and self.width() != 0:
-            s = self.width()/self.height()*self.texture.height/self.texture.width
-            if s < 1:
-                self.drawTexture(QtCore.QRectF(-1,-s,2,2*s),self.texture.gl_texture)
-            else:
-                s = self.height()/self.width()*self.texture.width/self.texture.height
-                self.drawTexture(QtCore.QRectF(-s,-1,2*s,2),self.texture.gl_texture)
-
-    def resizeGL(self,width,height):
-        glViewport(0,0,width,height)
-
-
 class Editor(QtWidgets.QMainWindow):
 
     def __init__(self,*args,**kwargs):
@@ -199,10 +173,6 @@ class Editor(QtWidgets.QMainWindow):
 
         self.view_settings.setViewer(self.viewer)
         self.dock_view_settings.hide()
-
-        #TODO
-        #self.preview = PreviewWidget(shareWidget=self.viewer)
-        #self.dock_preview.setWidget(self.preview)
 
         self.texture.setUndoStack(self.undo_stack)
 
@@ -326,7 +296,7 @@ class Editor(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(object)
     def on_explorer_currentTextureChanged(self,texture):
-        #self.preview.setTexture(texture)
+        self.preview.setTexture(texture)
         self.texture.setTexture(texture)
 
     @QtCore.pyqtSlot(QtCore.QPoint)
@@ -373,7 +343,7 @@ class Editor(QtWidgets.QMainWindow):
         try:
             self.saveModel(self.windowFilePath())
         except FILE_OPEN_ERRORS as error:
-            self.warning('Could not open file \'{}\': {}'.format(error.filename,error.strerror))
+            self.warning_file_open_failed(error)
 
     @QtCore.pyqtSlot()
     def on_action_save_model_as_triggered(self):
@@ -444,6 +414,8 @@ if __name__ == '__main__':
     logger.info('Qt version: %s',QtCore.QT_VERSION_STR)
     logger.info('PyQt version: %s',QtCore.PYQT_VERSION_STR)
     logger.info('PyOpenGL version: %s',OpenGL.__version__)
+
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_ShareOpenGLContexts)
 
     surface_format = QtGui.QSurfaceFormat()
     surface_format.setRenderableType(QtGui.QSurfaceFormat.OpenGL)
