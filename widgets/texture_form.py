@@ -2,27 +2,12 @@ from PyQt5 import QtCore,QtWidgets,uic
 import gx
 
 
-class ViewSettingsForm(QtWidgets.QWidget):
-
-    def __init__(self,*args,**kwargs):
-        super().__init__(*args,**kwargs)
-
-        self.ui = uic.loadUi('ui/ViewSettingsForm.ui',self)
-
-    def setViewer(self,viewer):
-        self.z_near.bindProperty(viewer,'z_near',viewer.z_near_changed)
-        self.z_far.bindProperty(viewer,'z_far',viewer.z_far_changed)
-        self.fov.bindProperty(viewer,'fov',viewer.fov_changed)
-        self.movement_speed.bindProperty(viewer,'movement_speed',viewer.movement_speed_changed)
-        self.rotation_speed.bindProperty(viewer,'rotation_speed',viewer.rotation_speed_changed)
-
-
 class TextureForm(QtWidgets.QWidget):
 
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
 
-        self.ui = uic.loadUi('ui/TextureForm.ui',self)
+        self.ui = uic.loadUi('widgets/TextureForm.ui',self)
 
         self.wrap_s.setItems([gx.CLAMP,gx.REPEAT,gx.MIRROR])
         self.wrap_t.setItems([gx.CLAMP,gx.REPEAT,gx.MIRROR])

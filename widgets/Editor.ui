@@ -225,30 +225,30 @@
   <customwidget>
    <class>ExplorerWidget</class>
    <extends>QTreeWidget</extends>
-   <header>explorer_widget</header>
+   <header>widgets.explorer_widget</header>
   </customwidget>
   <customwidget>
    <class>ViewerWidget</class>
    <extends>QWidget</extends>
-   <header>viewer_widget</header>
+   <header>widgets.viewer_widget</header>
    <container>1</container>
   </customwidget>
   <customwidget>
    <class>ViewSettingsForm</class>
    <extends>QWidget</extends>
-   <header>forms</header>
+   <header>widgets.view_settings_form</header>
    <container>1</container>
   </customwidget>
   <customwidget>
    <class>TextureForm</class>
    <extends>QWidget</extends>
-   <header>forms</header>
+   <header>widgets.texture_form</header>
    <container>1</container>
   </customwidget>
   <customwidget>
    <class>PreviewWidget</class>
    <extends>QWidget</extends>
-   <header location="global">preview_widget</header>
+   <header location="global">widgets.preview_widget</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
