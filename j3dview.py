@@ -3,20 +3,25 @@
 import io
 import sys
 import logging
+import traceback
 import argparse
 import numpy
 import OpenGL
 from PyQt5 import QtCore,QtWidgets,QtGui
 
 
-def configure_logging():
+def configure_logging(logfile):
+    if logfile is None:
+        logging.basicConfig(level=logging.WARNING)
+        return
+
     stderr_handler = logging.StreamHandler()
     stderr_handler.setLevel(logging.WARNING)
 
-    logging_stream = io.StringIO()
-    logging_stream_handler = logging.StreamHandler(logging_stream)
+    file_handler = logging.StreamHandler(logfile)
+    file_handler.setLevel(logging.DEBUG)
 
-    logging.basicConfig(level=logging.INFO,handlers=[stderr_handler,logging_stream_handler])
+    logging.basicConfig(level=logging.DEBUG,handlers=[stderr_handler,file_handler])
 
 
 def configure_gl():
@@ -39,13 +44,14 @@ def configure_qt():
 
 
 def excepthook(*exception_info):
-    logger.error('unexpected error',exc_info=exception_info)
+    logging.critical('unexpected error',exc_info=exception_info)
+    logging.shutdown()
 
     message = QtWidgets.QMessageBox(None)
     message.setWindowTitle(QtWidgets.qApp.applicationName())
     message.setIcon(QtWidgets.QMessageBox.Critical)
     message.setText('An unexpected error occurred.')
-    message.setDetailedText(logging_stream.getvalue())
+    message.setDetailedText(''.join(traceback.format_exception(*exception_info)))
     message.setStandardButtons(QtWidgets.QMessageBox.Ok)
     message.setDefaultButton(QtWidgets.QMessageBox.Ok)
     message.exec_()
@@ -54,10 +60,11 @@ def excepthook(*exception_info):
 
 
 parser = argparse.ArgumentParser(description='View Nintendo GameCube/Wii BMD/BDL files')
-parser.add_argument('file_name',nargs='?',metavar='file',help='file to view')
+parser.add_argument('file_name',nargs='?',metavar='FILE',help='file to view')
+parser.add_argument('--logfile',type=argparse.FileType('w'),metavar='LOGFILE',help='write log to %(metavar)s')
 arguments = parser.parse_args()
 
-configure_logging()
+configure_logging(arguments.logfile)
 configure_gl()
 configure_qt()
 
