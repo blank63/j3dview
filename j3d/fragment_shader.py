@@ -695,6 +695,8 @@ def create_shader_string(material):
         if not material.use_texture[i]: continue
         stream.write('uniform sampler2D texmap{};\n'.format(i))
 
+    stream.write('out vec4 fragment_color;\n')
+
     stream.write('\nvoid main()\n{\n')
     stream.write('float alphabump;\n')
     stream.write('vec3 indtevcrd;\n')
@@ -725,7 +727,7 @@ def create_shader_string(material):
 
     write_alpha_test(stream,material.alpha_test)
 
-    stream.write('gl_FragColor = tevprev;\n')
+    stream.write('fragment_color = tevprev;\n')
     stream.write('}\n')
 
     return stream.getvalue()
