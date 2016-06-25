@@ -53,8 +53,7 @@ class PropertyWidget:
     def setUndoStack(self,undo_stack):
         self.undo_stack = undo_stack
 
-    @QtCore.pyqtSlot(object)
-    def on_valueChanged(self,value):
+    def updatePropertyValue(self,value):
         if self.property_owner is None: return
         old_value = getattr(self.property_owner,self.property_name)
         if value == old_value: return
@@ -77,7 +76,7 @@ class PropertyLineEdit(QtWidgets.QLineEdit,PropertyWidget):
 
     @QtCore.pyqtSlot()
     def on_editingFinished(self):
-        self.on_valueChanged(self.text())
+        self.updatePropertyValue(self.text())
 
 
 class PropertyComboBox(ComboBox,PropertyWidget):
@@ -89,7 +88,7 @@ class PropertyComboBox(ComboBox,PropertyWidget):
 
     @QtCore.pyqtSlot(int)
     def on_currentIndexChanged(self,index):
-        self.on_valueChanged(self.itemData(index))
+        self.updatePropertyValue(self.itemData(index))
 
 
 class PropertySpinBox(QtWidgets.QSpinBox,PropertyWidget):
@@ -98,7 +97,7 @@ class PropertySpinBox(QtWidgets.QSpinBox,PropertyWidget):
         QtWidgets.QSpinBox.__init__(self,*args,**kwargs)
         PropertyWidget.__init__(self)
         self.setKeyboardTracking(False)
-        self.valueChanged.connect(self.on_valueChanged)
+        self.valueChanged.connect(self.updatePropertyValue)
 
 
 class PropertyDoubleSpinBox(QtWidgets.QDoubleSpinBox,PropertyWidget):
@@ -107,7 +106,7 @@ class PropertyDoubleSpinBox(QtWidgets.QDoubleSpinBox,PropertyWidget):
         QtWidgets.QSpinBox.__init__(self,*args,**kwargs)
         PropertyWidget.__init__(self)
         self.setKeyboardTracking(False)
-        self.valueChanged.connect(self.on_valueChanged)
+        self.valueChanged.connect(self.updatePropertyValue)
 
 
 class Property:

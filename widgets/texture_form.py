@@ -14,7 +14,6 @@ class TextureForm(QtWidgets.QWidget):
         self.minification_filter.setItems([gx.NEAR,gx.LINEAR,gx.NEAR_MIP_NEAR,gx.LIN_MIP_NEAR,gx.NEAR_MIP_LIN,gx.LIN_MIP_LIN])
         self.magnification_filter.setItems([gx.NEAR,gx.LINEAR])
 
-    @QtCore.pyqtSlot(object)
     def setTexture(self,texture):
         self.name.bindProperty(texture,'name',texture.name_changed)
 

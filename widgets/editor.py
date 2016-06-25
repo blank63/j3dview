@@ -271,7 +271,6 @@ class Editor(QtWidgets.QMainWindow):
     def on_undo_stack_cleanChanged(self,clean):
         self.setWindowModified(not clean)
 
-    @QtCore.pyqtSlot(object)
     def on_explorer_currentTextureChanged(self,texture):
         self.preview.setTexture(texture)
         self.texture.setTexture(texture)

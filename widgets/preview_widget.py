@@ -120,7 +120,6 @@ class PreviewWidget(QtWidgets.QOpenGLWidget):
         glViewport(0,0,width,height)
         self.update_display_rectangle()
 
-    @QtCore.pyqtSlot(object)
     def setTexture(self,texture):
         self.texture = texture
         self.update_display_rectangle()
