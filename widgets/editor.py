@@ -1,3 +1,5 @@
+import io
+import pkgutil
 import os.path
 from PyQt5 import QtCore,QtWidgets,QtGui,uic
 import qt
@@ -122,7 +124,7 @@ class Editor(QtWidgets.QMainWindow):
         self.action_undo = self.undo_stack.createUndoAction(self)
         self.action_redo = self.undo_stack.createRedoAction(self)
 
-        self.ui = uic.loadUi('widgets/Editor.ui',self)
+        self.ui = uic.loadUi(io.BytesIO(pkgutil.get_data(__package__,'Editor.ui')),self)
 
         self.menu_edit.addAction(self.action_undo)
         self.menu_edit.addAction(self.action_redo)

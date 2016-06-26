@@ -1,3 +1,5 @@
+import io
+import pkgutil
 from PyQt5 import QtCore,QtWidgets,uic
 import gx
 
@@ -7,7 +9,7 @@ class TextureForm(QtWidgets.QWidget):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
 
-        self.ui = uic.loadUi('widgets/TextureForm.ui',self)
+        self.ui = uic.loadUi(io.BytesIO(pkgutil.get_data(__package__,'TextureForm.ui')),self)
 
         self.wrap_s.setItems([gx.CLAMP,gx.REPEAT,gx.MIRROR])
         self.wrap_t.setItems([gx.CLAMP,gx.REPEAT,gx.MIRROR])

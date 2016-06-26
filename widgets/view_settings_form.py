@@ -1,3 +1,5 @@
+import io
+import pkgutil
 from PyQt5 import QtWidgets,uic
 
 
@@ -6,7 +8,7 @@ class ViewSettingsForm(QtWidgets.QWidget):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
 
-        self.ui = uic.loadUi('widgets/ViewSettingsForm.ui',self)
+        self.ui = uic.loadUi(io.BytesIO(pkgutil.get_data(__package__,'ViewSettingsForm.ui')),self)
 
     def setViewer(self,viewer):
         self.z_near.bindProperty(viewer,'z_near',viewer.z_near_changed)
