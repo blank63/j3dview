@@ -59,6 +59,11 @@ def excepthook(*exception_info):
     QtWidgets.qApp.exit()
 
 
+def delayed_execution(callable):
+    """Delay execution of callable to the start of the main event loop."""
+    QtCore.QTimer.singleShot(0, callable)
+
+
 parser = argparse.ArgumentParser(description='View Nintendo GameCube/Wii BMD/BDL files')
 parser.add_argument('file_name',nargs='?',metavar='FILE',help='file to view')
 parser.add_argument('--logfile',type=argparse.FileType('w'),metavar='LOGFILE',help='write log to %(metavar)s')
@@ -80,13 +85,15 @@ from widgets.editor import Editor
 
 application = QtWidgets.QApplication(sys.argv)
 
+# From when the excepthook has been set to the start of the main event loop, no
+# unhandled exceptions should be thrown.
 sys.excepthook = excepthook
 
 editor = Editor()
-editor.show()
+delayed_execution(editor.show)
 
 if arguments.file_name is not None:
-    editor.openFile(arguments.file_name)
+    delayed_execution(lambda: editor.openFile(arguments.file_name))
 
 application.exec_()
 
