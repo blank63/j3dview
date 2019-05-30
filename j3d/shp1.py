@@ -1,9 +1,7 @@
 import numpy
 from btypes.big_endian import *
-from btypes.utils import Haystack,OffsetPoolPacker,OffsetPoolUnpacker
-import gl
+from btypes.utils import Haystack, OffsetPoolPacker, OffsetPoolUnpacker
 import gx
-from OpenGL.GL import *
 
 import logging
 logger = logging.getLogger(__name__)
@@ -27,7 +25,7 @@ class Header(Struct):
         self.magic = b'SHP1'
 
     @classmethod
-    def unpack(cls,stream):
+    def unpack(cls, stream):
         header = super().unpack(stream)
         if header.magic != b'SHP1':
             raise FormatError('invalid magic')
@@ -38,27 +36,27 @@ class Header(Struct):
 
 class AttributeDescriptor(Struct):
     """Arguments to GXSetVtxDesc."""
-    attribute = EnumConverter(uint32,gx.Attribute)
-    input_type = EnumConverter(uint32,gx.InputType)
+    attribute = EnumConverter(uint32, gx.Attribute)
+    input_type = EnumConverter(uint32, gx.InputType)
 
-    def __init__(self,attribute,input_type):
+    def __init__(self, attribute, input_type):
         self.attribute = attribute
         self.input_type = input_type
 
     def field(self):
-        if self.attribute == gx.VA_PTNMTXIDX and self.input_type == gx.DIRECT:
-            return (gx.VA_PTNMTXIDX.name,numpy.uint8)
+        if (self.attribute == gx.VA_PTNMTXIDX or self.attribute in gx.VA_TEXMTXIDX) and self.input_type == gx.DIRECT:
+            return (self.attribute.name, numpy.uint8)
         if self.input_type == gx.INDEX8:
-            return (self.attribute.name,numpy.uint8)
+            return (self.attribute.name, numpy.uint8)
         if self.input_type == gx.INDEX16:
-            return (self.attribute.name,numpy.uint16)
+            return (self.attribute.name, numpy.uint16)
 
         raise ValueError('invalid attribute descriptor')
 
 
 class AttributeDescriptorList(TerminatedList):
     element_type = AttributeDescriptor
-    terminator_value = element_type(gx.VA_NULL,gx.NONE)
+    terminator_value = element_type(gx.VA_NULL, gx.NONE)
 
     @staticmethod
     def terminator_predicate(element):
@@ -78,77 +76,17 @@ class PacketLocation(Struct):
 
 class Primitive:
 
-    def __init__(self,primitive_type,vertices):
+    def __init__(self, primitive_type, vertices):
         self.primitive_type = primitive_type
         self.vertices = vertices
 
 
 class Batch:
 
-    def __init__(self,primitives,matrix_table,unknown0):
+    def __init__(self, primitives, matrix_table, unknown0):
         self.primitives = primitives
         self.matrix_table = matrix_table
         self.unknown0 = unknown0
-
-
-def gl_count_triangles(shape):
-    triangle_count = 0
-
-    for primitive in shape.primitives:
-        if primitive.primitive_type == gx.TRIANGLES:
-            triangle_count += len(primitive.vertices)//3
-        elif primitive.primitive_type == gx.TRIANGLESTRIP:
-            triangle_count += len(primitive.vertices) - 2
-        elif primitive.primitive_type == gx.TRIANGLEFAN:
-            triangle_count += len(primitive.vertices) - 2
-        elif primitive.primitive_type == gx.QUADS:
-            triangle_count += len(primitive.vertices)//2
-        else:
-            raise ValueError('invalid primitive type')
-            
-    return triangle_count
-
-    
-def gl_create_element_array(shape,element_map,element_count):
-    element_array = numpy.empty(element_count,numpy.uint16)
-    
-    element_index = 0
-    vertex_index = 0
-
-    for primitive in shape.primitives:
-        if primitive.primitive_type == gx.TRIANGLES:
-            for i in range(len(primitive.vertices)//3):
-                element_array[element_index + 0] = element_map[vertex_index + 3*i + 0]
-                element_array[element_index + 1] = element_map[vertex_index + 3*i + 2]
-                element_array[element_index + 2] = element_map[vertex_index + 3*i + 1]
-                element_index += 3
-        elif primitive.primitive_type == gx.TRIANGLESTRIP:
-            for i in range(len(primitive.vertices) - 2):
-                element_array[element_index + 0] = element_map[vertex_index + i + 1 - (i % 2)]
-                element_array[element_index + 1] = element_map[vertex_index + i + (i % 2)]
-                element_array[element_index + 2] = element_map[vertex_index + i + 2]
-                element_index += 3
-        elif primitive.primitive_type == gx.TRIANGLEFAN:
-            for i in range(len(primitive.vertices) - 2):
-                element_array[element_index + 0] = element_map[vertex_index]
-                element_array[element_index + 1] = element_map[vertex_index + i + 2]
-                element_array[element_index + 2] = element_map[vertex_index + i + 1]
-                element_index += 3
-        elif primitive.primitive_type == gx.QUADS:
-            for i in range(0,len(primitive.vertices)//4,4):
-                element_array[element_index + 0] = element_map[vertex_index + i]
-                element_array[element_index + 1] = element_map[vertex_index + i + 1]
-                element_array[element_index + 2] = element_map[vertex_index + i + 2]
-                element_array[element_index + 3] = element_map[vertex_index + i + 1]
-                element_array[element_index + 4] = element_map[vertex_index + i + 3]
-                element_array[element_index + 5] = element_map[vertex_index + i + 2]
-                element_index += 6
-        else:
-            raise ValueError('invalid primitive type')
-
-        vertex_index += len(primitive.vertices)
-
-    return element_array
 
     
 class Shape(Struct):
@@ -170,68 +108,26 @@ class Shape(Struct):
     def __init__(self):
         self.transformation_type = 0
 
-    @property
-    def attributes(self):
-        for descriptor in self.attribute_descriptors:
-            yield descriptor.attribute
-
-    @property
-    def primitives(self):
-        for batch in self.batches:
-            yield from batch.primitives
-
     @classmethod
-    def pack(cls,stream,shape):
+    def pack(cls, stream, shape):
         shape.batch_count = len(shape.batches)
-        super().pack(stream,shape)
+        super().pack(stream, shape)
 
     def create_vertex_type(self):
         return numpy.dtype([descriptor.field() for descriptor in self.attribute_descriptors]).newbyteorder('>')
 
-    def gl_init(self,array_table):
-        self.gl_hide = False
 
-        self.gl_vertex_array = gl.VertexArray()
-        glBindVertexArray(self.gl_vertex_array)
-
-        self.gl_vertex_buffer = gl.Buffer()
-        glBindBuffer(GL_ARRAY_BUFFER,self.gl_vertex_buffer)
-
-        self.gl_element_count = 3*gl_count_triangles(self)
-        self.gl_element_buffer = gl.Buffer()
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,self.gl_element_buffer)
-
-        vertex_type =  numpy.dtype([array_table[attribute].field() for attribute in self.attributes])
-        vertex_count = sum(len(primitive.vertices) for primitive in self.primitives)
-        vertex_array = numpy.empty(vertex_count,vertex_type)
-
-        for attribute in self.attributes:
-            array_table[attribute].load(self,vertex_array)
-
-        vertex_array,element_map = numpy.unique(vertex_array,return_inverse=True)
-        element_array = gl_create_element_array(self,element_map,self.gl_element_count)
-
-        glBufferData(GL_ARRAY_BUFFER,vertex_array.nbytes,vertex_array,GL_STATIC_DRAW)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER,element_array.nbytes,element_array,GL_STATIC_DRAW)
-
-    def gl_bind(self):
-        glBindVertexArray(self.gl_vertex_array)
-
-    def gl_draw(self):
-        glDrawElements(GL_TRIANGLES,self.gl_element_count,GL_UNSIGNED_SHORT,None)
-
-
-def pack_packet(stream,primitives):
+def pack_packet(stream, primitives):
     for primitive in primitives:
-        uint8.pack(stream,primitive.primitive_type)
-        uint16.pack(stream,len(primitive.vertices))
+        uint8.pack(stream, primitive.primitive_type)
+        uint16.pack(stream, len(primitive.vertices))
         primitive.vertices.tofile(stream)
 
-    align(stream,0x20,b'\x00')
+    align(stream, 0x20, b'\x00')
 
 
-def unpack_packet(stream,vertex_type,size):
-    # The entire packet is read into memory at once for speed
+def unpack_packet(stream, vertex_type, size):
+    # The entire packet is read into memory at once to improve performance
     packet = stream.read(size)
     primitives = []
     i = 0
@@ -242,15 +138,15 @@ def unpack_packet(stream,vertex_type,size):
             i += 1
             continue
         primitive_type = gx.PrimitiveType(opcode)
-        vertex_count = uint16.unpack_from(packet,i + 1)
-        vertices = numpy.frombuffer(packet,vertex_type,vertex_count,i + 3)
-        primitives.append(Primitive(primitive_type,vertices))
+        vertex_count = uint16.unpack_from(packet, i + 1)
+        vertices = numpy.frombuffer(packet, vertex_type, vertex_count, i + 3)
+        primitives.append(Primitive(primitive_type, vertices))
         i += 3 + vertex_count*vertex_type.itemsize
 
     return primitives
 
 
-def pack(stream,shapes):
+def pack(stream, shapes):
     base = stream.tell()
     header = Header()
     header.shape_count = len(shapes)
@@ -261,14 +157,14 @@ def pack(stream,shapes):
 
     header.index_offset = stream.tell() - base
     for index in range(len(shapes)):
-        uint16.pack(stream,index)
+        uint16.pack(stream, index)
 
-    align(stream,4)
+    align(stream, 4)
     header.unknown0_offset = 0
 
-    align(stream,0x20)
+    align(stream, 0x20)
     header.attribute_descriptor_offset = stream.tell() - base
-    pack_attribute_descriptors = OffsetPoolPacker(stream,AttributeDescriptorList.pack,stream.tell(),Haystack())
+    pack_attribute_descriptors = OffsetPoolPacker(stream, AttributeDescriptorList.pack, stream.tell(), Haystack())
     for shape in shapes:
         shape.attribute_descriptor_offset = pack_attribute_descriptors(shape.attribute_descriptors)
 
@@ -288,36 +184,36 @@ def pack(stream,shapes):
 
     header.matrix_index_offset = stream.tell() - base
     for matrix_index in matrix_indices:
-        uint16.pack(stream,matrix_index)
+        uint16.pack(stream, matrix_index)
 
-    align(stream,0x20)
+    align(stream, 0x20)
     header.packet_offset = stream.tell() - base
     for shape in shapes:
         shape.first_packet_location = len(packet_locations)
         for batch in shape.batches:
             packet_location = PacketLocation()
             packet_location.offset = stream.tell() - header.packet_offset - base
-            pack_packet(stream,batch.primitives)
+            pack_packet(stream, batch.primitives)
             packet_location.size = stream.tell() - packet_location.offset - header.packet_offset - base
             packet_locations.append(packet_location)
 
     header.matrix_selection_offset = stream.tell() - base
     for matrix_selection in matrix_selections:
-        MatrixSelection.pack(stream,matrix_selection)
+        MatrixSelection.pack(stream, matrix_selection)
 
     header.packet_location_offset = stream.tell() - base
     for packet_location in packet_locations:
-        PacketLocation.pack(stream,packet_location)
+        PacketLocation.pack(stream, packet_location)
 
-    align(stream,0x20)
+    align(stream, 0x20)
     header.section_size = stream.tell() - base
 
     stream.seek(base)
-    Header.pack(stream,header)
+    Header.pack(stream, header)
 
     stream.seek(base + header.shape_offset)
     for shape in shapes:
-        Shape.pack(stream,shape)
+        Shape.pack(stream, shape)
 
     stream.seek(base + header.section_size)
 
@@ -334,7 +230,7 @@ def unpack(stream):
         if index != uint16.unpack(stream):
             raise FormatError('invalid index')
 
-    unpack_attribute_descriptors = OffsetPoolUnpacker(stream,AttributeDescriptorList.unpack,base + header.attribute_descriptor_offset)
+    unpack_attribute_descriptors = OffsetPoolUnpacker(stream, AttributeDescriptorList.unpack, base + header.attribute_descriptor_offset)
 
     for shape in shapes:
         shape.attribute_descriptors = unpack_attribute_descriptors(shape.attribute_descriptor_offset)
@@ -356,11 +252,11 @@ def unpack(stream):
         shape.batches = [None]*shape.batch_count
         for i in range(shape.batch_count):
             matrix_selection = matrix_selections[shape.first_matrix_selection + i]
-            matrix_table = matrix_indices[matrix_selection.first:matrix_selection.first + matrix_selection.count]
+            matrix_table = matrix_indices[matrix_selection.first : matrix_selection.first + matrix_selection.count]
             packet_location = packet_locations[shape.first_packet + i]
             stream.seek(base + header.packet_offset + packet_location.offset)
-            primitives = unpack_packet(stream,vertex_type,packet_location.size)
-            shape.batches[i] = Batch(primitives,matrix_table,matrix_selection.unknown0)
+            primitives = unpack_packet(stream, vertex_type, packet_location.size)
+            shape.batches[i] = Batch(primitives, matrix_table, matrix_selection.unknown0)
 
     stream.seek(base + header.section_size)
     return shapes

@@ -1,14 +1,22 @@
 from math import cos,sin,radians
-import copy
 import numpy
 from OpenGL.GL import *
-from btypes.big_endian import *
 import gl
 import gx
-from j3d.opengl import *
+import views.vertex_shader
+import views.fragment_shader
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+from btypes.big_endian import *
+
+
+MATRIX_BLOCK_BINDING_POINT = 0
+MATERIAL_BLOCK_BINDING_POINT = 1
+MATRIX_TABLE_TEXTURE_UNIT = 0
+TEXTURE_UNITS = [1,2,3,4,5,6,7,8]
 
 
 class Vector(Struct):
@@ -22,17 +30,7 @@ class Vector(Struct):
         self.z = z
 
 
-class Color(Struct):
-    r = uint8
-    g = uint8
-    b = uint8
-    a = uint8
-
-    def __init__(self,r=0x00,g=0x00,b=0x00,a=0xFF):
-        self.r = r
-        self.g = g
-        self.b = b
-        self.a = a
+class Color:
 
     @staticmethod
     def gl_type():
@@ -62,15 +60,10 @@ class LightingMode(Struct):
 
 
 class Channel:
-
-    def __init__(self):
-        self.color_mode = LightingMode()
-        self.alpha_mode = LightingMode()
-        self.material_color = Color(0xFF,0xFF,0xFF)
-        self.ambient_color = Color(0xFF,0xFF,0xFF)
+    pass
 
 
-class Light(Struct):
+class Light:
     position = Vector
     direction = Vector
     color = Color
@@ -106,33 +99,7 @@ class TexCoordGenerator(Struct):
         self.matrix = gx.IDENTITY
 
 
-class TextureMatrix(Struct):
-    shape = EnumConverter(uint8,gx.TexCoordFunction)
-    matrix_type = uint8
-    __padding__ = Padding(2)
-    center_s = float32
-    center_t = float32
-    unknown0 = float32
-    scale_s = float32
-    scale_t = float32
-    rotation = FixedPointConverter(sint16,180/32768)
-    __padding__ = Padding(2)
-    translation_s = float32
-    translation_t = float32
-    projection_matrix = Array(Array(float32,4),4)
-
-    def __init__(self):
-        self.matrix_type = 0
-        self.shape = gx.TG_MTX2x4
-        self.center_s = 0.5
-        self.center_t = 0.5
-        self.unknown0 = 0.5
-        self.rotation = 0
-        self.scale_s = 1
-        self.scale_t = 1
-        self.translation_s = 0
-        self.translation_t = 0
-        self.projection_matrix = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
+class TextureMatrix:
 
     def create_matrix(self):
         c = cos(radians(self.rotation))
@@ -276,15 +243,7 @@ class IndirectStage:
         self.scale_t = gx.ITS_1
 
 
-class IndirectMatrix(Struct):
-    """Arguments to GXSetIndTexMatrix."""
-    significand_matrix = Array(Array(float32,3),2)
-    scale_exponent = sint8
-    __padding__ = Padding(3)
-
-    def __init__(self):
-        self.significand_matrix = [[0.5,0,0],[0,0.5,0]]
-        self.scale_exponent = 1
+class IndirectMatrix:
 
     @staticmethod
     def gl_type():
@@ -313,7 +272,7 @@ class AlphaTest(Struct):
         self.operation = gx.AOP_AND
 
 
-class Fog(Struct):
+class Fog:
     """Arguments to GXSetFog and GXSetFogRangeAdj."""
     function = EnumConverter(uint8,gx.FogFunction)
     range_adjustment_enable = bool8
@@ -388,46 +347,61 @@ class UnknownStruct5(Struct):
 
 class Material:
 
-    def __init__(self):
-        self.name = None
-        self.unknown0 = 1 # related to transparency sorting
-        self.cull_mode = gx.CULL_BACK
+    def __init__(self, base):
+        self.base = base
 
-        self.channel_count = 0
-        self.channels = [Channel() for _ in range(2)]
-        self.lights = [None]*8
+        self.update_use_variables()
 
-        self.texcoord_generator_count = 0
-        self.texcoord_generators = [TexCoordGenerator() for _ in range(8)]
-        self.texture_matrices = [None]*10
-        self.texture_indices = [None]*8
+        fields = []
 
-        self.tev_stage_count = 0
-        self.tev_stages = [TevStage() for _ in range(16)]
-        self.tev_colors = [Color(0xFF,0xFF,0xFF) for _ in range(3)]
-        self.tev_color_previous = Color(0xFF,0xFF,0xFF)
-        self.kcolors = [Color(0xFF,0xFF,0xFF) for _ in range(4)]
-        self.swap_tables = [SwapTable() for _ in range(4)]
+        def convert_color(c):
+            return numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
 
-        self.indirect_stage_count = 0
-        self.indirect_stages = [IndirectStage() for _ in range(4)]
-        self.indirect_matrices = [IndirectMatrix() for _ in range(3)]
+        fields.append(('tev_color0',gl.vec4,convert_color(self.tev_colors[0])))
+        fields.append(('tev_color1',gl.vec4,convert_color(self.tev_colors[1])))
+        fields.append(('tev_color2',gl.vec4,convert_color(self.tev_colors[2])))
+        fields.append(('tev_color_previous',gl.vec4,convert_color(self.tev_color_previous)))
+        fields.append(('kcolor0',gl.vec4,convert_color(self.kcolors[0])))
+        fields.append(('kcolor1',gl.vec4,convert_color(self.kcolors[1])))
+        fields.append(('kcolor2',gl.vec4,convert_color(self.kcolors[2])))
+        fields.append(('kcolor3',gl.vec4,convert_color(self.kcolors[3])))
 
-        self.alpha_test = AlphaTest()
-        self.fog = Fog()
-        self.depth_test_early = True
-        self.depth_mode = DepthMode()
-        self.blend_mode = BlendMode()
-        self.dither = True
-        self.unknown5 = UnknownStruct5()
+        for i,channel in enumerate(self.enabled_channels):
+            if self.use_material_color[i]:
+                fields.append(('material_color{}'.format(i),gl.vec4,convert_color(channel.material_color)))
+            if self.use_ambient_color[i]:
+                fields.append(('ambient_color{}'.format(i),gl.vec4,convert_color(channel.ambient_color)))
 
-        self.unknown2 = [0xFFFF]*8
-        self.unknown3 = [0xFFFF]*20
-        self.unknown4 = [0xFFFF]*12
+        for i,matrix in enumerate(self.texture_matrices):
+            if not self.use_texture_matrix[i]: continue
+            if matrix.shape == gx.TG_MTX2x4:
+                gl_type = gl.mat4x2
+            elif matrix.shape == gx.TG_MTX3x4:
+                gl_type = gl.mat4x3
+            fields.append(('texture_matrix{}'.format(i),gl_type,matrix.create_matrix()))
+
+        for i,matrix in enumerate(self.indirect_matrices):
+            if not self.use_indirect_matrix[i]: continue
+            gl_value = numpy.zeros((2,4),numpy.float32) #FIXME
+            gl_value[:,0:3] = numpy.array(matrix.significand_matrix,numpy.float32)*2**matrix.scale_exponent
+            fields.append(('indmatrix{}'.format(i),gl.mat3x2,gl_value))
+
+        block_type = gl.uniform_block('MaterialBlock',((name,gl_type) for name,gl_type,_ in fields))
+        block = block_type(GL_DYNAMIC_DRAW)
+
+        for name,_,value in fields:
+            block[name] = value
+
+        self.gl_block = block
+
+        self.gl_program_table = {}
+
+    def __getattr__(self, name):
+        return getattr(self.base, name)
 
     @property
     def enabled_channels(self):
-        for i in range(self.channel_count):
+        for i in range(min(self.channel_count, 2)):
             yield self.channels[i]
 
     @property
@@ -511,46 +485,41 @@ class Material:
         for stage in self.enabled_indirect_stages:
             self.use_texture[stage.texture.index] = True
 
-    def gl_init(self):
-        self.update_use_variables()
+    def gl_program(self, transformation_type):
+        if transformation_type in self.gl_program_table:
+            return self.gl_program_table[transformation_type]
 
-        fields = []
+        vertex_shader = gl.Shader(GL_VERTEX_SHADER, views.vertex_shader.create_shader_string(self, transformation_type))
+        fragment_shader = gl.Shader(GL_FRAGMENT_SHADER, views.fragment_shader.create_shader_string(self))
+        program = gl.Program(vertex_shader, fragment_shader)
 
-        fields.append(('tev_color0',self.tev_colors[0]))
-        fields.append(('tev_color1',self.tev_colors[1]))
-        fields.append(('tev_color2',self.tev_colors[2]))
-        fields.append(('tev_color_previous',self.tev_color_previous))
-        fields.append(('kcolor0',self.kcolors[0]))
-        fields.append(('kcolor1',self.kcolors[1]))
-        fields.append(('kcolor2',self.kcolors[2]))
-        fields.append(('kcolor3',self.kcolors[3]))
+        glUseProgram(program)
 
-        for i,channel in enumerate(self.enabled_channels):
-            if self.use_material_color[i]:
-                fields.append(('material_color{}'.format(i),channel.material_color))
-            if self.use_ambient_color[i]:
-                fields.append(('ambient_color{}'.format(i),channel.ambient_color))
+        matrix_block_index = glGetUniformBlockIndex(program, b'MatrixBlock')
+        glUniformBlockBinding(program, matrix_block_index, MATRIX_BLOCK_BINDING_POINT)
 
-        for i,matrix in enumerate(self.texture_matrices):
-            if not self.use_texture_matrix[i]: continue
-            fields.append(('texture_matrix{}'.format(i),matrix))
+        material_block_index = glGetUniformBlockIndex(program, b'MaterialBlock')
+        if material_block_index != GL_INVALID_INDEX:
+            glUniformBlockBinding(program, material_block_index, MATERIAL_BLOCK_BINDING_POINT)
 
-        for i,matrix in enumerate(self.indirect_matrices):
-            if not self.use_indirect_matrix[i]: continue
-            fields.append(('indmatrix{}'.format(i),matrix))
+        program.matrix_index_location = glGetUniformLocation(program, 'matrix_index') #<-?
 
-        block_type = gl.uniform_block('MaterialBlock',((name,value.gl_type()) for name,value in fields))
-        self.gl_block = block_type(GL_DYNAMIC_DRAW)
+        matrix_table_location = glGetUniformLocation(program, 'matrix_table')
+        if matrix_table_location != -1:
+            glUniform1i(matrix_table_location, MATRIX_TABLE_TEXTURE_UNIT)
 
-        for name,value in fields:
-            self.gl_block[name] = value.gl_convert()
+        for i in range(8):
+            location = glGetUniformLocation(program, 'texmap{}'.format(i))
+            if location == -1: continue
+            glUniform1i(location, TEXTURE_UNITS[i])
 
-        self.gl_texture_indices = copy.copy(self.texture_indices)
+        self.gl_program_table[transformation_type] = program
+        return program
 
-    def gl_bind(self,textures):
+    def gl_bind(self, shape, textures):
         self.gl_block.bind(MATERIAL_BLOCK_BINDING_POINT)
 
-        for i,texture_index in enumerate(self.gl_texture_indices):
+        for i, texture_index in enumerate(self.texture_indices):
             if texture_index is None: continue
             textures[texture_index].gl_bind(TEXTURE_UNITS[i])
 
@@ -570,11 +539,11 @@ class Material:
         if self.blend_mode.function == gx.BM_BLEND:
             glEnable(GL_BLEND)
             glBlendEquation(GL_FUNC_ADD)
-            glBlendFunc(self.blend_mode.source_factor.gl_value,self.blend_mode.destination_factor.gl_value)
+            glBlendFunc(self.blend_mode.source_factor.gl_value, self.blend_mode.destination_factor.gl_value)
         elif self.blend_mode.function == gx.BM_SUBTRACT:
             glEnable(GL_BLEND)
             glBlendEquation(GL_FUNC_REVERSE_SUBTRACT)
-            glBlendFunc(GL_ONE,GL_ONE)
+            glBlendFunc(GL_ONE, GL_ONE)
         else:
             glDisable(GL_BLEND)
 
@@ -588,4 +557,11 @@ class Material:
             glEnable(GL_DITHER)
         else:
             glDisable(GL_DITHER)
+
+        program = self.gl_program(shape.transformation_type)
+
+        glUseProgram(program)
+
+        if shape.transformation_type == 0:
+            glUniform1i(program.matrix_index_location, shape.batches[0].matrix_table[0])
 

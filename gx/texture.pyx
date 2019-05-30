@@ -1,54 +1,110 @@
-#cython: boundscheck=False, wraparound=False, cdivision=True
+#cython: language_level=3, boundscheck=False, wraparound=False, cdivision=True, initializedcheck=False
+
+"""Module for managing GameCube/Wii textures."""
 
 import numpy
 cimport numpy
-from OpenGL.GL import *
-import gl
 import gx
 
-import logging
-logger = logging.getLogger(__name__)
+
+# Conversion table: 3 bit to 8 bit
+cdef numpy.uint8_t* cc38 = [
+        0x00,0x24,0x49,0x6D, 0x92,0xB6,0xDB,0xFF]
+
+# Conversion table: 4 bit to 8 bit
+cdef numpy.uint8_t* cc48 = [
+        0x00,0x11,0x22,0x33, 0x44,0x55,0x66,0x77, 0x88,0x99,0xAA,0xBB, 0xCC,0xDD,0xEE,0xFF]
+
+# Conversion table: 5 bit to 8 bit
+cdef numpy.uint8_t* cc58 = [
+        0x00,0x08,0x10,0x18, 0x21,0x29,0x31,0x39, 0x42,0x4A,0x52,0x5A, 0x63,0x6B,0x73,0x7B,
+        0x84,0x8C,0x94,0x9C, 0xA5,0xAD,0xB5,0xBD, 0xC6,0xCE,0xD6,0xDE, 0xE7,0xEF,0xF7,0xFF]
+
+# Conversion table: 6 bit to 8 bit
+cdef numpy.uint8_t* cc68 = [
+        0x00,0x04,0x08,0x0C, 0x10,0x14,0x18,0x1C, 0x20,0x24,0x28,0x2C, 0x30,0x34,0x38,0x3C,
+        0x41,0x45,0x49,0x4D, 0x51,0x55,0x59,0x5D, 0x61,0x65,0x69,0x6D, 0x71,0x75,0x79,0x7D,
+        0x82,0x86,0x8A,0x8E, 0x92,0x96,0x9A,0x9E, 0xA2,0xA6,0xAA,0xAE, 0xB2,0xB6,0xBA,0xBE,
+        0xC3,0xC7,0xCB,0xCF, 0xD3,0xD7,0xDB,0xDF, 0xE3,0xE7,0xEB,0xEF, 0xF3,0xF7,0xFB,0xFF]
+
+# Conversion table: 8 bit to 3 bit
+cdef numpy.uint8_t* cc83 = [
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x01, 0x01,0x01,0x01,0x01, 0x01,0x01,0x01,0x01, 0x01,0x01,0x01,0x01,
+        0x01,0x01,0x01,0x01, 0x01,0x01,0x01,0x01, 0x01,0x01,0x01,0x01, 0x01,0x01,0x01,0x01,
+        0x01,0x01,0x01,0x01, 0x01,0x01,0x01,0x02, 0x02,0x02,0x02,0x02, 0x02,0x02,0x02,0x02,
+        0x02,0x02,0x02,0x02, 0x02,0x02,0x02,0x02, 0x02,0x02,0x02,0x02, 0x02,0x02,0x02,0x02,
+        0x02,0x02,0x02,0x02, 0x02,0x02,0x02,0x02, 0x02,0x02,0x02,0x02, 0x03,0x03,0x03,0x03,
+        0x03,0x03,0x03,0x03, 0x03,0x03,0x03,0x03, 0x03,0x03,0x03,0x03, 0x03,0x03,0x03,0x03,
+        0x03,0x03,0x03,0x03, 0x03,0x03,0x03,0x03, 0x03,0x03,0x03,0x03, 0x03,0x03,0x03,0x03,
+        0x04,0x04,0x04,0x04, 0x04,0x04,0x04,0x04, 0x04,0x04,0x04,0x04, 0x04,0x04,0x04,0x04,
+        0x04,0x04,0x04,0x04, 0x04,0x04,0x04,0x04, 0x04,0x04,0x04,0x04, 0x04,0x04,0x04,0x04,
+        0x04,0x04,0x04,0x04, 0x05,0x05,0x05,0x05, 0x05,0x05,0x05,0x05, 0x05,0x05,0x05,0x05,
+        0x05,0x05,0x05,0x05, 0x05,0x05,0x05,0x05, 0x05,0x05,0x05,0x05, 0x05,0x05,0x05,0x05,
+        0x05,0x05,0x05,0x05, 0x05,0x05,0x05,0x05, 0x05,0x06,0x06,0x06, 0x06,0x06,0x06,0x06,
+        0x06,0x06,0x06,0x06, 0x06,0x06,0x06,0x06, 0x06,0x06,0x06,0x06, 0x06,0x06,0x06,0x06,
+        0x06,0x06,0x06,0x06, 0x06,0x06,0x06,0x06, 0x06,0x06,0x06,0x06, 0x06,0x07,0x07,0x07,
+        0x07,0x07,0x07,0x07, 0x07,0x07,0x07,0x07, 0x07,0x07,0x07,0x07, 0x07,0x07,0x07,0x07]
+
+# Conversion table: 8 bit to 4 bit
+cdef numpy.uint8_t* cc84 = [
+        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x01,0x01,0x01, 0x01,0x01,0x01,0x01,
+        0x01,0x01,0x01,0x01, 0x01,0x01,0x01,0x01, 0x01,0x01,0x02,0x02, 0x02,0x02,0x02,0x02,
+        0x02,0x02,0x02,0x02, 0x02,0x02,0x02,0x02, 0x02,0x02,0x02,0x03, 0x03,0x03,0x03,0x03,
+        0x03,0x03,0x03,0x03, 0x03,0x03,0x03,0x03, 0x03,0x03,0x03,0x03, 0x04,0x04,0x04,0x04,
+        0x04,0x04,0x04,0x04, 0x04,0x04,0x04,0x04, 0x04,0x04,0x04,0x04, 0x04,0x05,0x05,0x05,
+        0x05,0x05,0x05,0x05, 0x05,0x05,0x05,0x05, 0x05,0x05,0x05,0x05, 0x05,0x05,0x06,0x06,
+        0x06,0x06,0x06,0x06, 0x06,0x06,0x06,0x06, 0x06,0x06,0x06,0x06, 0x06,0x06,0x06,0x07,
+        0x07,0x07,0x07,0x07, 0x07,0x07,0x07,0x07, 0x07,0x07,0x07,0x07, 0x07,0x07,0x07,0x07,
+        0x08,0x08,0x08,0x08, 0x08,0x08,0x08,0x08, 0x08,0x08,0x08,0x08, 0x08,0x08,0x08,0x08,
+        0x08,0x09,0x09,0x09, 0x09,0x09,0x09,0x09, 0x09,0x09,0x09,0x09, 0x09,0x09,0x09,0x09,
+        0x09,0x09,0x0A,0x0A, 0x0A,0x0A,0x0A,0x0A, 0x0A,0x0A,0x0A,0x0A, 0x0A,0x0A,0x0A,0x0A,
+        0x0A,0x0A,0x0A,0x0B, 0x0B,0x0B,0x0B,0x0B, 0x0B,0x0B,0x0B,0x0B, 0x0B,0x0B,0x0B,0x0B,
+        0x0B,0x0B,0x0B,0x0B, 0x0C,0x0C,0x0C,0x0C, 0x0C,0x0C,0x0C,0x0C, 0x0C,0x0C,0x0C,0x0C,
+        0x0C,0x0C,0x0C,0x0C, 0x0C,0x0D,0x0D,0x0D, 0x0D,0x0D,0x0D,0x0D, 0x0D,0x0D,0x0D,0x0D,
+        0x0D,0x0D,0x0D,0x0D, 0x0D,0x0D,0x0E,0x0E, 0x0E,0x0E,0x0E,0x0E, 0x0E,0x0E,0x0E,0x0E,
+        0x0E,0x0E,0x0E,0x0E, 0x0E,0x0E,0x0E,0x0F, 0x0F,0x0F,0x0F,0x0F, 0x0F,0x0F,0x0F,0x0F]
+
+# Conversion table: 8 bit to 5 bit
+cdef numpy.uint8_t* cc85 = [
+        0x00,0x00,0x00,0x00, 0x00,0x01,0x01,0x01, 0x01,0x01,0x01,0x01, 0x01,0x02,0x02,0x02,
+        0x02,0x02,0x02,0x02, 0x02,0x03,0x03,0x03, 0x03,0x03,0x03,0x03, 0x03,0x04,0x04,0x04,
+        0x04,0x04,0x04,0x04, 0x04,0x04,0x05,0x05, 0x05,0x05,0x05,0x05, 0x05,0x05,0x06,0x06,
+        0x06,0x06,0x06,0x06, 0x06,0x06,0x07,0x07, 0x07,0x07,0x07,0x07, 0x07,0x07,0x08,0x08,
+        0x08,0x08,0x08,0x08, 0x08,0x08,0x08,0x09, 0x09,0x09,0x09,0x09, 0x09,0x09,0x09,0x0A,
+        0x0A,0x0A,0x0A,0x0A, 0x0A,0x0A,0x0A,0x0B, 0x0B,0x0B,0x0B,0x0B, 0x0B,0x0B,0x0B,0x0C,
+        0x0C,0x0C,0x0C,0x0C, 0x0C,0x0C,0x0C,0x0C, 0x0D,0x0D,0x0D,0x0D, 0x0D,0x0D,0x0D,0x0D,
+        0x0E,0x0E,0x0E,0x0E, 0x0E,0x0E,0x0E,0x0E, 0x0F,0x0F,0x0F,0x0F, 0x0F,0x0F,0x0F,0x0F,
+        0x10,0x10,0x10,0x10, 0x10,0x10,0x10,0x10, 0x11,0x11,0x11,0x11, 0x11,0x11,0x11,0x11,
+        0x12,0x12,0x12,0x12, 0x12,0x12,0x12,0x12, 0x13,0x13,0x13,0x13, 0x13,0x13,0x13,0x13,
+        0x13,0x14,0x14,0x14, 0x14,0x14,0x14,0x14, 0x14,0x15,0x15,0x15, 0x15,0x15,0x15,0x15,
+        0x15,0x16,0x16,0x16, 0x16,0x16,0x16,0x16, 0x16,0x17,0x17,0x17, 0x17,0x17,0x17,0x17,
+        0x17,0x17,0x18,0x18, 0x18,0x18,0x18,0x18, 0x18,0x18,0x19,0x19, 0x19,0x19,0x19,0x19,
+        0x19,0x19,0x1A,0x1A, 0x1A,0x1A,0x1A,0x1A, 0x1A,0x1A,0x1B,0x1B, 0x1B,0x1B,0x1B,0x1B,
+        0x1B,0x1B,0x1B,0x1C, 0x1C,0x1C,0x1C,0x1C, 0x1C,0x1C,0x1C,0x1D, 0x1D,0x1D,0x1D,0x1D,
+        0x1D,0x1D,0x1D,0x1E, 0x1E,0x1E,0x1E,0x1E, 0x1E,0x1E,0x1E,0x1F, 0x1F,0x1F,0x1F,0x1F]
+
+# Conversion table: 8 bit to 6 bit
+cdef numpy.uint8_t* cc86 = [
+        0x00,0x00,0x00,0x01, 0x01,0x01,0x01,0x02, 0x02,0x02,0x02,0x03, 0x03,0x03,0x03,0x04,
+        0x04,0x04,0x04,0x05, 0x05,0x05,0x05,0x06, 0x06,0x06,0x06,0x07, 0x07,0x07,0x07,0x08,
+        0x08,0x08,0x08,0x09, 0x09,0x09,0x09,0x0A, 0x0A,0x0A,0x0A,0x0B, 0x0B,0x0B,0x0B,0x0C,
+        0x0C,0x0C,0x0C,0x0D, 0x0D,0x0D,0x0D,0x0E, 0x0E,0x0E,0x0E,0x0F, 0x0F,0x0F,0x0F,0x10,
+        0x10,0x10,0x10,0x10, 0x11,0x11,0x11,0x11, 0x12,0x12,0x12,0x12, 0x13,0x13,0x13,0x13,
+        0x14,0x14,0x14,0x14, 0x15,0x15,0x15,0x15, 0x16,0x16,0x16,0x16, 0x17,0x17,0x17,0x17,
+        0x18,0x18,0x18,0x18, 0x19,0x19,0x19,0x19, 0x1A,0x1A,0x1A,0x1A, 0x1B,0x1B,0x1B,0x1B,
+        0x1C,0x1C,0x1C,0x1C, 0x1D,0x1D,0x1D,0x1D, 0x1E,0x1E,0x1E,0x1E, 0x1F,0x1F,0x1F,0x1F,
+        0x20,0x20,0x20,0x20, 0x21,0x21,0x21,0x21, 0x22,0x22,0x22,0x22, 0x23,0x23,0x23,0x23,
+        0x24,0x24,0x24,0x24, 0x25,0x25,0x25,0x25, 0x26,0x26,0x26,0x26, 0x27,0x27,0x27,0x27,
+        0x28,0x28,0x28,0x28, 0x29,0x29,0x29,0x29, 0x2A,0x2A,0x2A,0x2A, 0x2B,0x2B,0x2B,0x2B,
+        0x2C,0x2C,0x2C,0x2C, 0x2D,0x2D,0x2D,0x2D, 0x2E,0x2E,0x2E,0x2E, 0x2F,0x2F,0x2F,0x2F,
+        0x2F,0x30,0x30,0x30, 0x30,0x31,0x31,0x31, 0x31,0x32,0x32,0x32, 0x32,0x33,0x33,0x33,
+        0x33,0x34,0x34,0x34, 0x34,0x35,0x35,0x35, 0x35,0x36,0x36,0x36, 0x36,0x37,0x37,0x37,
+        0x37,0x38,0x38,0x38, 0x38,0x39,0x39,0x39, 0x39,0x3A,0x3A,0x3A, 0x3A,0x3B,0x3B,0x3B,
+        0x3B,0x3C,0x3C,0x3C, 0x3C,0x3D,0x3D,0x3D, 0x3D,0x3E,0x3E,0x3E, 0x3E,0x3F,0x3F,0x3F]
 
 
-cdef numpy.uint16_t swap_bytes_uint16(numpy.uint16_t i):
-    return (i << 8) | (i >> 8)
-
-
-cdef numpy.uint32_t swap_bytes_uint32(numpy.uint32_t i):
-    return (i << 24) | ((i << 8) & 0xFF0000) | ((i >> 8) & 0xFF00) | (i >> 24)
-
-
-def native_byteorder(array):
-    return array.view(array.dtype.newbyteorder('<'))
-
-
-cdef void rgb5a3_to_rgba8(numpy.uint16_t source,numpy.uint8_t[:] destination):
-    source = swap_bytes_uint16(source)
-    if source & 0x8000:
-        destination[0] = ((source >> 7) & 0xF8) | ((source >> 12) & 0x7)
-        destination[1] = ((source >> 2) & 0xF8) | ((source >> 7) & 0x7)
-        destination[2] = ((source << 3) & 0xF8) | ((source >> 2) & 0x7)
-        destination[3] = 0xFF
-    else:
-        destination[0] = ((source >> 4) & 0xF0) | ((source >> 8) & 0xF)
-        destination[1] = (source & 0xF0) | ((source >> 4) & 0xF)
-        destination[2] = ((source << 4) & 0xF0) | (source & 0xF)
-        destination[3] = ((source >> 7) & 0xE0) | ((source >> 10) & 0x1C) | ((source >> 13) & 0x3)
-
-
-def untile(source,destination):
-    height = destination.shape[0]
-    width = destination.shape[1]
-    tile_height = source.shape[2]
-    tile_width = source.shape[3]
-
-    for i in range(min(tile_height,height)):
-        for j in range(min(tile_width,width)):
-            d = destination[i::tile_height,j::tile_width]
-            d[:] = source[:d.shape[0],:d.shape[1],i,j]
-
-
-dxt1_block = numpy.dtype([('color0',numpy.uint16),('color1',numpy.uint16),('indices',numpy.uint32)])
+dxt1_block = numpy.dtype([('color0', numpy.uint16), ('color1', numpy.uint16), ('indices', numpy.uint32)])
 
 
 cdef packed struct dxt1_block_t:
@@ -57,23 +113,76 @@ cdef packed struct dxt1_block_t:
     numpy.uint32_t indices
 
 
-cdef void dxt1_decompress_block(dxt1_block_t block,numpy.uint8_t[:,:,:] destination):
-    cdef numpy.uint16_t color0 = swap_bytes_uint16(block.color0)
-    cdef numpy.uint16_t color1 = swap_bytes_uint16(block.color1)
-    cdef numpy.uint32_t indices = swap_bytes_uint32(block.indices)
+def reinterpret_native_endian(array):
+    return array.newbyteorder('=')
+
+
+def reinterpret_elements(array, element_type, base_dimension):
+    return array.view(element_type).reshape((array.shape[:base_dimension] + (-1,)))
+
+
+cdef numpy.uint16_t swap_bytes_uint16(numpy.uint16_t source):
+    return (source << 8) | (source >> 8)
+
+
+cdef numpy.uint32_t swap_bytes_uint32(numpy.uint32_t source):
+    return (source << 24) | ((source << 8) & 0xFF0000) | ((source >> 8) & 0xFF00) | (source >> 24)
+
+
+cdef dxt1_block_t swap_bytes_dxt1_block(dxt1_block_t source):
+    cdef dxt1_block_t destination
+    destination.color0 = swap_bytes_uint16(source.color0)
+    destination.color1 = swap_bytes_uint16(source.color1)
+    destination.indices = swap_bytes_uint32(source.indices)
+    return destination
+
+
+cdef void swap_ia8(numpy.uint8_t[:] source, numpy.uint8_t[:] destination):
+    # The components of the GX IA8 formats are stored alpha first, intensity last
+    destination[1] = source[0]
+    destination[0] = source[1]
+
+
+cdef void rgb565_to_rgba8(numpy.uint16_t source, numpy.uint8_t[:] destination):
+    destination[0] = cc58[(source >> 11) & 0x1F]
+    destination[1] = cc68[(source >> 5) & 0x3F]
+    destination[2] = cc58[source & 0x1F]
+    destination[3] = 0xFF
+
+
+cdef numpy.uint16_t rgba8_to_rgb565(numpy.uint8_t[:] source):
+    return (cc85[source[0]] << 11) | (cc86[source[1]] << 5) | cc85[source[2]]
+
+
+cdef void rgb5a3_to_rgba8(numpy.uint16_t source, numpy.uint8_t[:] destination):
+    if source & 0x8000:
+        destination[0] = cc58[(source >> 10) & 0x1F]
+        destination[1] = cc58[(source >> 5) & 0x1F]
+        destination[2] = cc58[source & 0x1F]
+        destination[3] = 0xFF
+    else:
+        destination[0] = cc48[(source >> 8) & 0xF]
+        destination[1] = cc48[(source >> 4) & 0xF]
+        destination[2] = cc48[source & 0xF]
+        destination[3] = cc38[(source >> 12) & 0x7]
+
+
+cdef numpy.uint16_t rgba8_to_rgb5a3(numpy.uint8_t[:] source):
+    cdef unsigned int a3 = cc83[source[3]]
+    if a3 >= 0x7:
+        return 0x8000 | (cc85[source[0]] << 10) | (cc85[source[1]] << 5) | cc85[source[2]]
+    else:
+        return (cc84[source[0]] << 8) | (cc84[source[1]] << 4) | cc84[source[2]] | (a3 << 12)
+
+
+cdef void dxt1_decompress_block(dxt1_block_t source, numpy.uint8_t[:,:,:] destination):
     cdef numpy.uint8_t color_table[4][4]
-    cdef unsigned int i,j,index
+    cdef unsigned int i, j, index
 
-    color_table[0][0] = ((color0 >> 8) & 0xF8) | ((color0 >> 11) & 0x7)
-    color_table[0][1] = ((color0 >> 3) & 0xFC) | ((color0 >> 5) & 0x3)
-    color_table[0][2] = ((color0 << 3) & 0xF8) | (color0 & 0x7)
-    color_table[0][3] = 0xFF
-    color_table[1][0] = ((color1 >> 8) & 0xF8) | ((color1 >> 11) & 0x7)
-    color_table[1][1] = ((color1 >> 3) & 0xFC) | ((color1 >> 5) & 0x3)
-    color_table[1][2] = ((color1 << 3) & 0xF8) | (color1 & 0x7)
-    color_table[1][3] = 0xFF
+    rgb565_to_rgba8(source.color0, color_table[0])
+    rgb565_to_rgba8(source.color1, color_table[1])
 
-    if color0 > color1:
+    if source.color0 > source.color1:
         color_table[2][0] = (2*color_table[0][0] + color_table[1][0])//3
         color_table[2][1] = (2*color_table[0][1] + color_table[1][1])//3
         color_table[2][2] = (2*color_table[0][2] + color_table[1][2])//3
@@ -94,7 +203,7 @@ cdef void dxt1_decompress_block(dxt1_block_t block,numpy.uint8_t[:,:,:] destinat
 
     for i in range(destination.shape[0]):
         for j in range(destination.shape[1]):
-            index = (indices >> (30 - 2*(4*i + j))) & 0x3
+            index = (source.indices >> (30 - 2*(4*i + j))) & 0x3
             destination[i,j,0] = color_table[index][0]
             destination[i,j,1] = color_table[index][1]
             destination[i,j,2] = color_table[index][2]
@@ -107,361 +216,654 @@ class HashableArray(numpy.ndarray):
         return object.__hash__(self)
 
 
-class PaletteIA8(HashableArray):
+class PaletteBase(HashableArray):
+
+    def __init__(self, length):
+        #TODO: Does the length have to be a power of 2 or a multiple of 32 or something?
+        super().__init__(length, self.entry_type)
+
+
+class PaletteIA8(PaletteBase):
     palette_format = gx.TL_IA8
-    entry_type = numpy.dtype((numpy.uint8,2))
-    gl_image_format = GL_UNSIGNED_BYTE
-    gl_component_count = GL_RG
-    gl_texel_type = numpy.dtype((numpy.uint8,2))
-    gl_swizzle = numpy.array([GL_RED,GL_RED,GL_RED,GL_GREEN],numpy.int32)
+    entry_type = numpy.dtype((numpy.uint8, 2))
+
+    def decode_to_ia8(self, destination_palette=None):
+        if destination_palette is None:
+            destination_palette = numpy.empty((len(self), 2), numpy.uint8)
+
+        cdef numpy.uint8_t[:,:] source = self
+        cdef numpy.uint8_t[:,:] destination = destination_palette
+        cdef unsigned int length = destination.shape[0]
+        cdef unsigned int i
+
+        for i in range(length):
+            swap_ia8(source[i], destination[i])
+
+        return destination_palette
+
+    @classmethod
+    def encode_from_ia8(cls, source_palette, destination_palette=None):
+        if destination_palette is None:
+            destination_palette = cls(len(source_palette))
+
+        cdef numpy.uint8_t[:,:] source = source_palette
+        cdef numpy.uint8_t[:,:] destination = destination_palette
+        cdef unsigned int length = source.shape[0]
+        cdef unsigned int i
+
+        for i in range(length):
+            swap_ia8(source[i], destination[i])
+
+        return destination_palette
 
 
-class PaletteRGB565(HashableArray):
+class PaletteRGB565(PaletteBase):
     palette_format = gx.TL_RGB565
     entry_type = numpy.dtype(numpy.uint16).newbyteorder('>')
-    gl_image_format = GL_UNSIGNED_SHORT_5_6_5
-    gl_component_count = GL_RGB
-    gl_texel_type = numpy.uint16
-    gl_swizzle = numpy.array([GL_RED,GL_GREEN,GL_BLUE,GL_ONE],numpy.int32)
+
+    def decode_to_rgb565(self, destination_palette=None):
+        if destination_palette is None:
+            destination_palette = numpy.empty(len(self), numpy.uint16)
+
+        cdef numpy.uint16_t[:] source = reinterpret_native_endian(self)
+        cdef numpy.uint16_t[:] destination = destination_palette
+        cdef unsigned int length = destination.shape[0]
+        cdef unsigned int i
+
+        for i in range(length):
+            destination[i] = swap_bytes_uint16(source[i])
+
+        return destination_palette
+
+    @classmethod
+    def encode_from_rgb565(cls, source_palette, destination_palette=None):
+        if destination_palette is None:
+            destination_palette = cls(len(source_palette))
+
+        cdef numpy.uint16_t[:] source = source_palette
+        cdef numpy.uint16_t[:] destination = reinterpret_native_endian(destination_palette)
+        cdef unsigned int length = source.shape[0]
+        cdef unsigned int i
+
+        for i in range(length):
+            destination[i] = swap_bytes_uint16(source[i])
+
+        return destination_palette
+
+    def decode_to_rgba8(self, destination_palette=None):
+        if destination_palette is None:
+            destination_palette = numpy.empty((len(self), 4), numpy.uint8)
+
+        cdef numpy.uint16_t[:] source = reinterpret_native_endian(self)
+        cdef numpy.uint8_t[:,:] destination = destination_palette
+        cdef unsigned int length = destination.shape[0]
+        cdef unsigned int i
+
+        for i in range(length):
+            rgb565_to_rgba8(swap_bytes_uint16(source[i]), destination[i])
+
+        return destination_palette
+
+    @classmethod
+    def encode_from_rgba8(cls, source_palette, destination_palette=None):
+        if destination_palette is None:
+            destination_palette = cls(len(source_palette))
+
+        cdef numpy.uint8_t[:,:] source = source_palette
+        cdef numpy.uint16_t [:] destination = reinterpret_native_endian(destination_palette)
+        cdef unsigned int length = source.shape[0]
+        cdef unsigned int i
+
+        for i in range(length):
+            destination[i] = swap_bytes_uint16(rgba8_to_rgb565(source[i]))
+
+        return destination_palette
 
 
-class PaletteRGB5A3(HashableArray):
+class PaletteRGB5A3(PaletteBase):
     palette_format = gx.TL_RGB5A3
     entry_type = numpy.dtype(numpy.uint16).newbyteorder('>')
-    gl_image_format = GL_UNSIGNED_BYTE
-    gl_component_count = GL_RGBA
-    gl_texel_type = numpy.dtype((numpy.uint8,4))
-    gl_swizzle = numpy.array([GL_RED,GL_GREEN,GL_BLUE,GL_ALPHA],numpy.int32)
+
+    def decode_to_rgba8(self, destination_palette=None):
+        if destination_palette is None:
+            destination_palette = numpy.empty((len(self), 4), numpy.uint8)
+
+        cdef numpy.uint16_t[:] source = reinterpret_native_endian(self)
+        cdef numpy.uint8_t[:,:] destination = destination_palette
+        cdef unsigned int length = destination.shape[0]
+        cdef unsigned int i
+
+        for i in range(length):
+            rgb5a3_to_rgba8(swap_bytes_uint16(source[i]), destination[i])
+
+        return destination_palette
+
+    @classmethod
+    def encode_from_rgba8(cls, source_palette, destination_palette=None):
+        if destination_palette is None:
+            destination_palette = cls(len(source_palette))
+
+        cdef numpy.uint8_t[:,:] source = source_palette
+        cdef numpy.uint16_t[:] destination = reinterpret_native_endian(destination_palette)
+        cdef unsigned int length = source.shape[0]
+        cdef unsigned int i
+
+        for i in range(length):
+            destination[i] = swap_bytes_uint16(rgba8_to_rgb5a3(source[i]))
+
+        return destination_palette
 
 
-class ImageI4(HashableArray):
+class ImageBase(HashableArray):
+
+    def __init__(self, width, height):
+        col_count = (width + self.tile_width - 1)//self.tile_width
+        row_count = (height + self.tile_height - 1)//self.tile_height
+        super().__init__((row_count, col_count), self.tile_type)
+        self.width = width
+        self.height = height
+
+
+class ImageI4(ImageBase):
     image_format = gx.TF_I4
     tile_width = 8
     tile_height = 8
-    tile_type = numpy.dtype((numpy.uint8,(8,4)))
-    gl_image_format = GL_UNSIGNED_BYTE
-    gl_component_count = GL_RED
-    gl_swizzle = numpy.array([GL_RED,GL_RED,GL_RED,GL_RED],numpy.int32)
+    tile_type = numpy.dtype((numpy.uint8, (8, 4)))
 
-    def gl_convert(self,palette):
-        cdef unsigned int width = self.width
-        cdef unsigned int height = self.height
-        cdef numpy.uint8_t[:,:,:,:] self_view = self
-        cdef numpy.ndarray[numpy.uint8_t,ndim=2] image = numpy.empty((height,width),numpy.uint8)
-        cdef unsigned int i,j,texel
+    def decode_to_i8(self, destination_image=None):
+        if destination_image is None:
+            destination_image = numpy.empty((self.height, self.width), numpy.uint8)
+
+        cdef numpy.uint8_t[:,:,:,:] source = self
+        cdef numpy.uint8_t[:,:] destination = destination_image
+        cdef unsigned int height = destination.shape[0]
+        cdef unsigned int width = destination.shape[1]
+        cdef unsigned int i, j, texels
 
         for i in range(height):
-            for j in range(0,width,2):
-                texel = self_view[i//8,j//8,i % 8,(j//2) % 4]
-                image[i,j] = (texel & 0xF0) | ((texel >> 4) & 0xF)
+            for j in range(0, width, 2):
+                texels = source[i//8, j//8, i % 8, (j % 8)//2]
+                destination[i,j] = cc48[(texels >> 4) & 0xF]
                 if j + 1 >= width: break
-                image[i,j + 1] = ((texel << 4) & 0xF0) | (texel & 0xF)
+                destination[i, j + 1] = cc48[texels & 0xF]
 
-        return image
+        return destination_image
+
+    @classmethod
+    def encode_from_i8(cls, source_image, destination_image=None):
+        if destination_image is None:
+            destination_image = cls(source_image.shape[1], source_image.shape[0])
+
+        cdef numpy.uint8_t[:,:] source = source_image
+        cdef numpy.uint8_t[:,:,:,:] destination = destination_image
+        cdef unsigned int height = source.shape[0]
+        cdef unsigned int width = source.shape[1]
+        cdef unsigned int i, j, texels
+
+        for i in range(height):
+            for j in range(0, width, 2):
+                texels = cc84[source[i,j]] << 4
+                texels |= cc84[source[i, j + 1]] if j + 1 < width else 0
+                destination[i//8, j//8, i % 8, (j % 8)//2] = texels
+
+        return destination_image
 
 
-class ImageI8(HashableArray):
+class ImageI8(ImageBase):
     image_format = gx.TF_I8
     tile_width = 8
     tile_height = 4
-    tile_type = numpy.dtype((numpy.uint8,(4,8)))
-    gl_image_format = GL_UNSIGNED_BYTE
-    gl_component_count = GL_RED
-    gl_swizzle = numpy.array([GL_RED,GL_RED,GL_RED,GL_RED],numpy.int32)
+    tile_type = numpy.dtype((numpy.uint8, (4, 8)))
 
-    def gl_convert(self,palette):
-        image = numpy.empty((self.height,self.width),numpy.uint8)
-        untile(self,image)
-        return image
+    def decode_to_i8(self, destination_image=None):
+        if destination_image is None:
+            destination_image = numpy.empty((self.height, self.width), numpy.uint8)
+
+        cdef numpy.uint8_t[:,:,:,:] source = self
+        cdef numpy.uint8_t[:,:] destination = destination_image
+        cdef unsigned int height = destination.shape[0]
+        cdef unsigned int width = destination.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                destination[i,j] = source[i//4, j//8, i % 4, j % 8]
+
+        return destination_image
+
+    @classmethod
+    def encode_from_i8(cls, source_image, destination_image=None):
+        if destination_image is None:
+            destination_image = cls(source_image.shape[1], source_image.shape[0])
+
+        cdef numpy.uint8_t[:,:] source = source_image
+        cdef numpy.uint8_t[:,:,:,:] destination = destination_image
+        cdef unsigned int height = source.shape[0]
+        cdef unsigned int width = source.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                destination[i//4, j//8, i% 4, j % 8] = source[i,j]
+
+        return destination_image
 
 
-class ImageIA4(HashableArray):
+class ImageIA4(ImageBase):
     image_format = gx.TF_IA4
     tile_width = 8
     tile_height = 4
-    tile_type = numpy.dtype((numpy.uint8,(4,8)))
-    gl_image_format = GL_UNSIGNED_BYTE
-    gl_component_count = GL_RG
-    gl_swizzle = numpy.array([GL_RED,GL_RED,GL_RED,GL_GREEN],numpy.int32)
+    tile_type = numpy.dtype((numpy.uint8, (4, 8)))
 
-    def gl_convert(self,palette):
-        cdef unsigned int width = self.width
-        cdef unsigned int height = self.height
-        cdef numpy.uint8_t[:,:,:,:] self_view = self
-        cdef numpy.ndarray[numpy.uint8_t,ndim=3] image = numpy.empty((height,width,2),numpy.uint8)
-        cdef unsigned int i,j,texel
+    def decode_to_ia8(self, destination_image=None):
+        if destination_image is None:
+            destination_image = numpy.empty((self.height, self.width, 2), numpy.uint8)
+
+        cdef numpy.uint8_t[:,:,:,:] source = self
+        cdef numpy.uint8_t[:,:,:] destination = destination_image
+        cdef unsigned int height = destination.shape[0]
+        cdef unsigned int width = destination.shape[1]
+        cdef unsigned int i, j, texel
 
         for i in range(height):
             for j in range(width):
-                texel = self_view[i//4,j//8,i % 4,j % 8]
-                image[i,j,0] = ((texel << 4) & 0xF0) | (texel & 0xF)
-                image[i,j,1] = (texel & 0xF0) | ((texel >> 4) & 0xF)
+                texel = source[i//4 ,j//8, i % 4, j % 8]
+                destination[i,j,0] = cc48[texel & 0xF]
+                destination[i,j,1] = cc48[(texel >> 4) & 0xF]
 
-        return image
+        return destination_image
+
+    @classmethod
+    def encode_from_ia8(cls, source_image, destination_image=None):
+        if destination_image is None:
+            destination_image = cls(source_image.shape[1], source_image.shape[0])
+
+        cdef numpy.uint8_t[:,:,:] source = source_image
+        cdef numpy.uint8_t[:,:,:,:] destination = destination_image
+        cdef unsigned int height = source.shape[0]
+        cdef unsigned int width = source.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                destination[i//4, j//8, i % 4, j % 8] = cc84[source[i,j,0]] | (cc84[source[i,j,1]] << 4)
+
+        return destination_image
 
 
-class ImageIA8(HashableArray):
+class ImageIA8(ImageBase):
     image_format = gx.TF_IA8
     tile_width = 4
     tile_height = 4
-    tile_type = numpy.dtype((numpy.uint8,(4,4,2)))
-    gl_image_format = GL_UNSIGNED_BYTE
-    gl_component_count = GL_RG
-    gl_swizzle = numpy.array([GL_RED,GL_RED,GL_RED,GL_GREEN],numpy.int32)
+    tile_type = numpy.dtype((numpy.uint8, (4, 4, 2)))
 
-    def gl_convert(self,palette):
-        image = numpy.empty((self.height,self.width,2),numpy.uint8)
-        untile(self[:,:,:,:,0],image[:,:,1])
-        untile(self[:,:,:,:,1],image[:,:,0])
-        return image
+    def decode_to_ia8(self, destination_image=None):
+        if destination_image is None:
+            destination_image = numpy.empty((self.height, self.width, 2), numpy.uint8)
 
-
-class ImageRGB565(HashableArray):
-    image_format = gx.TF_RGB565
-    tile_width = 4
-    tile_height = 4
-    tile_type = numpy.dtype((numpy.uint16,(4,4))).newbyteorder('>')
-    gl_image_format = GL_UNSIGNED_SHORT_5_6_5
-    gl_component_count = GL_RGB
-    gl_swizzle = numpy.array([GL_RED,GL_GREEN,GL_BLUE,GL_ONE],numpy.int32)
-
-    def gl_convert(self,palette):
-        image = numpy.empty((self.height,self.width),numpy.uint16)
-        untile(self,image)
-        return image
-
-
-class ImageRGB5A3(HashableArray):
-    image_format = gx.TF_RGB5A3
-    tile_width = 4
-    tile_height = 4
-    tile_type = numpy.dtype((numpy.uint16,(4,4))).newbyteorder('>')
-    gl_image_format = GL_UNSIGNED_BYTE
-    gl_component_count = GL_RGBA
-    gl_swizzle = numpy.array([GL_RED,GL_GREEN,GL_BLUE,GL_ALPHA],numpy.int32)
-
-    def gl_convert(self,palette):
-        cdef unsigned int width = self.width
-        cdef unsigned int height = self.height
-        cdef numpy.uint16_t[:,:,:,:] self_view = native_byteorder(self)
-        cdef numpy.ndarray[numpy.uint8_t,ndim=3] image = numpy.empty((height,width,4),numpy.uint8)
-        cdef unsigned int i,j,texel
+        cdef numpy.uint8_t[:,:,:,:,:] source = self
+        cdef numpy.uint8_t[:,:,:] destination = destination_image
+        cdef unsigned int height = destination.shape[0]
+        cdef unsigned int width = destination.shape[1]
+        cdef unsigned int i, j
 
         for i in range(height):
             for j in range(width):
-                rgb5a3_to_rgba8(self_view[i//4,j//4,i % 4,j % 4],image[i,j])
+                swap_ia8(source[i//4, j//4, i % 4, j % 4], destination[i,j])
 
-        return image
+        return destination_image
+
+    @classmethod
+    def encode_from_ia8(cls, source_image, destination_image=None):
+        if destination_image is None:
+            destination_image = cls(source_image.shape[1], source_image.shape[0])
+
+        cdef numpy.uint8_t[:,:,:] source = source_image
+        cdef numpy.uint8_t[:,:,:,:,:] destination = destination_image
+        cdef unsigned int height = source.shape[0]
+        cdef unsigned int width = source.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                swap_ia8(source[i,j], destination[i//4, j//4, i % 4, j % 4])
+
+        return destination_image
 
 
-class ImageRGBA8(HashableArray):
+class ImageRGB565(ImageBase):
+    image_format = gx.TF_RGB565
+    tile_width = 4
+    tile_height = 4
+    tile_type = numpy.dtype((numpy.uint16, (4, 4))).newbyteorder('>')
+
+    def decode_to_rgb565(self, destination_image=None):
+        if destination_image is None:
+            destination_image = numpy.empty((self.height, self.width), numpy.uint16)
+
+        cdef numpy.uint16_t[:,:,:,:] source = reinterpret_native_endian(self)
+        cdef numpy.uint16_t[:,:] destination = destination_image
+        cdef unsigned int height = destination.shape[0]
+        cdef unsigned int width = destination.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                destination[i,j] = swap_bytes_uint16(source[i//4, j//4, i % 4, j % 4])
+
+        return destination_image
+
+    @classmethod
+    def encode_from_rgb565(cls, source_image, destination_image=None):
+        if destination_image is None:
+            destination_image = cls(source_image.shape[1], source_image.shape[0])
+
+        cdef numpy.uint16_t[:,:] source = source_image
+        cdef numpy.uint16_t[:,:,:,:] destination = reinterpret_native_endian(destination_image)
+        cdef unsigned int height = source.shape[0]
+        cdef unsigned int width = source.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                destination[i//4, j//4, i % 4, j % 4] = swap_bytes_uint16(source[i,j])
+
+        return destination_image
+
+    def decode_to_rgba8(self, destination_image=None):
+        if destination_image is None:
+            destination_image = numpy.empty((self.height, self.width, 4), numpy.uint8)
+
+        cdef numpy.uint16_t[:,:,:,:] source = reinterpret_native_endian(self)
+        cdef numpy.uint8_t[:,:,:] destination = destination_image
+        cdef unsigned int height = destination.shape[0]
+        cdef unsigned int width = destination.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                rgb565_to_rgba8(swap_bytes_uint16(source[i//4, j//4, i % 4, j % 4]), destination[i,j])
+
+        return destination_image
+
+    @classmethod
+    def encode_from_rgba8(cls, source_image, destination_image=None):
+        if destination_image is None:
+            destination_image = cls(source_image.shape[1], source_image.shape[0])
+
+        cdef numpy.uint8_t[:,:,:] source = source_image
+        cdef numpy.uint16_t[:,:,:,:] destination = reinterpret_native_endian(destination_image)
+        cdef unsigned int height = source.shape[0]
+        cdef unsigned int width = source.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                destination[i//4, j//4, i % 4, j % 4] = swap_bytes_uint16(rgba8_to_rgb565(source[i,j]))
+
+        return destination_image
+
+
+class ImageRGB5A3(ImageBase):
+    image_format = gx.TF_RGB5A3
+    tile_width = 4
+    tile_height = 4
+    tile_type = numpy.dtype((numpy.uint16, (4, 4))).newbyteorder('>')
+
+    def decode_to_rgba8(self, destination_image=None):
+        if destination_image is None:
+            destination_image = numpy.empty((self.height, self.width, 4), numpy.uint8)
+
+        cdef numpy.uint16_t[:,:,:,:] source = reinterpret_native_endian(self)
+        cdef numpy.uint8_t[:,:,:] destination = destination_image
+        cdef unsigned int height = destination.shape[0]
+        cdef unsigned int width = destination.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                rgb5a3_to_rgba8(swap_bytes_uint16(source[i//4, j//4, i % 4, j % 4]), destination[i,j])
+
+        return destination_image
+
+    @classmethod
+    def decode_from_rgba8(cls, source_image, destination_image=None):
+        if destination_image is None:
+            destination_image = cls(source_image.shape[1], source_image.shape[0])
+
+        cdef numpy.uint8_t[:,:,:] source = source_image
+        cdef numpy.uint16_t[:,:,:,:] destination = reinterpret_native_endian(destination_image)
+        cdef unsigned int height = source.shape[0]
+        cdef unsigned int width = source.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                destination[i//4, j//4, i % 4, j % 4] = swap_bytes_uint16(rgba8_to_rgb5a3(source[i,j]))
+
+        return destination_image
+
+
+class ImageRGBA8(ImageBase):
     image_format = gx.TF_RGBA8
     tile_width = 4
     tile_height = 4
-    tile_type = numpy.dtype((((numpy.uint8,2),(4,4)),2))
-    gl_image_format = GL_UNSIGNED_BYTE
-    gl_component_count = GL_RGBA
-    gl_swizzle = numpy.array([GL_RED,GL_GREEN,GL_BLUE,GL_ALPHA],numpy.int32)
+    tile_type = numpy.dtype((((numpy.uint8, 2), (4, 4)), 2))
 
-    def gl_convert(self,palette):
-        image = numpy.empty((self.height,self.width,4),numpy.uint8)
-        untile(self[:,:,0,:,:,0],image[:,:,3])
-        untile(self[:,:,0,:,:,1],image[:,:,0])
-        untile(self[:,:,1,:,:,0],image[:,:,1])
-        untile(self[:,:,1,:,:,1],image[:,:,2])
-        return image
+    def decode_to_rgba8(self, destination_image=None):
+        if destination_image is None:
+            destination_image = numpy.empty((self.height, self.width, 4), numpy.uint8)
+
+        cdef numpy.uint8_t[:,:,:,:,:,:] source = self
+        cdef numpy.uint8_t[:,:,:] destination = destination_image
+        cdef unsigned int height = destination.shape[0]
+        cdef unsigned int width = destination.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                destination[i,j,0] = source[i//4, j//4, 0, i % 4, j % 4, 1]
+                destination[i,j,1] = source[i//4, j//4, 1, i % 4, j % 4, 0]
+                destination[i,j,2] = source[i//4, j//4, 1, i % 4, j % 4, 1]
+                destination[i,j,3] = source[i//4, j//4, 0, i % 4, j % 4, 0]
+
+        return destination_image
+
+    @classmethod
+    def encode_from_rgba8(cls, source_image, destination_image=None):
+        if destination_image is None:
+            destination_image = cls(source_image.shape[1], source_image.shape[0])
+
+        cdef numpy.uint8_t[:,:,:] source = source_image
+        cdef numpy.uint8_t[:,:,:,:,:,:] destination = destination_image
+        cdef unsigned int height = source.shape[0]
+        cdef unsigned int width = source.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                destination[i//4, j//4, 0, i % 4, j % 4, 1] = source[i,j,0]
+                destination[i//4, j//4, 1, i % 4, j % 4, 0] = source[i,j,1]
+                destination[i//4, j//4, 1, i % 4, j % 4, 1] = source[i,j,2]
+                destination[i//4, j//4, 0, i % 4, j % 4, 0] = source[i,j,3]
+
+        return destination_image
 
 
-class ImageCMPR(HashableArray):
+class ImageCMPR(ImageBase):
     image_format = gx.TF_CMPR
     tile_width = 8
     tile_height = 8
-    tile_type = numpy.dtype((dxt1_block,(2,2))).newbyteorder('>')
-    gl_image_format = GL_UNSIGNED_BYTE
-    gl_component_count = GL_RGBA
-    gl_swizzle = numpy.array([GL_RED,GL_GREEN,GL_BLUE,GL_ALPHA],numpy.int32)
+    tile_type = numpy.dtype((dxt1_block, (2, 2))).newbyteorder('>')
 
-    def gl_convert(self,palette):
-        cdef unsigned int width = self.width
-        cdef unsigned int height = self.height
-        cdef dxt1_block_t[:,:,:,:] self_view = native_byteorder(self)
-        cdef numpy.ndarray[numpy.uint8_t,ndim=3] image = numpy.empty((height,width,4),numpy.uint8)
-        cdef numpy.uint8_t[:,:,:] image_view = image
-        cdef dxt1_block_t block
-        cdef unsigned int i,j
+    def decode_to_rgba8(self, destination_image=None):
+        if destination_image is None:
+            destination_image = numpy.empty((self.height, self.width, 4), numpy.uint8)
 
-        for i in range(0,height,4):
-            for j in range(0,width,4):
-                block = self_view[i//8,j//8,(i//4) % 2,(j//4) % 2]
-                dxt1_decompress_block(block,image_view[i:min(i + 4,height),j:min(j + 4,width)])
+        cdef dxt1_block_t[:,:,:,:] source = reinterpret_native_endian(self)
+        cdef numpy.uint8_t[:,:,:] destination = destination_image
+        cdef unsigned int height = destination.shape[0]
+        cdef unsigned int width = destination.shape[1]
+        cdef unsigned int i, j
 
-        return image
+        for i in range(0, height, 4):
+            for j in range(0, width, 4):
+                dxt1_decompress_block(swap_bytes_dxt1_block(source[i//8, j//8, (i % 8)//4, (j % 8)//4]), destination[i:(i + 4), j:(j + 4)])
+
+        return destination_image
 
 
-cdef gl_convert_ci4_ia8(numpy.uint8_t[:,:,:,:] self_view,unsigned int width,unsigned int height,numpy.uint8_t[:,:] palette):
-    cdef numpy.ndarray[numpy.uint8_t,ndim=3] image = numpy.empty((height,width,2),numpy.uint8)
-    cdef unsigned int i,j,texel
-
-    for i in range(height):
-        for j in range(width):
-            texel = self_view[i//8,j//8,i % 8,(j//2) % 4]
-            image[i,j] = palette[(texel >> 4) & 0xF]
-            if j + 1 >= width: break
-            image[i,j + 1] = palette[texel & 0xF]
-
-    return image
-
-
-cdef gl_convert_ci4_rgb565(numpy.uint8_t[:,:,:,:] self_view,unsigned int width,unsigned int height,numpy.uint16_t[:] palette):
-    cdef numpy.ndarray[numpy.uint16_t,ndim=2] image = numpy.empty((height,width),numpy.uint16)
-    cdef unsigned int i,j,texel
-
-    for i in range(height):
-        for j in range(width):
-            texel = self_view[i//8,j//8,i % 8,(j//2) % 4]
-            image[i,j] = swap_bytes_uint16(palette[(texel >> 4) & 0xF])
-            if j + 1 >= width: break
-            image[i,j + 1] = swap_bytes_uint16(palette[texel & 0xF])
-
-    return image
-
-
-cdef gl_convert_ci4_rgb5a3(numpy.uint8_t[:,:,:,:] self_view,unsigned int width,unsigned int height,numpy.uint16_t[:] palette):
-    cdef numpy.ndarray[numpy.uint8_t,ndim=3] image = numpy.empty((height,width,4),numpy.uint8)
-    cdef unsigned int i,j,texel
-
-    for i in range(height):
-        for j in range(width):
-            texel = self_view[i//8,j//8,i % 8,(j//2) % 4]
-            rgb5a3_to_rgba8(palette[(texel >> 4) & 0xF],image[i,j])
-            if j + 1 >= width: break
-            rgb5a3_to_rgba8(palette[texel & 0xF],image[i,j + 1])
-
-    return image
-
-
-cdef gl_convert_ci8_ia8(numpy.uint8_t[:,:,:,:] self_view,unsigned int width,unsigned int height,numpy.uint8_t[:,:] palette):
-    cdef numpy.ndarray[numpy.uint8_t,ndim=3] image = numpy.empty((height,width,2),numpy.uint8)
-    cdef unsigned int i,j
-
-    for i in range(height):
-        for j in range(width):
-            image[i,j] = palette[self_view[i//4,j//4,i % 4,j % 4]]
-
-    return image
-
-
-cdef gl_convert_ci8_rgb565(numpy.uint8_t[:,:,:,:] self_view,unsigned int width,unsigned int height,numpy.uint16_t[:] palette):
-    cdef numpy.ndarray[numpy.uint16_t,ndim=2] image = numpy.empty((height,width),numpy.uint16)
-    cdef unsigned int i,j
-
-    for i in range(height):
-        for j in range(width):
-            image[i,j] = swap_bytes_uint16(palette[self_view[i//4,j//4,i % 4,j % 4]])
-
-    return image
-
-
-cdef gl_convert_ci8_rgb5a3(numpy.uint8_t[:,:,:,:] self_view,unsigned int width,unsigned int height,numpy.uint16_t[:] palette):
-    cdef numpy.ndarray[numpy.uint8_t,ndim=3] image = numpy.empty((height,width,4),numpy.uint8)
-    cdef unsigned int i,j,texel
-
-    for i in range(height):
-        for j in range(width):
-            rgb5a3_to_rgba8(palette[self_view[i//4,j//4,i % 4,j % 4]],image[i,j])
-
-    return image
-
-
-cdef gl_convert_ci14_ia8(numpy.uint16_t[:,:,:,:] self_view,unsigned int width,unsigned int height,numpy.uint8_t[:,:] palette):
-    cdef numpy.ndarray[numpy.uint8_t,ndim=3] image = numpy.empty((height,width,2),numpy.uint8)
-    cdef unsigned int i,j
-
-    for i in range(height):
-        for j in range(width):
-            image[i,j] = palette[swap_bytes_uint16(self_view[i//4,j//8,i % 4,j % 8]) & 0x3FFF]
-
-    return image
-
-
-cdef gl_convert_ci14_rgb565(numpy.uint16_t[:,:,:,:] self_view,unsigned int width,unsigned int height,numpy.uint16_t[:] palette):
-    cdef numpy.ndarray[numpy.uint16_t,ndim=2] image = numpy.empty((height,width),numpy.uint16)
-    cdef unsigned int i,j
-
-    for i in range(height):
-        for j in range(width):
-            image[i,j] = swap_bytes_uint16(palette[swap_bytes_uint16(self_view[i//4,j//8,i % 4,j % 8]) & 0x3FFF])
-
-    return image
-
-
-cdef gl_convert_ci14_rgb5a3(numpy.uint16_t[:,:,:,:] self_view,unsigned int width,unsigned int height,numpy.uint16_t[:] palette):
-    cdef numpy.ndarray[numpy.uint8_t,ndim=3] image = numpy.empty((height,width,4),numpy.uint8)
-    cdef unsigned int i,j
-
-    for i in range(height):
-        for j in range(width):
-            rgb5a3_to_rgba8(palette[swap_bytes_uint16(self_view[i//4,j//8,i % 4,j % 8]) & 0x3FFF],image[i,j])
-
-    return image
-
-
-class ImageCI4(HashableArray):
+class ImageCI4(ImageBase):
     image_format = gx.TF_CI4
     tile_width = 8
     tile_height = 8
-    tile_type = numpy.dtype((numpy.uint8,(8,4)))
+    tile_type = numpy.dtype((numpy.uint8, (8, 4)))
 
-    def gl_convert(self,palette):
-        if palette.palette_format == gx.TL_IA8:
-            return gl_convert_ci4_ia8(self,self.width,self.height,palette)
-        if palette.palette_format == gx.TL_RGB565:
-            return gl_convert_ci4_rgb565(self,self.width,self.height,native_byteorder(palette))
-        if palette.palette_format == gx.TL_RGB5A3:
-            return gl_convert_ci4_rgb5a3(self,self.width,self.height,native_byteorder(palette))
+    def decode_to_ci8(self, destination_image=None):
+        if destination_image is None:
+            destination_image = numpy.empty((self.height, self.width), numpy.uint8)
 
-        raise ValueError('invalid palette format')
+        cdef numpy.uint8_t[:,:,:,:] source = self
+        cdef numpy.uint8_t[:,:] destination = destination_image
+        cdef unsigned int height = destination.shape[0]
+        cdef unsigned int width = destination.shape[1]
+        cdef unsigned int i, j, texels
+
+        for i in range(height):
+            for j in range(0, width, 2):
+                texels = source[i//8, j//8, i % 8, (j % 8)//2]
+                destination[i,j] = (texels >> 4) & 0xF
+                if j + 1 >= width: break
+                destination[i, j + 1] = texels & 0xF
+
+        return destination_image
+
+    @classmethod
+    def encode_from_ci8(cls, source_image, destination_image=None):
+        if destination_image is None:
+            destination_image = cls(source_image.shape[1], source_image.shape[0])
+
+        cdef numpy.uint8_t[:,:] source = source_image
+        cdef numpy.uint8_t[:,:,:,:] destination = destination_image
+        cdef unsigned int height = source.shape[0]
+        cdef unsigned int width = source.shape[1]
+        cdef unsigned int i, j, texels
+
+        for i in range(height):
+            for j in range(0, width, 2):
+                texels = (source[i,j] << 4) & 0xF0
+                texels |= (source[i, j + 1] & 0xF) if j + 1 < width else 0
+                destination[i//8, j//8, i % 8, (j % 8)//2] = texels
+
+        return destination_image
+
+    def decode_to_direct_color(self, source_palette, destination_image=None):
+        if destination_image is None:
+            destination_image = numpy.empty((self.width, self.height) + source_palette.shape[1:], source_palette.dtype)
+
+        cdef numpy.uint8_t[:,:,:,:] source = self
+        cdef numpy.uint8_t[:,:] palette = reinterpret_elements(source_palette, numpy.uint8, 1)
+        cdef numpy.uint8_t[:,:,:] destination = reinterpret_elements(destination_image, numpy.uint8, 2)
+        cdef unsigned int height = destination.shape[0]
+        cdef unsigned int width = destination.shape[1]
+        cdef unsigned int i, j, texels
+
+        for i in range(height):
+            for j in range(0, width, 2):
+                texels = source[i//8, j//8, i % 8, (j % 8)//2]
+                destination[i,j] = palette[(texels >> 4) & 0xF]
+                if j + 1 >= width: break
+                destination[i, j + 1] = palette[texels & 0xF]
+
+        return destination_image
 
 
-class ImageCI8(HashableArray):
+class ImageCI8(ImageBase):
     image_format = gx.TF_CI8
     tile_width = 8
     tile_height = 4
-    tile_type = numpy.dtype((numpy.uint8,(4,8)))
+    tile_type = numpy.dtype((numpy.uint8, (4, 8)))
 
-    def gl_convert(self,palette):
-        if palette.palette_format == gx.TL_IA8:
-            return gl_convert_ci8_ia8(self,self.width,self.height,palette)
-        if palette.palette_format == gx.TL_RGB565:
-            return gl_convert_ci8_rgb565(self,self.width,self.height,native_byteorder(palette))
-        if palette.palette_format == gx.TL_RGB5A3:
-            return gl_convert_ci8_rgb5a3(self,self.width,self.height,native_byteorder(palette))
+    def decode_to_ci8(self, destination_image):
+        if destination_image is None:
+            destination_image = numpy.empty((self.height, self.width), numpy.uint8)
 
-        raise ValueError('invalid palette format')
+        cdef numpy.uint8_t[:,:,:,:] source = self
+        cdef numpy.uint8_t[:,:] destination = destination_image
+        cdef unsigned int height = destination.shape[0]
+        cdef unsigned int width = destination.shape[1]
+        cdef unsigned int i,j
+
+        for i in range(height):
+            for j in range(width):
+                destination[i,j] = source[i//4, j//8, i % 4, j % 8]
+
+        return destination_image
+
+    @classmethod
+    def encode_from_ci8(cls, source_image, destination_image=None):
+        if destination_image is None:
+            destination_image = cls(source_image.shape[1], source_image.shape[0])
+
+        cdef numpy.uint8_t[:,:] source = source_image
+        cdef numpy.uint8_t[:,:,:,:] destination = destination_image
+        cdef unsigned int height = source.shape[0]
+        cdef unsigned int width = source.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                destination[i//4, j//8, i % 4, j % 4] = source[i,j]
+
+        return destination_image
+
+    def decode_to_direct_color(self, source_palette, destination_image):
+        if destination_image is None:
+            destination_image = numpy.empty((self.width, self.height) + source_palette.shape[1:], source_palette.dtype)
+
+        cdef numpy.uint8_t[:,:,:,:] source = self
+        cdef numpy.uint8_t[:,:] palette = reinterpret_elements(source_palette, numpy.uint8, 1)
+        cdef numpy.uint8_t[:,:,:] destination = reinterpret_elements(destination_image, numpy.uint8, 2)
+        cdef unsigned int height = destination.shape[0]
+        cdef unsigned int width = destination.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                destination[i,j] = palette[source[i//4, j//8, i % 4, j % 8]]
+
+        return destination_image
 
 
-class ImageCI14(HashableArray):
+class ImageCI14(ImageBase):
     image_format = gx.TF_CI14
     tile_width = 4
     tile_height = 4
-    tile_type = numpy.dtype((numpy.uint16,(4,4))).newbyteorder('>')
+    tile_type = numpy.dtype((numpy.uint16, (4, 4))).newbyteorder('>')
 
-    def gl_convert(self,palette):
-        if palette.palette_format == gx.TL_IA8:
-            return gl_convert_ci14_ia8(native_byteorder(self),self.width,self.height,palette)
-        if palette.palette_format == gx.TL_RGB565:
-            return gl_convert_ci14_rgb565(native_byteorder(self),self.width,self.height,native_byteorder(palette))
-        if palette.palette_format == gx.TL_RGB5A3:
-            return gl_convert_ci14_rgb5a3(native_byteorder(self),self.width,self.height,native_byteorder(palette))
+    def decode_to_direct_color(self, source_palette, destination_image):
+        if destination_image is None:
+            destination_image = numpy.empty((self.width, self.height) + source_palette.shape[1:], source_palette.dtype)
 
-        raise ValueError('invalid palette format')
+        cdef numpy.uint16_t[:,:,:,:] source = reinterpret_native_endian(self)
+        cdef numpy.uint8_t[:,:] palette = reinterpret_elements(source_palette, numpy.uint8, 1)
+        cdef numpy.uint8_t[:,:,:] destination = reinterpret_elements(destination_image, numpy.uint8, 2)
+        cdef unsigned int height = destination.shape[0]
+        cdef unsigned int width = destination.shape[1]
+        cdef unsigned int i, j
+
+        for i in range(height):
+            for j in range(width):
+                destination[i,j] = palette[source[i//4, j//8, i % 4, j % 8] & 0x3FFF]
+
+        return destination_image
 
 
-def pack_palette(stream,palette):
+def pack_palette(stream, palette):
     palette.tofile(stream)
 
 
-def unpack_palette(stream,palette_format,entry_count):
+def unpack_palette(stream, palette_format, entry_count):
     if palette_format == gx.TL_IA8:
         palette_type = PaletteIA8
     elif palette_format == gx.TL_RGB565:
@@ -471,16 +873,16 @@ def unpack_palette(stream,palette_format,entry_count):
     else:
         raise ValueError('invalid palette format')
 
-    palette = numpy.fromfile(stream,palette_type.entry_type,entry_count)
+    palette = numpy.fromfile(stream, palette_type.entry_type, entry_count)
     return palette.view(palette_type)
 
 
-def pack_images(stream,images):
+def pack_images(stream, images):
     for image in images:
         image.tofile(stream)
 
 
-def unpack_images(stream,image_format,base_width,base_height,level_count):
+def unpack_images(stream, image_format, base_width, base_height, level_count):
     if image_format == gx.TF_I4:
         image_type = ImageI4
     elif image_format == gx.TF_I8:
@@ -509,13 +911,13 @@ def unpack_images(stream,image_format,base_width,base_height,level_count):
     images = [None]*level_count
 
     for level in range(level_count):
-        width = max(base_width//(2**level),1)
-        height = max(base_height//(2**level),1)
+        width = max(base_width//(2**level), 1)
+        height = max(base_height//(2**level), 1)
 
         col_count = (width + image_type.tile_width - 1)//image_type.tile_width
         row_count = (height + image_type.tile_height - 1)//image_type.tile_height
-        image = numpy.fromfile(stream,image_type.tile_type,col_count*row_count)
-        image = image.reshape((row_count,col_count) + image.shape[1:])
+        image = numpy.fromfile(stream, image_type.tile_type, col_count*row_count)
+        image = image.reshape((row_count, col_count) + image.shape[1:])
         image = image.view(image_type)
         image.width = width
         image.height = height
@@ -523,81 +925,4 @@ def unpack_images(stream,image_format,base_width,base_height,level_count):
         images[level] = image
 
     return tuple(images)
-
-
-class GLTexture(gl.Texture):
-
-    def __init__(self,images,palette):
-        super().__init__()
-
-        glBindTexture(GL_TEXTURE_2D,self)
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,0)
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,len(images) - 1)
-
-        if images[0].image_format in {gx.TF_CI4,gx.TF_CI8,gx.TF_CI14}:
-            component_count = palette.gl_component_count
-            image_format = palette.gl_image_format
-            swizzle = palette.gl_swizzle
-        else:
-            component_count = images[0].gl_component_count
-            image_format = images[0].gl_image_format
-            swizzle = images[0].gl_swizzle
-
-        glTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_SWIZZLE_RGBA,swizzle)
-
-        for level,image in enumerate(images):
-            glTexImage2D(GL_TEXTURE_2D,level,component_count,image.width,image.height,0,component_count,image_format,image.gl_convert(palette))
-
-
-class Texture:
-
-    def __init__(self):
-        self.wrap_s = gx.CLAMP
-        self.wrap_t = gx.CLAMP
-        self.minification_filter = gx.NEAR
-        self.magnification_filter = gx.NEAR
-        self.minimum_lod = 0
-        self.maximum_lod = 0
-        self.lod_bias = 0
-        self.images = None
-        self.palette = None
-
-    def gl_init(self,texture_factory=GLTexture):
-        self.gl_wrap_s_need_update = True
-        self.gl_wrap_t_need_update = True
-        self.gl_minification_filter_need_update = True
-        self.gl_magnification_filter_need_update = True
-        self.gl_minimum_lod_need_update = True
-        self.gl_maximum_lod_need_update = True
-        self.gl_lod_bias_need_update = True
-
-        self.gl_sampler = gl.Sampler()
-        self.gl_texture = texture_factory(self.images,self.palette)
-
-    def gl_bind(self,texture_unit):
-        if self.gl_wrap_s_need_update:
-            glSamplerParameteri(self.gl_sampler,GL_TEXTURE_WRAP_S,self.wrap_s.gl_value)
-            self.gl_wrap_s_need_update = False
-        if self.gl_wrap_t_need_update:
-            glSamplerParameteri(self.gl_sampler,GL_TEXTURE_WRAP_T,self.wrap_t.gl_value)
-            self.gl_wrap_t_need_update = False
-        if self.gl_minification_filter_need_update:
-            glSamplerParameteri(self.gl_sampler,GL_TEXTURE_MIN_FILTER,self.minification_filter.gl_value)
-            self.gl_minification_filter_need_update = False
-        if self.gl_magnification_filter_need_update:
-            glSamplerParameteri(self.gl_sampler,GL_TEXTURE_MAG_FILTER,self.magnification_filter.gl_value)
-            self.gl_magnification_filter_need_update = False
-        if self.gl_minimum_lod_need_update:
-            glSamplerParameterf(self.gl_sampler,GL_TEXTURE_MIN_LOD,self.minimum_lod)
-            self.gl_minimum_lod_need_update = False
-        if self.gl_maximum_lod_need_update:
-            glSamplerParameterf(self.gl_sampler,GL_TEXTURE_MAX_LOD,self.maximum_lod)
-            self.gl_maximum_lod_need_update = False
-        if self.gl_lod_bias_need_update:
-            glSamplerParameterf(self.gl_sampler,GL_TEXTURE_LOD_BIAS,self.lod_bias)
-            self.gl_lod_bias_need_update = False
-
-        glBindSampler(texture_unit,self.gl_sampler)
-        glActiveTexture(GL_TEXTURE0 + texture_unit)
-        glBindTexture(GL_TEXTURE_2D,self.gl_texture)
 

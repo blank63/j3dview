@@ -4,7 +4,8 @@ import numpy
 from OpenGL.GL import *
 from PyQt5 import QtCore,QtWidgets
 import qt
-from j3d.opengl import *
+from views.material import MATRIX_BLOCK_BINDING_POINT
+from views.vertex_shader import MatrixBlock
 
 import logging
 logger = logging.getLogger(__name__)
@@ -218,6 +219,7 @@ class ViewerWidget(QtWidgets.QOpenGLWidget,metaclass=qt.PropertyOwnerMetaClass):
 
     def setModel(self,model):
         self.makeCurrent()
+        model = model
         model.gl_init()
         self.model = model
         self.animation = None

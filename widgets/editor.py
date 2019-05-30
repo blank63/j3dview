@@ -7,6 +7,7 @@ import gx
 import gx.bti
 import j3d.model
 import j3d.animation
+import views.model
 import widgets.explorer_widget
 
 
@@ -223,7 +224,7 @@ class Editor(QtWidgets.QMainWindow):
 
         self.undo_stack.clear()
 
-        self.model = ModelWrapper(model)
+        self.model = ModelWrapper(views.model.Model(model))
         self.viewer.setModel(self.model)
         self.explorer.setModel(self.model)
 

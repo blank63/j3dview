@@ -16,7 +16,7 @@ class Header(Struct):
         self.magic = b'EVP1'
 
     @classmethod
-    def unpack(cls,stream):
+    def unpack(cls, stream):
         header = super().unpack(stream)
         if header.magic != b'EVP1':
             raise FormatError('invalid magic')
@@ -25,12 +25,12 @@ class Header(Struct):
 
 class Influence:
 
-    def __init__(self,index,weight):
+    def __init__(self, index, weight):
         self.index = index
         self.weight = weight
 
 
-def pack(stream,influence_groups,inverse_bind_matrices):
+def pack(stream, influence_groups, inverse_bind_matrices):
     base = stream.tell()
     header = Header()
     header.influence_group_count = len(influence_groups)
@@ -43,27 +43,27 @@ def pack(stream,influence_groups,inverse_bind_matrices):
     if influence_groups:
         header.influence_count_offset = stream.tell() - base
         for influence_group in influence_groups:
-            uint8.pack(stream,len(influence_group))
+            uint8.pack(stream, len(influence_group))
 
         header.index_offset = stream.tell() - base
         for influence_group in influence_groups:
             for influence in influence_group:
-                uint16.pack(stream,influence.index)
+                uint16.pack(stream, influence.index)
 
-        align(stream,4)
+        align(stream, 4)
         header.weight_offset = stream.tell() - base
         for influence_group in influence_groups:
             for influence in influence_group:
-                float32.pack(stream,influence.weight)
+                float32.pack(stream, influence.weight)
 
     if inverse_bind_matrices is not None:
         header.inverse_bind_matrix_offset = stream.tell() - base
         inverse_bind_matrices.tofile(stream)
 
-    align(stream,0x20)
+    align(stream, 0x20)
     header.section_size = stream.tell() - base
     stream.seek(base)
-    Header.pack(stream,header)
+    Header.pack(stream, header)
     stream.seek(base + header.section_size)
 
 
@@ -77,7 +77,7 @@ def unpack(stream):
     stream.seek(base + header.influence_count_offset)
     for i in range(header.influence_group_count):
         influence_count = uint8.unpack(stream)
-        influence_groups[i] = [Influence(None,None) for _ in range(influence_count)]
+        influence_groups[i] = [Influence(None, None) for _ in range(influence_count)]
 
     stream.seek(base + header.index_offset)
     for influence_group in influence_groups:
@@ -91,10 +91,10 @@ def unpack(stream):
 
     if header.inverse_bind_matrix_offset != 0:
         stream.seek(base + header.inverse_bind_matrix_offset)
-        element_type = numpy.dtype((numpy.float32,(3,4))).newbyteorder('>')
+        element_type = numpy.dtype((numpy.float32, (3, 4))).newbyteorder('>')
         element_count = (header.section_size - header.inverse_bind_matrix_offset)//element_type.itemsize
-        inverse_bind_matrices = numpy.fromfile(stream,element_type,element_count)
+        inverse_bind_matrices = numpy.fromfile(stream, element_type, element_count)
 
     stream.seek(base + header.section_size)
-    return influence_groups,inverse_bind_matrices
+    return influence_groups, inverse_bind_matrices
 

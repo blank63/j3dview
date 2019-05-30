@@ -31,6 +31,8 @@ class VertexArray(Resource):
     def __del__(self):
         glDeleteVertexArrays(1,self)
 
+def VertexArray(): return glGenVertexArrays(1)
+
 
 class Shader(Resource):
 
@@ -79,7 +81,7 @@ class Texture(Resource):
 class Sampler(Resource):
 
     def __init__(self):
-        glGenSamplers(1,self)
+        super().__init__(glGenSamplers(1))
 
     def __del__(self):
         glDeleteSamplers(1,self)

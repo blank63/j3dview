@@ -1,4 +1,4 @@
-from math import cos,sin,radians
+from math import cos, sin, radians
 import numpy
 from btypes.big_endian import *
 import j3d.string_table
@@ -20,17 +20,17 @@ class Header(Struct):
         self.magic = b'JNT1'
 
     @classmethod
-    def unpack(cls,stream):
+    def unpack(cls, stream):
         header = super().unpack(stream)
         if header.magic != b'JNT1':
             raise FormatError('invalid magic')
         return header
 
 
-def matrix3x4_multiply(a,b):
-    c = numpy.empty((3,4),numpy.float32)
-    c[:,0:3] = numpy.dot(a[:,0:3],b[:,0:3])
-    c[:,3] = numpy.dot(a[:,0:3],b[:,3])
+def matrix3x4_multiply(a, b):
+    c = numpy.empty((3, 4), numpy.float32)
+    c[:,0:3] = numpy.dot(a[:,0:3], b[:,0:3])
+    c[:,3] = numpy.dot(a[:,0:3], b[:,3])
     c[:,3] += a[:,3]
     return c
 
@@ -44,9 +44,9 @@ class Joint(Struct):
     scale_x = float32
     scale_y = float32
     scale_z = float32
-    rotation_x = FixedPointConverter(sint16,180/32767)
-    rotation_y = FixedPointConverter(sint16,180/32767)
-    rotation_z = FixedPointConverter(sint16,180/32767)
+    rotation_x = FixedPointConverter(sint16, 180/32767)
+    rotation_y = FixedPointConverter(sint16, 180/32767)
+    rotation_z = FixedPointConverter(sint16, 180/32767)
     __padding__ = Padding(2)
     translation_x = float32
     translation_y = float32
@@ -73,13 +73,13 @@ class Joint(Struct):
         self.translation_z = 0
 
     @classmethod
-    def unpack(cls,stream):
+    def unpack(cls, stream):
         joint = super().unpack(stream)
-        if joint.unknown0 not in {0,1,2}:
+        if joint.unknown0 not in {0, 1, 2}:
             logger.warning('unknown0 different from default')
         return joint
 
-    def create_matrix(self,parent_joint,parent_joint_matrix):
+    def create_matrix(self, parent_joint, parent_joint_matrix):
         # The calculation of the local matrix is an optimized version of
         # local_matrix = T*IPS*R*S if ignore_parent_scale else T*R*S
         # where S, R and T is the scale, rotation and translation matrix
@@ -101,7 +101,7 @@ class Joint(Struct):
             ips_y = 1
             ips_z = 1
 
-        local_matrix = numpy.empty((3,4),numpy.float32)
+        local_matrix = numpy.empty((3, 4), numpy.float32)
         local_matrix[0,0] = cy*cz*self.scale_x*ips_x
         local_matrix[1,0] = cy*sz*self.scale_x*ips_y
         local_matrix[2,0] = -sy*self.scale_x*ips_z
@@ -115,10 +115,10 @@ class Joint(Struct):
         local_matrix[1,3] = self.translation_y
         local_matrix[2,3] = self.translation_z
 
-        return matrix3x4_multiply(parent_joint_matrix,local_matrix)
+        return matrix3x4_multiply(parent_joint_matrix, local_matrix)
 
 
-def pack(stream,joints):
+def pack(stream, joints):
     base = stream.tell()
     header = Header()
     header.joint_count = len(joints)
@@ -126,20 +126,20 @@ def pack(stream,joints):
 
     header.joint_offset = stream.tell() - base
     for joint in joints:
-        Joint.pack(stream,joint)
+        Joint.pack(stream, joint)
 
     header.index_offset = stream.tell() - base
     for index in range(len(joints)):
-        uint16.pack(stream,index)
+        uint16.pack(stream, index)
 
-    align(stream,4)
+    align(stream, 4)
     header.name_offset = stream.tell() - base
-    j3d.string_table.pack(stream,(joint.name for joint in joints))
+    j3d.string_table.pack(stream, (joint.name for joint in joints))
 
-    align(stream,0x20)
+    align(stream, 0x20)
     header.section_size = stream.tell() - base
     stream.seek(base)
-    Header.pack(stream,header)
+    Header.pack(stream, header)
     stream.seek(base + header.section_size)
 
 
@@ -157,7 +157,7 @@ def unpack(stream):
 
     stream.seek(base + header.name_offset)
     names = j3d.string_table.unpack(stream)
-    for joint,name in zip(joints,names):
+    for joint, name in zip(joints, names):
         joint.name = name
 
     stream.seek(base + header.section_size)

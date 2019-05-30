@@ -1,7 +1,36 @@
 from io import StringIO
 from OpenGL.GL import *
+import gl
 import gx
-from j3d.opengl import *
+
+
+MATRIX_INDEX_ATTRIBUTE_LOCATION = 0
+POSITION_ATTRIBUTE_LOCATION = 1
+NORMAL_ATTRIBUTE_LOCATION = 2
+BINORMAL_ATTRIBUTE_LOCATION = 3
+TANGENT_ATTRIBUTE_LOCATION = 4
+COLOR_ATTRIBUTE_LOCATION = 5
+TEXCOORD_ATTRIBUTE_LOCATIONS = [6,7,8,9,10,11,12,13]
+
+ATTRIBUTE_LOCATION_TABLE = {
+        gx.VA_PTNMTXIDX:MATRIX_INDEX_ATTRIBUTE_LOCATION,
+        gx.VA_POS:POSITION_ATTRIBUTE_LOCATION,
+        gx.VA_NRM:NORMAL_ATTRIBUTE_LOCATION,
+        gx.VA_CLR0:COLOR_ATTRIBUTE_LOCATION,
+        gx.VA_CLR1:COLOR_ATTRIBUTE_LOCATION,
+        gx.VA_TEX0:TEXCOORD_ATTRIBUTE_LOCATIONS[0],
+        gx.VA_TEX1:TEXCOORD_ATTRIBUTE_LOCATIONS[2],
+        gx.VA_TEX2:TEXCOORD_ATTRIBUTE_LOCATIONS[2],
+        gx.VA_TEX3:TEXCOORD_ATTRIBUTE_LOCATIONS[3],
+        gx.VA_TEX4:TEXCOORD_ATTRIBUTE_LOCATIONS[4],
+        gx.VA_TEX5:TEXCOORD_ATTRIBUTE_LOCATIONS[5],
+        gx.VA_TEX6:TEXCOORD_ATTRIBUTE_LOCATIONS[6],
+        gx.VA_TEX7:TEXCOORD_ATTRIBUTE_LOCATIONS[7]}
+
+
+class MatrixBlock(gl.UniformBlock):
+    projection_matrix = gl.mat4
+    view_matrix = gl.mat4x3
 
 
 def convert_material_source(source,index):
@@ -106,7 +135,7 @@ def write_texcoord_generator(stream,index,generator,texture_matrices):
     stream.write(';\n')
 
 
-def create_shader_string(material,shape):
+def create_shader_string(material, transformation_type):
     stream = StringIO()
 
     stream.write('#version 330\n')
@@ -114,16 +143,16 @@ def create_shader_string(material,shape):
     stream.write('{}\n'.format(MatrixBlock.glsl_type))
     stream.write('{}\n'.format(material.gl_block.glsl_type))
 
-    if shape.transformation_type == 0:
-        stream.write('const int matrix_index = {};\n'.format(shape.batches[0].matrix_table[0]))
+    if transformation_type == 0:
+        stream.write('uniform int matrix_index;\n')
         stream.write('uniform samplerBuffer matrix_table;\n')
         stream.write('#define MATRIX_ROW(i) texelFetch(matrix_table,3*matrix_index + i)\n')
         position = 'view_matrix*vec4(dot(MATRIX_ROW(0),position),dot(MATRIX_ROW(1),position),dot(MATRIX_ROW(2),position),1.0)'
-    elif shape.transformation_type == 1:
+    elif transformation_type == 1:
         position = '(position.xyz + view_matrix[3])'
-    elif shape.transformation_type == 2:
+    elif transformation_type == 2:
         raise Exception('y billboard matrix not implemented') #TODO
-    elif shape.transformation_type == 3:
+    elif transformation_type == 3:
         stream.write('layout(location={}) in int matrix_index;\n'.format(MATRIX_INDEX_ATTRIBUTE_LOCATION))
         stream.write('uniform samplerBuffer matrix_table;\n')
         stream.write('#define MATRIX_ROW(i) texelFetch(matrix_table,3*matrix_index + i)\n')

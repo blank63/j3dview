@@ -18,11 +18,11 @@ class Header(Struct):
         self.magic = b'INF1'
 
     @classmethod
-    def unpack(cls,stream):
+    def unpack(cls, stream):
         header = super().unpack(stream)
         if header.magic != b'INF1':
             raise FormatError('invalid magic')
-        if header.unknown0 not in {0,1,2}:
+        if header.unknown0 not in {0, 1, 2}:
             logger.warning('unknown0 different from default')
         return header
 
@@ -37,10 +37,10 @@ class NodeType(IntEnum):
 
 
 class Node(Struct):
-    node_type = EnumConverter(uint16,NodeType)
+    node_type = EnumConverter(uint16, NodeType)
     index = uint16
 
-    def __init__(self,node_type,index):
+    def __init__(self, node_type, index):
         self.node_type = node_type
         self.index = index
         self.children = []
@@ -53,28 +53,28 @@ class SceneGraph:
         self.children = []
 
 
-def pack_children(stream,parent):
+def pack_children(stream, parent):
     for node in parent.children:
-        Node.pack(stream,node)
+        Node.pack(stream, node)
         if node.children:
-            Node.pack(stream,Node(NodeType.BEGIN_CHILDREN,0))
-            pack_children(stream,node)
-            Node.pack(stream,Node(NodeType.END_CHILDREN,0))
+            Node.pack(stream, Node(NodeType.BEGIN_CHILDREN, 0))
+            pack_children(stream, node)
+            Node.pack(stream, Node(NodeType.END_CHILDREN, 0))
 
 
-def unpack_children(stream,parent,end_node_type=NodeType.END_CHILDREN):
+def unpack_children(stream, parent, end_node_type=NodeType.END_CHILDREN):
     while True:
         node = Node.unpack(stream)
         if node.node_type == end_node_type:
             break
         elif node.node_type == NodeType.BEGIN_CHILDREN:
-            unpack_children(stream,parent.children[-1])
+            unpack_children(stream, parent.children[-1])
         else:
             node.children = []
             parent.children.append(node)
 
 
-def pack(stream,scene_graph,shape_batch_count,vertex_position_count):
+def pack(stream, scene_graph, shape_batch_count, vertex_position_count):
     base = stream.tell()
     header = Header()
     header.unknown0 = scene_graph.unknown0
@@ -83,13 +83,13 @@ def pack(stream,scene_graph,shape_batch_count,vertex_position_count):
     stream.write(b'\x00'*Header.sizeof())
 
     header.scene_graph_offset = stream.tell() - base
-    pack_children(stream,scene_graph)
-    Node.pack(stream,Node(NodeType.END_GRAPH,0))
+    pack_children(stream, scene_graph)
+    Node.pack(stream, Node(NodeType.END_GRAPH, 0))
 
-    align(stream,0x20)
+    align(stream, 0x20)
     header.section_size = stream.tell() - base
     stream.seek(base)
-    Header.pack(stream,header)
+    Header.pack(stream, header)
     stream.seek(base + header.section_size)
 
 
@@ -100,8 +100,8 @@ def unpack(stream):
     stream.seek(base + header.scene_graph_offset)
     scene_graph = SceneGraph()
     scene_graph.unknown0 = header.unknown0
-    unpack_children(stream,scene_graph,NodeType.END_GRAPH)
+    unpack_children(stream, scene_graph, NodeType.END_GRAPH)
 
     stream.seek(base + header.section_size)
-    return scene_graph,header.shape_batch_count,header.vertex_position_count
+    return scene_graph, header.shape_batch_count, header.vertex_position_count
 
