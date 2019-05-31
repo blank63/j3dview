@@ -345,9 +345,10 @@ class UnknownStruct5(Struct):
         return unknown5
 
 
-class Material:
+class Material(gl.ResourceOwner):
 
     def __init__(self, base):
+        super().__init__()
         self.base = base
 
         self.update_use_variables()
@@ -387,7 +388,7 @@ class Material:
             fields.append(('indmatrix{}'.format(i),gl.mat3x2,gl_value))
 
         block_type = gl.uniform_block('MaterialBlock',((name,gl_type) for name,gl_type,_ in fields))
-        block = block_type(GL_DYNAMIC_DRAW)
+        block = self.gl_create(block_type, GL_DYNAMIC_DRAW)
 
         for name,_,value in fields:
             block[name] = value
@@ -489,9 +490,9 @@ class Material:
         if transformation_type in self.gl_program_table:
             return self.gl_program_table[transformation_type]
 
-        vertex_shader = gl.Shader(GL_VERTEX_SHADER, views.vertex_shader.create_shader_string(self, transformation_type))
-        fragment_shader = gl.Shader(GL_FRAGMENT_SHADER, views.fragment_shader.create_shader_string(self))
-        program = gl.Program(vertex_shader, fragment_shader)
+        vertex_shader = self.gl_create(gl.Shader, GL_VERTEX_SHADER, views.vertex_shader.create_shader_string(self, transformation_type))
+        fragment_shader = self.gl_create(gl.Shader, GL_FRAGMENT_SHADER, views.fragment_shader.create_shader_string(self))
+        program = self.gl_create(gl.Program, vertex_shader, fragment_shader)
 
         glUseProgram(program)
 

@@ -3,6 +3,7 @@ import os.path
 import numpy
 from OpenGL.GL import *
 from PyQt5 import QtCore,QtWidgets
+import gl
 import qt
 from views.material import MATRIX_BLOCK_BINDING_POINT
 from views.vertex_shader import MatrixBlock
@@ -52,7 +53,7 @@ def create_frustum_matrix(left,right,bottom,top,near,far):
         numpy.float32)
 
 
-class ViewerWidget(QtWidgets.QOpenGLWidget,metaclass=qt.PropertyOwnerMetaClass):
+class ViewerWidget(qt.OpenGLWidget, metaclass=qt.PropertyOwnerMetaClass):
 
     z_near = qt.Property(float)
     z_far = qt.Property(float)
@@ -76,8 +77,8 @@ class ViewerWidget(QtWidgets.QOpenGLWidget,metaclass=qt.PropertyOwnerMetaClass):
     def view_matrix(self,matrix):
         self.matrix_block['view_matrix'] = matrix
 
-    def __init__(self,*args):
-        super().__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
@@ -102,8 +103,6 @@ class ViewerWidget(QtWidgets.QOpenGLWidget,metaclass=qt.PropertyOwnerMetaClass):
 
         self.pressed_keys = set()
 
-        QtWidgets.qApp.aboutToQuit.connect(self.on_application_aboutToQuit)
-
     def update_projection_matrix(self):
         u = self.z_near*tan(radians(self.fov))
         r = u*self.width()/self.height()
@@ -125,7 +124,7 @@ class ViewerWidget(QtWidgets.QOpenGLWidget,metaclass=qt.PropertyOwnerMetaClass):
         if self.format().samples() > 1:
             glEnable(GL_MULTISAMPLE)
 
-        self.matrix_block = MatrixBlock(GL_DYNAMIC_DRAW)
+        self.matrix_block = self.gl_create(MatrixBlock, GL_DYNAMIC_DRAW)
         self.projection_matrix_need_update = True
         self.view_matrix_need_update = True
 
@@ -239,12 +238,4 @@ class ViewerWidget(QtWidgets.QOpenGLWidget,metaclass=qt.PropertyOwnerMetaClass):
     def focusOutEvent(self,event):
         self.pressed_keys = set()
         super().focusOutEvent(event)
-
-    @QtCore.pyqtSlot()
-    def on_application_aboutToQuit(self):
-        #XXX Delete OpenGL objects before the OpenGL module starts to unload
-        #FIXME: Find a better way of doing this?
-        self.makeCurrent()
-        if hasattr(self,'matrix_block'): del self.matrix_block
-        if hasattr(self,'model'): del self.model
 

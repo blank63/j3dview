@@ -132,13 +132,14 @@ def gl_convert_color_array(source):
     return destination
 
 
-class Model:
+class Model(gl.ResourceOwner):
 
     def __init__(self, base):
+        super().__init__()
         self.base = base
-        self.shapes = [views.shape.Shape(shape) for shape in base.shapes]
-        self.materials = [views.material.Material(material) for material in base.materials]
-        self.textures = [views.texture.Texture(texture) for texture in base.textures]
+        self.shapes = [self.gl_create(views.shape.Shape, shape) for shape in base.shapes]
+        self.materials = [self.gl_create(views.material.Material, material) for material in base.materials]
+        self.textures = [self.gl_create(views.texture.Texture, texture) for texture in base.textures]
 
     def __getattr__(self, name):
         return getattr(self.base, name)
@@ -157,7 +158,7 @@ class Model:
 
         self.gl_joints = [copy.copy(joint) for joint in self.joints]
         self.gl_joint_matrices = numpy.empty((len(self.joints),3,4),numpy.float32)
-        self.gl_matrix_table = gl.TextureBuffer(GL_DYNAMIC_DRAW,GL_RGBA32F,(len(self.matrix_descriptors),3,4),numpy.float32)
+        self.gl_matrix_table = self.gl_create(gl.TextureBuffer, GL_DYNAMIC_DRAW,GL_RGBA32F,(len(self.matrix_descriptors),3,4),numpy.float32)
         self.gl_update_matrix_table()
 
     def gl_update_joint_matrices(self,node,parent_joint=None,parent_joint_matrix=numpy.eye(3,4,dtype=numpy.float32)):

@@ -1,4 +1,5 @@
 from PyQt5 import QtCore,QtWidgets
+import gl
 
 
 class ComboBox(QtWidgets.QComboBox):
@@ -187,4 +188,12 @@ class Wrapper(QtCore.QObject,metaclass=PropertyOwnerMetaClass):
 
     def __getattr__(self,name):
         return getattr(self.wrapped_object,name)
+
+
+class OpenGLWidget(QtWidgets.QOpenGLWidget, gl.ResourceOwner):
+
+    def __init__(self, *args, **kwargs):
+        super(QtWidgets.QOpenGLWidget, self).__init__(*args, **kwargs)
+        super(gl.ResourceOwner, self).__init__()
+        self.destroyed.connect(self.gl_delete)
 

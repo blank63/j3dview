@@ -60,12 +60,13 @@ class GLTexture(gl.Texture):
             glTexImage2D(GL_TEXTURE_2D, level, component_count, image.width, image.height, 0, component_count, image_format, convert(image))
 
 
-class Texture:
+class Texture(gl.ResourceOwner):
 
     def __init__(self, base):
+        super().__init__()
         self.base = base
-        self.gl_sampler = gl.Sampler()
-        self.gl_texture = GLTexture(base.images, base.palette)
+        self.gl_sampler = self.gl_create(gl.Sampler)
+        self.gl_texture = self.gl_create(GLTexture, base.images, base.palette)
 
     def __getattr__(self, name):
         return getattr(self.base, name)
