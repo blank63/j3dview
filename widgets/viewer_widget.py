@@ -1,8 +1,8 @@
-from math import cos,sin,tan,radians
+from math import cos, sin, tan, radians
 import os.path
 import numpy
 from OpenGL.GL import *
-from PyQt5 import QtCore,QtWidgets
+from PyQt5 import QtCore, QtWidgets
 import gl
 import qt
 from views.material import MATRIX_BLOCK_BINDING_POINT
@@ -14,13 +14,13 @@ logger = logging.getLogger(__name__)
 
 class Quarternion:
 
-    def __init__(self,a=0,b=0,c=0,d=0):
+    def __init__(self, a=0, b=0, c=0, d=0):
         self.a = a
         self.b = b
         self.c = c
         self.d = d
 
-    def __mul__(self,other):
+    def __mul__(self, other):
         return Quarternion(
                 self.a*other.a - self.b*other.b - self.c*other.c - self.d*other.d,
                 self.a*other.b + self.b*other.a + self.c*other.d - self.d*other.c,
@@ -28,12 +28,12 @@ class Quarternion:
                 self.a*other.d + self.b*other.c - self.c*other.b + self.d*other.a)
 
     def conjugate(self):
-        return Quarternion(self.a,-self.b,-self.c,-self.d)
+        return Quarternion(self.a, -self.b, -self.c, -self.d)
 
     @staticmethod
-    def rotation(axis_x,axis_y,axis_z,angle):
+    def rotation(axis_x, axis_y, axis_z, angle):
         s = sin(angle/2)
-        return Quarternion(cos(angle/2),s*axis_x,s*axis_y,s*axis_z)
+        return Quarternion(cos(angle/2), s*axis_x, s*axis_y, s*axis_z)
 
 
 def create_rotation_matrix(rotation):
@@ -53,20 +53,14 @@ def create_frustum_matrix(left,right,bottom,top,near,far):
         numpy.float32)
 
 
-class ViewerWidget(qt.OpenGLWidget, metaclass=qt.PropertyOwnerMetaClass):
-
-    z_near = qt.Property(float)
-    z_far = qt.Property(float)
-    fov = qt.Property(float)
-    movement_speed = qt.Property(float)
-    rotation_speed = qt.Property(float)
+class ViewerWidget(qt.OpenGLWidget):
 
     @property
     def projection_matrix(self):
         return self.matrix_block['projection_matrix']
 
     @projection_matrix.setter
-    def projection_matrix(self,matrix):
+    def projection_matrix(self, matrix):
         self.matrix_block['projection_matrix'] = matrix
 
     @property
@@ -74,7 +68,7 @@ class ViewerWidget(qt.OpenGLWidget, metaclass=qt.PropertyOwnerMetaClass):
         return self.matrix_block['view_matrix']
 
     @view_matrix.setter
-    def view_matrix(self,matrix):
+    def view_matrix(self, matrix):
         self.matrix_block['view_matrix'] = matrix
 
     def __init__(self, *args, **kwargs):
@@ -88,15 +82,11 @@ class ViewerWidget(qt.OpenGLWidget, metaclass=qt.PropertyOwnerMetaClass):
         self.z_near = 25
         self.z_far = 12800
         self.fov = 22.5
-        self.view_position = numpy.array([0,0,1000],numpy.float32)
-        self.view_rotation = Quarternion(1,0,0,0)
+        self.view_position = numpy.array([0, 0, 1000], numpy.float32)
+        self.view_rotation = Quarternion(1, 0, 0, 0)
         self.movement_speed = 10
         self.rotation_speed = 1
         self.fps = 30
-
-        self.z_near_changed.connect(self.on_z_near_changed)
-        self.z_far_changed.connect(self.on_z_far_changed)
-        self.fov_changed.connect(self.on_fov_changed)
 
         self.animation_timer = QtCore.QTimer(self)
         self.animation_timer.timeout.connect(self.on_animation_timer_timeout)
@@ -106,20 +96,20 @@ class ViewerWidget(qt.OpenGLWidget, metaclass=qt.PropertyOwnerMetaClass):
     def update_projection_matrix(self):
         u = self.z_near*tan(radians(self.fov))
         r = u*self.width()/self.height()
-        self.projection_matrix = create_frustum_matrix(-r,r,-u,u,self.z_near,self.z_far)
+        self.projection_matrix = create_frustum_matrix(-r, r, -u, u, self.z_near, self.z_far)
         self.projection_matrix_need_update = False
 
     def update_view_matrix(self):
         #FIXME: Renormalise rotation occasionally
         self.view_matrix[:,0:3] = create_rotation_matrix(self.view_rotation)
-        self.view_matrix[:,3] = -numpy.dot(self.view_matrix[:,0:3],self.view_position)
+        self.view_matrix[:,3] = -numpy.dot(self.view_matrix[:,0:3], self.view_position)
         self.view_matrix_need_update = False
 
     def initializeGL(self):
-        logger.info('OpenGL vendor: %s',glGetString(GL_VENDOR).decode())
-        logger.info('OpenGL renderer: %s',glGetString(GL_RENDERER).decode())
-        logger.info('OpenGL version: %s',glGetString(GL_VERSION).decode())
-        logger.info('OpenGLSL version: %s',glGetString(GL_SHADING_LANGUAGE_VERSION).decode())
+        logger.info('OpenGL vendor: %s', glGetString(GL_VENDOR).decode())
+        logger.info('OpenGL renderer: %s', glGetString(GL_RENDERER).decode())
+        logger.info('OpenGL version: %s', glGetString(GL_VERSION).decode())
+        logger.info('OpenGLSL version: %s', glGetString(GL_SHADING_LANGUAGE_VERSION).decode())
 
         if self.format().samples() > 1:
             glEnable(GL_MULTISAMPLE)
@@ -131,7 +121,7 @@ class ViewerWidget(qt.OpenGLWidget, metaclass=qt.PropertyOwnerMetaClass):
         self.animation_timer.start(1000/self.fps)
 
     def paintGL(self):
-        glClearColor(0.5,0.5,0.5,1)
+        glClearColor(0.5, 0.5, 0.5, 1)
         glClearDepth(1.0)
         glDepthMask(True)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -139,24 +129,12 @@ class ViewerWidget(qt.OpenGLWidget, metaclass=qt.PropertyOwnerMetaClass):
             self.matrix_block.bind(MATRIX_BLOCK_BINDING_POINT)
             self.model.gl_draw()
 
-    def resizeGL(self,width,height):
-        glViewport(0,0,width,height)
+    def resizeGL(self, width, height):
+        glViewport(0, 0, width, height)
         self.projection_matrix_need_update = True
 
     def sizeHint(self):
-        return QtCore.QSize(640,480)
-
-    @QtCore.pyqtSlot(float)
-    def on_z_near_changed(self,value):
-        self.projection_matrix_need_update = True
-
-    @QtCore.pyqtSlot(float)
-    def on_z_far_changed(self,value):
-        self.projection_matrix_need_update = True
-
-    @QtCore.pyqtSlot(float)
-    def on_fov_changed(self,value):
-        self.projection_matrix_need_update = True
+        return QtCore.QSize(640, 480)
 
     @QtCore.pyqtSlot()
     def on_animation_timer_timeout(self):
@@ -187,22 +165,22 @@ class ViewerWidget(qt.OpenGLWidget, metaclass=qt.PropertyOwnerMetaClass):
             self.view_matrix_need_update = True
 
         if QtCore.Qt.Key_J in self.pressed_keys and QtCore.Qt.Key_L not in self.pressed_keys:
-            self.view_rotation = Quarternion.rotation(0,1,0,-radians(rotation_speed))*self.view_rotation
+            self.view_rotation = Quarternion.rotation(0, 1, 0, -radians(rotation_speed))*self.view_rotation
             self.view_matrix_need_update = True
         if QtCore.Qt.Key_L in self.pressed_keys and QtCore.Qt.Key_J not in self.pressed_keys:
-            self.view_rotation = Quarternion.rotation(0,1,0,radians(rotation_speed))*self.view_rotation
+            self.view_rotation = Quarternion.rotation(0, 1, 0, radians(rotation_speed))*self.view_rotation
             self.view_matrix_need_update = True
         if QtCore.Qt.Key_I in self.pressed_keys and QtCore.Qt.Key_K not in self.pressed_keys:
-            self.view_rotation = Quarternion.rotation(1,0,0,-radians(rotation_speed))*self.view_rotation
+            self.view_rotation = Quarternion.rotation(1, 0, 0, -radians(rotation_speed))*self.view_rotation
             self.view_matrix_need_update = True
         if QtCore.Qt.Key_K in self.pressed_keys and QtCore.Qt.Key_I not in self.pressed_keys:
-            self.view_rotation = Quarternion.rotation(1,0,0,radians(rotation_speed))*self.view_rotation
+            self.view_rotation = Quarternion.rotation(1, 0, 0, radians(rotation_speed))*self.view_rotation
             self.view_matrix_need_update = True
         if QtCore.Qt.Key_O in self.pressed_keys and QtCore.Qt.Key_U not in self.pressed_keys:
-            self.view_rotation = Quarternion.rotation(0,0,1,-radians(rotation_speed))*self.view_rotation
+            self.view_rotation = Quarternion.rotation(0, 0, 1, -radians(rotation_speed))*self.view_rotation
             self.view_matrix_need_update = True
         if QtCore.Qt.Key_U in self.pressed_keys and QtCore.Qt.Key_O not in self.pressed_keys:
-            self.view_rotation = Quarternion.rotation(0,0,1,radians(rotation_speed))*self.view_rotation
+            self.view_rotation = Quarternion.rotation(0, 0, 1, radians(rotation_speed))*self.view_rotation
             self.view_matrix_need_update = True
 
         if self.projection_matrix_need_update:
@@ -216,26 +194,26 @@ class ViewerWidget(qt.OpenGLWidget, metaclass=qt.PropertyOwnerMetaClass):
 
         self.update()
 
-    def setModel(self,model):
+    def setModel(self, model):
         self.makeCurrent()
         model = model
         model.gl_init()
         self.model = model
         self.animation = None
 
-    def setAnimation(self,animation):
+    def setAnimation(self, animation):
         animation.attach(self.model)
         self.animation = animation
 
-    def keyPressEvent(self,event):
+    def keyPressEvent(self, event):
         self.pressed_keys.add(event.key())
         super().keyPressEvent(event)
 
-    def keyReleaseEvent(self,event):
+    def keyReleaseEvent(self, event):
         self.pressed_keys.discard(event.key())
         super().keyPressEvent(event)
 
-    def focusOutEvent(self,event):
+    def focusOutEvent(self, event):
         self.pressed_keys = set()
         super().focusOutEvent(event)
 

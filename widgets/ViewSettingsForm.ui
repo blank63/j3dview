@@ -43,7 +43,7 @@
     </widget>
    </item>
    <item row="0" column="1">
-    <widget class="PropertyDoubleSpinBox" name="z_near">
+    <widget class="QDoubleSpinBox" name="z_near">
      <property name="maximum">
       <double>1000000.000000000000000</double>
      </property>
@@ -60,7 +60,7 @@
     </widget>
    </item>
    <item row="1" column="1">
-    <widget class="PropertyDoubleSpinBox" name="z_far">
+    <widget class="QDoubleSpinBox" name="z_far">
      <property name="maximum">
       <double>1000000.000000000000000</double>
      </property>
@@ -77,7 +77,7 @@
     </widget>
    </item>
    <item row="2" column="1">
-    <widget class="PropertyDoubleSpinBox" name="fov">
+    <widget class="QDoubleSpinBox" name="fov">
      <property name="maximum">
       <double>180.000000000000000</double>
      </property>
@@ -94,7 +94,7 @@
     </widget>
    </item>
    <item row="3" column="1">
-    <widget class="PropertyDoubleSpinBox" name="movement_speed">
+    <widget class="QDoubleSpinBox" name="movement_speed">
      <property name="maximum">
       <double>1000000.000000000000000</double>
      </property>
@@ -111,7 +111,7 @@
     </widget>
    </item>
    <item row="4" column="1">
-    <widget class="PropertyDoubleSpinBox" name="rotation_speed">
+    <widget class="QDoubleSpinBox" name="rotation_speed">
      <property name="maximum">
       <double>180.000000000000000</double>
      </property>
@@ -119,13 +119,6 @@
    </item>
   </layout>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>PropertyDoubleSpinBox</class>
-   <extends>QDoubleSpinBox</extends>
-   <header>qt</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

@@ -1,18 +1,43 @@
 import io
 import pkgutil
-from PyQt5 import QtWidgets,uic
+from PyQt5 import QtCore, QtWidgets, uic
 
 
 class ViewSettingsForm(QtWidgets.QWidget):
 
-    def __init__(self,*args,**kwargs):
-        super().__init__(*args,**kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-        self.ui = uic.loadUi(io.BytesIO(pkgutil.get_data(__package__,'ViewSettingsForm.ui')),self)
+        self.ui = uic.loadUi(io.BytesIO(pkgutil.get_data(__package__, 'ViewSettingsForm.ui')), self)
 
-    def setViewer(self,viewer):
-        self.z_near.bindProperty(viewer,'z_near',viewer.z_near_changed)
-        self.z_far.bindProperty(viewer,'z_far',viewer.z_far_changed)
-        self.fov.bindProperty(viewer,'fov',viewer.fov_changed)
-        self.movement_speed.bindProperty(viewer,'movement_speed',viewer.movement_speed_changed)
-        self.rotation_speed.bindProperty(viewer,'rotation_speed',viewer.rotation_speed_changed)
+        self.viewer = None
+
+    def setViewer(self, viewer):
+        self.viewer = viewer
+        self.z_near.setValue(self.viewer.z_near)
+        self.z_far.setValue(self.viewer.z_far)
+        self.movement_speed.setValue(self.viewer.movement_speed)
+        self.rotation_speed.setValue(self.viewer.rotation_speed)
+
+    @QtCore.pyqtSlot(float)
+    def on_z_near_valueChanged(self, value):
+        if self.viewer is None: return
+        self.viewer.z_near = value
+        self.viewer.projection_matrix_need_update = True
+
+    @QtCore.pyqtSlot(float)
+    def on_z_far_valueChanged(self, value):
+        if self.viewer is None: return
+        self.viewer.z_far = value
+        self.viewer.projection_matrix_need_update = True
+
+    @QtCore.pyqtSlot(float)
+    def on_movement_speed_valueChanged(self, value):
+        if self.viewer is None: return
+        self.viewer.movement_speed = value
+
+    @QtCore.pyqtSlot(float)
+    def on_rotation_speed_valueChanged(self, value):
+        if self.viewer is None: return
+        self.viewer.rotation_speed = value
+

@@ -554,9 +554,9 @@ TL_RGB5A3 = PaletteFormat.TL_RGB5A3
 
 
 class WrapMode(Enum):
-    CLAMP = Value(0,gl_value=GL_CLAMP_TO_EDGE)
-    REPEAT = Value(1,gl_value=GL_REPEAT)
-    MIRROR = Value(2,gl_value=GL_MIRRORED_REPEAT)
+    CLAMP = 0
+    REPEAT = 1
+    MIRROR = 2
 
 
 CLAMP = WrapMode.CLAMP
@@ -565,12 +565,12 @@ MIRROR = WrapMode.MIRROR
 
 
 class FilterMode(Enum):
-    NEAR = Value(0,gl_value=GL_NEAREST)
-    LINEAR = Value(1,gl_value=GL_LINEAR)
-    NEAR_MIP_NEAR = Value(2,gl_value=GL_NEAREST_MIPMAP_NEAREST)
-    LIN_MIP_NEAR = Value(3,gl_value=GL_LINEAR_MIPMAP_NEAREST)
-    NEAR_MIP_LIN = Value(4,gl_value=GL_NEAREST_MIPMAP_LINEAR)
-    LIN_MIP_LIN = Value(5,gl_value=GL_LINEAR_MIPMAP_LINEAR)
+    NEAR = 0
+    LINEAR = 1
+    NEAR_MIP_NEAR = 2
+    LIN_MIP_NEAR = 3
+    NEAR_MIP_LIN = 4
+    LIN_MIP_LIN = 5
 
 
 NEAR = FilterMode.NEAR
