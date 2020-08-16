@@ -10,339 +10,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-from btypes.big_endian import *
-
-
 MATRIX_BLOCK_BINDING_POINT = 0
 MATERIAL_BLOCK_BINDING_POINT = 1
 MATRIX_TABLE_TEXTURE_UNIT = 0
 TEXTURE_UNITS = [1,2,3,4,5,6,7,8]
-
-
-class Vector(Struct):
-    x = float32
-    y = float32
-    z = float32
-
-    def __init__(self,x=0,y=0,z=0):
-        self.x = x
-        self.y = y
-        self.z = z
-
-
-class Color:
-
-    @staticmethod
-    def gl_type():
-        return gl.vec4
-
-    def gl_convert(self):
-        return numpy.array([self.r,self.g,self.b,self.a],numpy.float32)/0xFF
-
-
-class LightingMode(Struct):
-    """Arguments to GXSetChanCtrl."""
-    light_enable = bool8
-    material_source = EnumConverter(uint8,gx.ChannelSource)
-    light_mask = uint8
-    diffuse_function = EnumConverter(uint8,gx.DiffuseFunction)
-    attenuation_function = EnumConverter(uint8,gx.AttenuationFunction)
-    ambient_source = EnumConverter(uint8,gx.ChannelSource)
-    __padding__ = Padding(2)
-
-    def __init__(self):
-        self.light_enable = False
-        self.material_source = gx.SRC_REG
-        self.ambient_source = gx.SRC_REG
-        self.light_mask = gx.LIGHT_NULL
-        self.diffuse_function = gx.DF_NONE
-        self.attenuation_function = gx.AF_NONE
-
-
-class Channel:
-    pass
-
-
-class Light:
-    position = Vector
-    direction = Vector
-    color = Color
-    a0 = float32
-    a1 = float32
-    a2 = float32
-    k0 = float32
-    k1 = float32
-    k2 = float32
-
-    def __init__(self):
-        self.position = Vector(0,0,0)
-        self.direction = Vector(0,0,0)
-        self.color = (0xFF,0xFF,0xFF)
-        self.a0 = 1
-        self.a1 = 0
-        self.a2 = 0
-        self.k0 = 1
-        self.k1 = 0
-        self.k2 = 0
-
-
-class TexCoordGenerator(Struct):
-    """Arguments to GXSetTexCoordGen."""
-    function = EnumConverter(uint8,gx.TexCoordFunction)
-    source = EnumConverter(uint8,gx.TexCoordSource)
-    matrix = EnumConverter(uint8,gx.TextureMatrix)
-    __padding__ = Padding(1)
-
-    def __init__(self):
-        self.function = gx.TG_MTX2x4
-        self.source = gx.TG_TEX0
-        self.matrix = gx.IDENTITY
-
-
-class TextureMatrix:
-
-    def create_matrix(self):
-        c = cos(radians(self.rotation))
-        s = sin(radians(self.rotation))
-        R = numpy.matrix([[c,-s,0],[s,c,0],[0,0,1]])
-        S = numpy.matrix([[self.scale_s,0,0],[0,self.scale_t,0],[0,0,1]])
-        C = numpy.matrix([[1,0,self.center_s],[0,1,self.center_t],[0,0,1]])
-        T = numpy.matrix([[1,0,self.translation_s],[0,1,self.translation_t],[0,0,1]])
-
-        # Only types 0x00, 0x06, 0x07, 0x08 and 0x09 have been tested
-        if self.matrix_type in {0x00,0x02,0x0A,0x0B,0x80}:
-            P = numpy.matrix([[1,0,0,0],[0,1,0,0],[0,0,0,1]])
-        elif self.matrix_type == 0x06:
-            P = numpy.matrix([[0.5,0,0,0.5],[0,-0.5,0,0.5],[0,0,0,1]])
-        elif self.matrix_type == 0x07:
-            P = numpy.matrix([[0.5,0,0.5,0],[0,-0.5,0.5,0],[0,0,1,0]])
-        elif self.matrix_type in {0x08,0x09}:
-            P = numpy.matrix([[0.5,0,0.5,0],[0,-0.5,0.5,0],[0,0,1,0]])*numpy.matrix(self.projection_matrix)
-        else:
-            raise ValueError('invalid texture matrix type')
-
-        M = T*C*S*R*C.I*P
-
-        if self.shape == gx.TG_MTX2x4:
-            return M[:2,:]
-        elif self.shape == gx.TG_MTX3x4:
-            return M
-        else:
-            raise ValueError('invalid texture matrix shape')
-
-    def gl_type(self):
-        if self.shape == gx.TG_MTX2x4:
-            return gl.mat4x2
-        if self.shape == gx.TG_MTX3x4:
-            return gl.mat4x3
-
-        raise ValueError('invalid texture matrix shape')
-
-    def gl_convert(self):
-        return self.create_matrix()
-
-
-class TevColorMode(Struct):
-    """Arguments to GXSetTevColorIn and GXSetTevColorOp."""
-    a = EnumConverter(uint8,gx.ColorInput)
-    b = EnumConverter(uint8,gx.ColorInput)
-    c = EnumConverter(uint8,gx.ColorInput)
-    d = EnumConverter(uint8,gx.ColorInput)
-    function = EnumConverter(uint8,gx.TevFunction)
-    bias = EnumConverter(uint8,gx.TevBias)
-    scale = EnumConverter(uint8,gx.TevScale)
-    clamp = bool8
-    output = EnumConverter(uint8,gx.TevColor)
-
-    def __init__(self):
-        self.a = gx.CC_ZERO
-        self.b = gx.CC_ZERO
-        self.c = gx.CC_ZERO
-        self.d = gx.CC_TEXC
-        self.function = gx.TEV_ADD
-        self.bias = gx.TB_ZERO
-        self.scale = gx.CS_SCALE_1
-        self.clamp = True
-        self.output = gx.TEVPREV
-
-
-class TevAlphaMode(Struct):
-    """Arguments to GXSetTevAlphaIn and GXSetTevAlphaOp."""
-    a = EnumConverter(uint8,gx.AlphaInput)
-    b = EnumConverter(uint8,gx.AlphaInput)
-    c = EnumConverter(uint8,gx.AlphaInput)
-    d = EnumConverter(uint8,gx.AlphaInput)
-    function = EnumConverter(uint8,gx.TevFunction)
-    bias = EnumConverter(uint8,gx.TevBias)
-    scale = EnumConverter(uint8,gx.TevScale)
-    clamp = bool8
-    output = EnumConverter(uint8,gx.TevColor)
-
-    def __init__(self):
-        self.a = gx.CA_ZERO
-        self.b = gx.CA_ZERO
-        self.c = gx.CA_ZERO
-        self.d = gx.CA_TEXA
-        self.function = gx.TEV_ADD
-        self.bias = gx.TB_ZERO
-        self.scale = gx.CS_SCALE_1
-        self.clamp = True
-        self.output = gx.TEVPREV
-
-
-class TevStage:
-
-    def __init__(self):
-        self.unknown0 = 0xFF
-        self.unknown1 = 0xFF
-
-        self.texcoord = gx.TEXCOORD_NULL
-        self.texture = gx.TEXMAP_NULL
-        self.color = gx.COLOR_NULL
-
-        self.color_mode = TevColorMode()
-        self.alpha_mode = TevAlphaMode()
-
-        self.constant_color = gx.TEV_KCSEL_1
-        self.constant_alpha = gx.TEV_KASEL_1
-
-        self.color_swap_table = gx.TEV_SWAP0
-        self.texture_swap_table = gx.TEV_SWAP0
-
-        self.indirect_stage = gx.INDTEXSTAGE0
-        self.indirect_format = gx.ITF_8
-        self.indirect_bias_components = gx.ITB_NONE
-        self.indirect_matrix = gx.ITM_OFF
-        self.wrap_s = gx.ITW_OFF
-        self.wrap_t = gx.ITW_OFF
-        self.add_previous_texcoord = False
-        self.use_original_lod = False
-        self.bump_alpha = gx.ITBA_OFF
-
-
-class SwapTable(Struct):
-    """Arguments to GXSetTevSwapModeTable."""
-    r = EnumConverter(uint8,gx.ColorComponent)
-    g = EnumConverter(uint8,gx.ColorComponent)
-    b = EnumConverter(uint8,gx.ColorComponent)
-    a = EnumConverter(uint8,gx.ColorComponent)
-
-    def __init__(self):
-        self.r = gx.CH_RED
-        self.g = gx.CH_GREEN
-        self.b = gx.CH_BLUE
-        self.a = gx.CH_ALPHA
-
-
-class IndirectStage:
-
-    def __init__(self):
-        self.texcoord = gx.TEXCOORD_NULL
-        self.texture = gx.TEXMAP_NULL
-        self.scale_s = gx.ITS_1
-        self.scale_t = gx.ITS_1
-
-
-class IndirectMatrix:
-
-    @staticmethod
-    def gl_type():
-        return gl.mat3x2
-
-    def gl_convert(self):
-        matrix = numpy.zeros((2,4),numpy.float32) #FIXME
-        matrix[:,0:3] = numpy.array(self.significand_matrix,numpy.float32)*2**self.scale_exponent
-        return matrix
-
-
-class AlphaTest(Struct):
-    """Arguments to GXSetAlphaCompare."""
-    function0 = EnumConverter(uint8,gx.CompareFunction)
-    reference0 = uint8
-    operation = EnumConverter(uint8,gx.AlphaOperator)
-    function1 = EnumConverter(uint8,gx.CompareFunction)
-    reference1 = uint8
-    __padding__ = Padding(3)
-
-    def __init__(self):
-        self.function0 = gx.ALWAYS
-        self.reference0 = 0
-        self.function1 = gx.ALWAYS
-        self.reference1 = 0
-        self.operation = gx.AOP_AND
-
-
-class Fog:
-    """Arguments to GXSetFog and GXSetFogRangeAdj."""
-    function = EnumConverter(uint8,gx.FogFunction)
-    range_adjustment_enable = bool8
-    range_adjustment_center = uint16
-    z_start = float32
-    z_end = float32
-    z_near = float32
-    z_far = float32
-    color = Color
-    range_adjustment_table = Array(uint16,10)
-
-    def __init__(self):
-        self.function = gx.FOG_NONE
-        self.z_start = 0
-        self.z_end = 0
-        self.z_near = 0
-        self.z_far = 0
-        self.color = Color(0xFF,0xFF,0xFF)
-
-        self.range_adjustment_enable = False
-        self.range_adjustment_center = 0
-        self.range_adjustment_table = [0]*10
-
-
-class DepthMode(Struct):
-    """Arguments to GXSetZMode."""
-    enable = bool8
-    function = EnumConverter(uint8,gx.CompareFunction)
-    update_enable = bool8
-    __padding__ = Padding(1)
-
-    def __init__(self):
-        self.enable = True
-        self.function = gx.LEQUAL
-        self.update_enable = True
-
-
-class BlendMode(Struct):
-    """Arguments to GXSetBlendMode."""
-    function = EnumConverter(uint8,gx.BlendFunction)
-    source_factor = EnumConverter(uint8,gx.BlendSourceFactor)
-    destination_factor = EnumConverter(uint8,gx.BlendDestinationFactor)
-    logical_operation = EnumConverter(uint8,gx.LogicalOperation)
-
-    def __init__(self):
-        self.function = gx.BM_NONE
-        self.source_factor = gx.BL_SRCALPHA
-        self.destination_factor = gx.BL_INVSRCALPHA
-        self.logical_operation = gx.LO_CLEAR
-
-
-class UnknownStruct5(Struct):
-    unknown0 = uint8
-    __padding__ = Padding(3)
-    unknown1 = float32
-    unknown2 = float32
-    unknown3 = float32
-
-    def __init__(self):
-        self.unknown0 = 0
-        self.unknown1 = 1
-        self.unknown2 = 1
-        self.unknown3 = 1
-        
-    @classmethod
-    def unpack(cls,stream):
-        unknown5 = super().unpack(stream)
-        if unknown5 != UnknownStruct5():
-            logger.warning('unknown5 different from default')
-        return unknown5
 
 
 class Material(gl.ResourceOwner):
@@ -517,6 +188,112 @@ class Material(gl.ResourceOwner):
         self.gl_program_table[transformation_type] = program
         return program
 
+    @property
+    def gl_cull_mode(self):
+        if self.cull_mode == gx.CULL_FRONT:
+            return GL_FRONT
+        if self.cull_mode == gx.CULL_BACK:
+            return GL_BACK
+        if self.cull_mode == gx.CULL_ALL:
+            return GL_FRONT_AND_BACK
+        raise ValueError('Invalid cull mode: {}'.format(self.cull_mode))
+
+    @property
+    def gl_depth_function(self):
+        if self.depth_mode.function == gx.NEVER:
+            return GL_NEVER
+        if self.depth_mode.function == gx.LESS:
+            return GL_LESS
+        if self.depth_mode.function == gx.EQUAL:
+            return GL_EQUAL
+        if self.depth_mode.function == gx.LEQUAL:
+            return GL_LEQUAL
+        if self.depth_mode.function == gx.GREATER:
+            return GL_GREATER
+        if self.depth_mode.function == gx.NEQUAL:
+            return GL_NOTEQUAL
+        if self.depth_mode.function == gx.GEQUAL:
+            return GL_GEQUAL
+        if self.depth_mode.function == gx.ALWAYS:
+            return GL_ALWAYS
+        raise ValueError('Invalid compare function: {}'.format(self.depth_mode.function))
+
+    @property
+    def gl_blend_source_factor(self):
+        if self.blend_mode.source_factor == gx.BL_ZERO:
+            return GL_ZERO
+        if self.blend_mode.source_factor == gx.BL_ONE:
+            return GL_ONE
+        if self.blend_mode.source_factor == gx.BL_SRCALPHA:
+            return GL_SRC_ALPHA
+        if self.blend_mode.source_factor == gx.BL_INVSRCALPHA:
+            return GL_ONE_MINUS_SRC_ALPHA
+        if self.blend_mode.source_factor == gx.BL_DSTALPHA:
+            return GL_DST_ALPHA
+        if self.blend_mode.source_factor == gx.BL_INVSDTALPHA:
+            return GL_ONE_MINUS_DST_ALPHA
+        if self.blend_mode.source_factor == gx.BL_DSTCLR:
+            return GL_DST_COLOR
+        if self.blend_mode.source_factor == gx.BL_INVDSTCLR:
+            return GL_ONE_MINUS_DST_COLOR
+        raise ValueError('Invalid blend source factor: {}'.format(self.blend_mode.source_factor))
+
+    @property
+    def gl_blend_destination_factor(self):
+        if self.blend_mode.destination_factor == gx.BL_ZERO:
+            return GL_ZERO
+        if self.blend_mode.destination_factor == gx.BL_ONE:
+            return GL_ONE
+        if self.blend_mode.destination_factor == gx.BL_SRCALPHA:
+            return GL_SRC_ALPHA
+        if self.blend_mode.destination_factor == gx.BL_INVSRCALPHA:
+            return GL_ONE_MINUS_SRC_ALPHA
+        if self.blend_mode.destination_factor == gx.BL_DSTALPHA:
+            return GL_DST_ALPHA
+        if self.blend_mode.destination_factor == gx.BL_INVSDTALPHA:
+            return GL_ONE_MINUS_DST_ALPHA
+        if self.blend_mode.destination_factor == gx.BL_SRCCLR:
+            return GL_SRC_COLOR
+        if self.blend_mode.destination_factor == gx.BL_INVSRCCLR:
+            return GL_ONE_MINUS_SRC_COLOR
+        raise ValueError('Invalid blend destination factor: {}'.format(self.blend_mode.destination_factor))
+
+    @property
+    def gl_blend_logical_operation(self):
+        if self.blend_mode.logical_operation == gx.LO_CLEAR:
+            return GL_CLEAR
+        if self.blend_mode.logical_operation == gx.LO_AND:
+            return GL_AND
+        if self.blend_mode.logical_operation == gx.LO_REVAND:
+            return GL_AND_REVERSE
+        if self.blend_mode.logical_operation == gx.LO_COPY:
+            return GL_COPY
+        if self.blend_mode.logical_operation == gx.LO_INVAND:
+            return GL_AND_INVERTED
+        if self.blend_mode.logical_operation == gx.LO_NOOP:
+            return GL_NOOP
+        if self.blend_mode.logical_operation == gx.LO_XOR:
+            return GL_XOR
+        if self.blend_mode.logical_operation == gx.LO_OR:
+            return GL_OR
+        if self.blend_mode.logical_operation == gx.LO_NOR:
+            return GL_NOR
+        if self.blend_mode.logical_operation == gx.LO_EQUIV:
+            return GL_EQUIV
+        if self.blend_mode.logical_operation == gx.LO_INV:
+            return GL_INVERT
+        if self.blend_mode.logical_operation == gx.LO_REVOR:
+            return GL_OR_INVERTED
+        if self.blend_mode.logical_operation == gx.LO_INVCOPY:
+            return GL_COPY_INVERTED
+        if self.blend_mode.logical_operation == gx.LO_INVOR:
+            return GL_OR_INVERTED
+        if self.blend_mode.logical_operation == gx.LO_INVNAND:
+            return GL_NAND
+        if self.blend_mode.logical_operation == gx.LO_SET:
+            return GL_SET
+        raise ValueError('Invalid logical operation: {}'.format(self.blend_mode.logical_operation))
+
     def gl_bind(self, shape, textures):
         self.gl_block.bind(MATERIAL_BLOCK_BINDING_POINT)
 
@@ -526,13 +303,13 @@ class Material(gl.ResourceOwner):
 
         if self.cull_mode != gx.CULL_NONE:
             glEnable(GL_CULL_FACE)
-            glCullFace(self.cull_mode.gl_value)
+            glCullFace(self.gl_cull_mode)
         else:
             glDisable(GL_CULL_FACE)
 
         if self.depth_mode.enable:
             glEnable(GL_DEPTH_TEST)
-            glDepthFunc(self.depth_mode.function.gl_value)
+            glDepthFunc(self.gl_depth_function)
             glDepthMask(self.depth_mode.update_enable)
         else:
             glDisable(GL_DEPTH_TEST)
@@ -540,7 +317,7 @@ class Material(gl.ResourceOwner):
         if self.blend_mode.function == gx.BM_BLEND:
             glEnable(GL_BLEND)
             glBlendEquation(GL_FUNC_ADD)
-            glBlendFunc(self.blend_mode.source_factor.gl_value, self.blend_mode.destination_factor.gl_value)
+            glBlendFunc(self.gl_blend_source_factor, self.gl_blend_destination_factor)
         elif self.blend_mode.function == gx.BM_SUBTRACT:
             glEnable(GL_BLEND)
             glBlendEquation(GL_FUNC_REVERSE_SUBTRACT)
@@ -550,7 +327,7 @@ class Material(gl.ResourceOwner):
 
         if self.blend_mode.function == gx.BM_LOGIC:
             glEnable(GL_COLOR_LOGIC_OP)
-            glLogicOp(self.blend_mode.logical_operation.gl_value)
+            glLogicOp(self.gl_blend_logical_operation)
         else:
             glDisable(GL_COLOR_LOGIC_OP)
 

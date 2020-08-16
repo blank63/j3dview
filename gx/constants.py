@@ -1,6 +1,5 @@
 import enum
 import numpy
-from OpenGL.GL import *
 
 
 class Value(int):
@@ -18,51 +17,6 @@ class Enum(int,enum.Enum):
         if hasattr(value,'attributes'):
             for attribute in value.attributes.items():
                 setattr(self,*attribute)
-
-
-class ExtendEnumMeta(enum.EnumMeta):
-
-    def __new__(metacls,cls,bases,classdict):
-        (base_enum,) = bases
-        enum_class = super().__new__(metacls,cls,base_enum.__bases__,classdict)
-        enum_class.base_enum = base_enum
-        return enum_class
-
-    #TODO: __dir__
-
-    def __call__(self,*args,**kwargs):
-        try:
-            return self.base_enum(*args,**kwargs)
-        except ValueError:
-            return super().__call__(*args,**kwargs)
-
-    def __getattr__(self,name):
-        try:
-            return getattr(self.base_enum,name)
-        except AttributeError:
-            return super().__getattr__(name)
-
-    def __getitem__(self,name):
-        try:
-            return self.base_enum[name]
-        except KeyError:
-            return super().__getitem__(name)
-
-    def __contains__(self,member):
-        return member in self.base_enum or super().__contains__(member)
-
-    def __len__(self):
-        return len(self.base_enum) + super().__len__()
-
-    def __iter__(self):
-        yield from self.base_enum
-        yield from super().__iter__()
-
-    def __reversed__(self):
-        yield from super().__reversed__()
-        yield from reversed(self.base_enum)
-
-    #TODO: __members__
 
 
 class Attribute(Enum):
@@ -1034,9 +988,9 @@ ITS_256 = IndirectScale.ITS_256
 
 class CullMode(Enum):
     CULL_NONE = 0
-    CULL_FRONT = Value(1,gl_value=GL_FRONT)
-    CULL_BACK = Value(2,gl_value=GL_BACK)
-    CULL_ALL = Value(3,gl_value=GL_FRONT_AND_BACK)
+    CULL_FRONT = 1
+    CULL_BACK = 2
+    CULL_ALL = 3
 
 
 CULL_NONE = CullMode.CULL_NONE
@@ -1096,14 +1050,14 @@ AOP_XNOR = AlphaOperator.AOP_XNOR
 
 
 class CompareFunction(Enum):
-    NEVER = Value(0,gl_value=GL_NEVER)
-    LESS = Value(1,gl_value=GL_LESS)
-    EQUAL = Value(2,gl_value=GL_EQUAL)
-    LEQUAL = Value(3,gl_value=GL_LEQUAL)
-    GREATER = Value(4,gl_value=GL_GREATER)
-    NEQUAL = Value(5,gl_value=GL_NOTEQUAL)
-    GEQUAL = Value(6,gl_value=GL_GEQUAL)
-    ALWAYS = Value(7,gl_value=GL_ALWAYS)
+    NEVER = 0
+    LESS = 1
+    EQUAL = 2
+    LEQUAL = 3
+    GREATER = 4
+    NEQUAL = 5
+    GEQUAL = 6
+    ALWAYS = 7
 
 
 NEVER = CompareFunction.NEVER
@@ -1130,22 +1084,34 @@ BM_SUBTRACT = BlendFunction.BM_SUBTRACT
 
 
 class BlendFactor(Enum):
-    BL_ZERO = Value(0,gl_value=GL_ZERO)
-    BL_ONE = Value(1,gl_value=GL_ONE)
-    BL_SRCALPHA = Value(4,gl_value=GL_SRC_ALPHA)
-    BL_INVSRCALPHA = Value(5,gl_value=GL_ONE_MINUS_SRC_ALPHA)
-    BL_DSTALPHA = Value(6,gl_value=GL_DST_ALPHA)
-    BL_INVDSTALPHA = Value(7,gl_value=GL_ONE_MINUS_DST_ALPHA)
+    BL_ZERO = 0
+    BL_ONE = 1
+    BL_SRCALPHA = 4
+    BL_INVSRCALPHA = 5
+    BL_DSTALPHA = 6
+    BL_INVDSTALPHA = 7
 
 
-class BlendSourceFactor(BlendFactor,metaclass=ExtendEnumMeta):
-    BL_DSTCLR = Value(2,gl_value=GL_DST_COLOR)
-    BL_INVDSTCLR = Value(3,gl_value=GL_ONE_MINUS_DST_COLOR)
+class BlendSourceFactor(Enum):
+    BL_ZERO = BlendFactor.BL_ZERO
+    BL_ONE = BlendFactor.BL_ONE
+    BL_SRCALPHA = BlendFactor.BL_SRCALPHA
+    BL_INVSRCALPHA = BlendFactor.BL_INVSRCALPHA
+    BL_DSTALPHA = BlendFactor.BL_DSTALPHA
+    BL_INVDSTALPHA = BlendFactor.BL_INVDSTALPHA
+    BL_DSTCLR = 2
+    BL_INVDSTCLR = 3
 
 
-class BlendDestinationFactor(BlendFactor,metaclass=ExtendEnumMeta):
-    BL_SRCCLR = Value(2,gl_value=GL_SRC_COLOR)
-    BL_INVSRCCLR = Value(3,gl_value=GL_ONE_MINUS_SRC_COLOR)
+class BlendDestinationFactor(Enum):
+    BL_ZERO = BlendFactor.BL_ZERO
+    BL_ONE = BlendFactor.BL_ONE
+    BL_SRCALPHA = BlendFactor.BL_SRCALPHA
+    BL_INVSRCALPHA = BlendFactor.BL_INVSRCALPHA
+    BL_DSTALPHA = BlendFactor.BL_DSTALPHA
+    BL_INVDSTALPHA = BlendFactor.BL_INVDSTALPHA
+    BL_SRCCLR = 2
+    BL_INVSRCCLR = 3
 
 
 BL_ZERO = BlendFactor.BL_ZERO
@@ -1161,22 +1127,22 @@ BL_INVDSTALPHA = BlendFactor.BL_INVDSTALPHA
 
 
 class LogicalOperation(Enum):
-    LO_CLEAR = Value(0,gl_value=GL_CLEAR)
-    LO_AND = Value(1,gl_value=GL_AND)
-    LO_REVAND = Value(2,gl_value=GL_AND_REVERSE)
-    LO_COPY = Value(3,gl_value=GL_COPY)
-    LO_INVAND = Value(4,gl_value=GL_AND_INVERTED)
-    LO_NOOP = Value(5,gl_value=GL_NOOP)
-    LO_XOR = Value(6,gl_value=GL_XOR)
-    LO_OR = Value(7,gl_value=GL_OR)
-    LO_NOR = Value(8,gl_value=GL_NOR)
-    LO_EQUIV = Value(9,gl_value=GL_EQUIV)
-    LO_INV = Value(10,gl_value=GL_INVERT)
-    LO_REVOR = Value(11,gl_value=GL_OR_INVERTED)
-    LO_INVCOPY = Value(12,gl_value=GL_COPY_INVERTED)
-    LO_INVOR = Value(13,gl_value=GL_OR_INVERTED)
-    LO_INVNAND = Value(14,gl_value=GL_NAND)
-    LO_SET = Value(15,gl_value=GL_SET)
+    LO_CLEAR = 0
+    LO_AND = 1
+    LO_REVAND = 2
+    LO_COPY = 3
+    LO_INVAND = 4
+    LO_NOOP = 5
+    LO_XOR = 6
+    LO_OR = 7
+    LO_NOR = 8
+    LO_EQUIV = 9
+    LO_INV = 10
+    LO_REVOR = 11
+    LO_INVCOPY = 12
+    LO_INVOR = 13
+    LO_INVNAND = 14
+    LO_SET = 15
 
 
 LO_CLEAR = LogicalOperation.LO_CLEAR

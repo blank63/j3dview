@@ -17,15 +17,15 @@ class Resource(GLuint):
 class ResourceOwner:
 
     def __init__(self):
-        self._gl_resources = []
+        self.__gl_resources = []
 
     def gl_create(self, resource_type, *args, **kwargs):
         resource = resource_type(*args, **kwargs)
-        self._gl_resources.append(resource)
+        self.__gl_resources.append(resource)
         return resource
 
     def gl_delete(self):
-        for resource in self._gl_resources:
+        for resource in self.__gl_resources:
             resource.gl_delete()
 
 
@@ -41,18 +41,17 @@ class Buffer(Resource):
 class VertexArray(Resource):
 
     def __init__(self):
-        #glGenVertexArrays(1, self)
-        self.value = glGenVertexArrays(1)
+        glGenVertexArrays(1, self)
 
     def gl_delete(self):
-        #glDeleteVertexArrays(1, self)
-        glDeleteVertexArrays(1, numpy.ndarray([self.value], numpy.uint32))
+        glDeleteVertexArrays(1, self)
 
 
 class Shader(Resource):
 
     def __init__(self, shader_type, source):
-        super().__init__(glCreateShader(shader_type))
+        # https://bugs.python.org/issue29270
+        Resource.__init__(self, glCreateShader(shader_type))
 
         glShaderSource(self, source)
         glCompileShader(self)
@@ -67,7 +66,8 @@ class Shader(Resource):
 class Program(Resource):
 
     def __init__(self, *shaders):
-        super().__init__(glCreateProgram())
+        # https://bugs.python.org/issue29270
+        Resource.__init__(self, glCreateProgram())
 
         for shader in shaders:
             glAttachShader(self, shader)
@@ -87,7 +87,8 @@ class Program(Resource):
 class Texture(Resource):
 
     def __init__(self):
-        super().__init__(glGenTextures(1))
+        # https://bugs.python.org/issue29270
+        Resource.__init__(self, glGenTextures(1))
 
     def gl_delete(self):
         glDeleteTextures(self.value)
@@ -96,7 +97,8 @@ class Texture(Resource):
 class Sampler(Resource):
 
     def __init__(self):
-        super().__init__(glGenSamplers(1))
+        # https://bugs.python.org/issue29270
+        Resource.__init__(self, glGenSamplers(1))
 
     def gl_delete(self):
         glDeleteSamplers(1, self)
