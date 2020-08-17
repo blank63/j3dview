@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
-import io
 import sys
 import logging
 import traceback
 import argparse
 import numpy
 import OpenGL
-from PyQt5 import QtCore,QtWidgets,QtGui
+from PyQt5 import QtCore, QtWidgets, QtGui
 
 
 def configure_logging(logfile):
@@ -21,7 +20,7 @@ def configure_logging(logfile):
     file_handler = logging.StreamHandler(logfile)
     file_handler.setLevel(logging.DEBUG)
 
-    logging.basicConfig(level=logging.DEBUG,handlers=[stderr_handler,file_handler])
+    logging.basicConfig(level=logging.DEBUG, handlers=[stderr_handler, file_handler])
 
 
 def configure_gl():
@@ -37,14 +36,20 @@ def configure_qt():
 
     surface_format = QtGui.QSurfaceFormat()
     surface_format.setRenderableType(QtGui.QSurfaceFormat.OpenGL)
-    surface_format.setVersion(3,3)
+    surface_format.setVersion(3, 3)
     surface_format.setProfile(QtGui.QSurfaceFormat.CoreProfile)
     surface_format.setSamples(4)
     QtGui.QSurfaceFormat.setDefaultFormat(surface_format)
 
 
 def excepthook(*exception_info):
-    logging.critical('unexpected error',exc_info=exception_info)
+    try:
+        # Close the main window to prevent more exceptions being thrown
+        main_window.close()
+    except NameError:
+        pass
+
+    logging.critical('unexpected error', exc_info=exception_info)
     logging.shutdown()
 
     message = QtWidgets.QMessageBox(None)
@@ -57,27 +62,23 @@ def excepthook(*exception_info):
     message.exec_()
 
     QtWidgets.qApp.exit()
-
-
-def delayed_execution(callable):
-    """Delay execution of callable to the start of the main event loop."""
-    QtCore.QTimer.singleShot(0, callable)
+    sys.exit()
 
 
 parser = argparse.ArgumentParser(description='View Nintendo GameCube/Wii BMD/BDL files')
-parser.add_argument('file_name',nargs='?',metavar='FILE',help='file to view')
-parser.add_argument('--logfile',type=argparse.FileType('w'),metavar='LOGFILE',help='write log to %(metavar)s')
+parser.add_argument('file_name', nargs='?', metavar='FILE', help='file to view')
+parser.add_argument('--logfile', type=argparse.FileType('w'), metavar='LOGFILE', help='write log to %(metavar)s')
 arguments = parser.parse_args()
 
 configure_logging(arguments.logfile)
 configure_gl()
 configure_qt()
 
-logging.info('Python version: %s',sys.version)
-logging.info('NumPy version: %s',numpy.version.version)
-logging.info('PyOpenGL version: %s',OpenGL.__version__)
-logging.info('Qt version: %s',QtCore.QT_VERSION_STR)
-logging.info('PyQt version: %s',QtCore.PYQT_VERSION_STR)
+logging.info('Python version: %s', sys.version)
+logging.info('NumPy version: %s', numpy.version.version)
+logging.info('PyOpenGL version: %s', OpenGL.__version__)
+logging.info('Qt version: %s', QtCore.QT_VERSION_STR)
+logging.info('PyQt version: %s', QtCore.PYQT_VERSION_STR)
 
 # This implicitly imports OpenGL.GL. Logging and OpenGL have to have been
 # configured before this happens.
@@ -85,15 +86,13 @@ from widgets.editor import Editor
 
 application = QtWidgets.QApplication(sys.argv)
 
-# From when the excepthook has been set to the start of the main event loop, no
-# unhandled exceptions should be thrown.
 sys.excepthook = excepthook
 
-editor = Editor()
-delayed_execution(editor.show)
+main_window = Editor()
+main_window.show()
 
 if arguments.file_name is not None:
-    delayed_execution(lambda: editor.openFile(arguments.file_name))
+    main_window.openFile(arguments.file_name)
 
 application.exec_()
 

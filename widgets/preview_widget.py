@@ -47,6 +47,9 @@ class PreviewWidget(qt.OpenGLWidget):
         super().__init__(*args, **kwargs)
         self.texture = None
 
+    def minimumSizeHint(self):
+        return QtCore.QSize(100, 100)
+
     @property
     def position_array(self):
         return self.vertex_buffer['position']
