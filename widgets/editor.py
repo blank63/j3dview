@@ -14,6 +14,24 @@ import widgets.explorer_widget
 FILE_OPEN_ERRORS = (FileNotFoundError, IsADirectoryError, PermissionError)
 
 
+class ReplaceTextureCommand(QtWidgets.QUndoCommand):
+    #TODO: Should something be done about textures that are no longer being
+    # used, but are still in the undo stack?
+
+    def __init__(self, view, index, texture):
+        super().__init__('Replace Texture')
+        self.view = view
+        self.index = index
+        self.old_texture = view.base.textures[index]
+        self.new_texture = texture
+
+    def redo(self):
+        self.view.replace_texture(self.index, self.new_texture)
+
+    def undo(self):
+        self.view.replace_texture(self.index, self.old_texture)
+
+
 class Editor(QtWidgets.QMainWindow):
 
     def __init__(self, *args, **kwargs):
@@ -49,12 +67,14 @@ class Editor(QtWidgets.QMainWindow):
         self.addAction(self.action_undo)
         self.addAction(self.action_redo)
 
-        self.view_settings.setViewer(self.viewer)
-        self.dock_view_settings.hide()
-
         self.action_open_animation.setEnabled(False)
         self.action_save_model.setEnabled(False)
         self.action_save_model_as.setEnabled(False)
+
+        self.view_settings.setViewer(self.viewer)
+        self.dock_view_settings.hide()
+
+        self.texture.undo_stack = self.undo_stack
 
         self.setWindowFilePath('')
 
@@ -133,7 +153,7 @@ class Editor(QtWidgets.QMainWindow):
     def saveModel(self, file_name):
         with open(file_name, 'wb') as stream:
             #TODO: What if the file extension isn't .bmd/.bdl?
-            j3d.model.pack(stream, self.model, os.path.splitext(file_name)[1].lower())
+            j3d.model.pack(stream, self.model.base, os.path.splitext(file_name)[1].lower())
 
         self.undo_stack.setClean()
         self.setWindowFilePath(file_name)
@@ -147,10 +167,8 @@ class Editor(QtWidgets.QMainWindow):
     def importTexture(self, file_name):
         with open(file_name, 'rb') as stream:
             texture = gx.bti.unpack(stream)
-
         texture.name = os.path.splitext(os.path.basename(file_name))[0]
-        texture.gl_init() #TODO: This is not the right place to do this
-        return TextureWrapper(texture)
+        return texture
 
     def exportTexture(self, file_name, texture):
         with open(file_name, 'wb') as stream:
@@ -236,8 +254,8 @@ class Editor(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def on_action_texture_export_triggered(self):
-        texture = self.explorer.currentItem().texture
-        file_name = QtWidgets.QFileDialog.getSaveFileName(
+        texture = self.model.base.textures[self.explorer.current_texture_index]
+        file_name, _ = QtWidgets.QFileDialog.getSaveFileName(
                 self,
                 'Export Texture',
                 os.path.join(os.path.dirname(self.windowFilePath()), texture.name + '.bti'),
@@ -251,8 +269,7 @@ class Editor(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def on_action_texture_replace_triggered(self):
-        index = self.explorer.texture_list.indexOfChild(self.explorer.currentItem())
-        file_name = QtWidgets.QFileDialog.getOpenFileName(
+        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(
                 self,
                 'Open Texture',
                 os.path.dirname(self.windowFilePath()),
@@ -261,7 +278,9 @@ class Editor(QtWidgets.QMainWindow):
 
         try:
             texture = self.importTexture(file_name)
-            self.undo_stack.push(TextureReplaceCommand(self.model.textures, index, texture))
         except FILE_OPEN_ERRORS as error:
             self.warning_file_open_failed(error)
+
+        index = self.explorer.current_texture_index
+        self.undo_stack.push(ReplaceTextureCommand(self.model, index, texture))
 

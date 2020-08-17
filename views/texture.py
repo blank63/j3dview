@@ -9,10 +9,23 @@ class LazyProperty:
     def __init__(self, fget):
         self.fget = fget
 
-    def __get__(self, obj, cls):
-        value = self.fget(obj)
-        setattr(obj, self.fget.__name__, value)
+    def __get__(self, instance, owner=None):
+        value = self.fget(instance)
+        setattr(instance, self.fget.__name__, value)
         return value
+
+
+class SamplerInvalidatingProperty:
+
+    def __set_name__(self, owner, name):
+        self.private_name = '_' + name
+
+    def __get__(self, instance, owner=None):
+        return getattr(instance, self.private_name)
+
+    def __set__(self, instance, value):
+        setattr(instance, self.private_name, value)
+        instance.gl_sampler_invalidate()
 
 
 class Texture(gl.ResourceOwner):
@@ -41,23 +54,18 @@ class Texture(gl.ResourceOwner):
         self.unknown0 = self.base.unknown0
         self.unknown1 = self.base.unknown1
         self.unknown2 = self.base.unknown2
-        self.gl_sampler_invalidate()
 
-    def commit(self):
-        self.base.name = self.name
-        self.base.wrap_s = self.wrap_s
-        self.base.wrap_t = self.wrap_t
-        self.base.minification_filter = self.minification_filter
-        self.base.magnification_filter = self.magnification_filter
-        self.base.minimum_lod = self.minimum_lod
-        self.base.maximum_lod = self.maximum_lod
-        self.base.lod_bias = self.lod_bias
-        self.base.unknown0 = self.unknown0
-        self.base.unknown1 = self.unknown1
-        self.base.unknown2 = self.unknown2
-        
+    def notify(self):
         for callback in self.callbacks:
             callback()
+
+    wrap_s = SamplerInvalidatingProperty()
+    wrap_t = SamplerInvalidatingProperty()
+    minification_filter = SamplerInvalidatingProperty()
+    magnification_filter = SamplerInvalidatingProperty()
+    minimum_lod = SamplerInvalidatingProperty()
+    maximum_lod = SamplerInvalidatingProperty()
+    lod_bias = SamplerInvalidatingProperty()
 
     @property
     def images(self):
@@ -149,6 +157,10 @@ class Texture(gl.ResourceOwner):
             pass
 
     @LazyProperty
+    def _gl_texture(self):
+        return self.gl_create(gl.Texture)
+
+    @LazyProperty
     def gl_texture(self):
         if self.image_format in {gx.TF_I4, gx.TF_I8}:
             image_format = GL_UNSIGNED_BYTE
@@ -188,12 +200,11 @@ class Texture(gl.ResourceOwner):
                 palette = self.palette.decode_to_rgba8()
             else:
                 raise ValueError('Invalid palette format: {}'.format(self.palette_format))
-            convert = lambda image: image.decode_to_direct_color(self.palette)
+            convert = lambda image: image.decode_to_direct_color(palette)
         else:
             raise ValueError('Invalid image format: {}'.format(self.image_format))
 
-        texture = self.gl_create(gl.Texture)
-        glBindTexture(GL_TEXTURE_2D, texture)
+        glBindTexture(GL_TEXTURE_2D, self._gl_texture)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, len(self.images) - 1)
         glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, numpy.array(swizzle, numpy.int32))
@@ -201,7 +212,13 @@ class Texture(gl.ResourceOwner):
         for level,image in enumerate(self.images):
             glTexImage2D(GL_TEXTURE_2D, level, component_count, image.width, image.height, 0, component_count, image_format, convert(image))
 
-        return texture
+        return self._gl_texture
+
+    def gl_texture_invalidate(self):
+        try:
+            del self.gl_texture
+        except AttributeError:
+            pass
 
     def gl_bind(self, texture_unit):
         glBindSampler(texture_unit, self.gl_sampler)

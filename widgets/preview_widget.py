@@ -122,7 +122,10 @@ class PreviewWidget(qt.OpenGLWidget):
         self.update_display_rectangle()
 
     def setTexture(self, texture):
+        if self.texture is not None:
+            self.texture.unregister(self.update)
         self.texture = texture
         self.update_display_rectangle()
         self.update()
+        self.texture.register(self.update)
 

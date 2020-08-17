@@ -209,3 +209,12 @@ class Model(gl.ResourceOwner):
         self.gl_matrix_table.bind_texture(views.material.MATRIX_TABLE_TEXTURE_UNIT)
         self.gl_draw_node(self.scene_graph)
 
+    def replace_texture(self, index, texture):
+        self.base.textures[index] = texture
+        texture_view = self.textures[index]
+        texture_view.base = texture
+        texture_view.reload()
+        texture_view.gl_sampler_invalidate()
+        texture_view.gl_texture_invalidate()
+        texture_view.notify()
+

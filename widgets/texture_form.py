@@ -4,6 +4,26 @@ from PyQt5 import QtCore, QtWidgets, uic
 import gx
 
 
+class CommitAttributeCommand(QtWidgets.QUndoCommand):
+
+    def __init__(self, view, attribute_name):
+        super().__init__(f'Change {attribute_name}')
+        self.view = view
+        self.attribute_name = attribute_name
+        self.old_value = getattr(view.base, attribute_name)
+        self.new_value = getattr(view, attribute_name)
+
+    def redo(self):
+        setattr(self.view.base, self.attribute_name, self.new_value)
+        setattr(self.view, self.attribute_name, self.new_value)
+        self.view.notify()
+
+    def undo(self):
+        setattr(self.view.base, self.attribute_name, self.old_value)
+        setattr(self.view, self.attribute_name, self.old_value)
+        self.view.notify()
+
+
 class TextureForm(QtWidgets.QWidget):
 
     def __init__(self, *args, **kwargs):
@@ -29,6 +49,8 @@ class TextureForm(QtWidgets.QWidget):
         self.magnification_filter.addItem(gx.NEAR.name, gx.NEAR)
         self.magnification_filter.addItem(gx.LINEAR.name, gx.LINEAR)
 
+        self.setEnabled(False)
+
         self.texture = None
 
     def setTexture(self, texture):
@@ -37,6 +59,7 @@ class TextureForm(QtWidgets.QWidget):
         self.texture = texture
         self.reload()
         self.texture.register(self.reload)
+        self.setEnabled(True)
 
     def reload(self):
         self.name.setText(self.texture.name)
@@ -66,100 +89,87 @@ class TextureForm(QtWidgets.QWidget):
         self.unknown1.setValue(self.texture.unknown1)
         self.unknown2.setValue(self.texture.unknown2)
 
+    def commit_attribute(self, attribute_name):
+        old_value = getattr(self.texture.base, attribute_name)
+        new_value = getattr(self.texture, attribute_name)
+        if new_value == old_value:
+            return
+        command = CommitAttributeCommand(self.texture, attribute_name)
+        self.undo_stack.push(command)
+
     @QtCore.pyqtSlot(str)
     def on_name_textEdited(self, value):
-        if self.texture is None: return
         self.texture.name = value
 
     @QtCore.pyqtSlot()
     def on_name_editingFinished(self):
-        if self.texture is None: return
-        self.texture.commit()
+        self.commit_attribute('name')
 
     @QtCore.pyqtSlot(int)
     def on_wrap_s_activated(self, index):
-        if self.texture is None: return
         self.texture.wrap_s = self.wrap_s.itemData(index)
-        self.texture.commit()
+        self.commit_attribute('wrap_s')
 
     @QtCore.pyqtSlot(int)
     def on_wrap_t_activated(self, index):
-        if self.texture is None: return
         self.texture.wrap_t = self.wrap_t.itemData(index)
-        self.texture.commit()
+        self.commit_attribute('wrap_t')
 
     @QtCore.pyqtSlot(int)
     def on_minification_filter_activated(self, index):
-        if self.texture is None: return
         self.texture.minification_filter = self.minification_filter.itemData(index)
-        self.texture.commit()
+        self.commit_attribute('minification_filter')
 
     @QtCore.pyqtSlot(int)
     def on_magnification_filter_activated(self, index):
-        if self.texture is None: return
         self.texture.magnification_filter = self.magnification_filter.itemData(index)
-        self.texture.commit()
+        self.commit_attribute('magnification_filter')
 
     @QtCore.pyqtSlot(float)
     def on_minimum_lod_valueChanged(self, value):
-        if self.texture is None: return
         self.texture.minimum_lod = value
-        self.texture.gl_sampler_invalidate()
 
     @QtCore.pyqtSlot()
-    def on_minimum_lod_editingFinished(self, value):
-        if self.texture is None: return
-        self.texture.commit()
+    def on_minimum_lod_editingFinished(self):
+        self.commit_attribute('minimum_lod')
 
     @QtCore.pyqtSlot(float)
     def on_maximum_lod_valueChanged(self, value):
-        if self.texture is None: return
         self.texture.maximum_lod = value
-        self.texture.gl_sampler_invalidate()
 
     @QtCore.pyqtSlot()
-    def on_maximum_lod_editingFinished(self, value):
-        if self.texture is None: return
-        self.texture.commit()
+    def on_maximum_lod_editingFinished(self):
+        self.commit_attribute('maximum_lod')
 
     @QtCore.pyqtSlot(float)
     def on_lod_bias_valueChanged(self, value):
-        if self.texture is None: return
         self.texture.lod_bias = value
-        self.texture.gl_sampler_invalidate()
 
     @QtCore.pyqtSlot()
-    def on_lod_bias_editingFinished(self, value):
-        if self.texture is None: return
-        self.texture.commit()
+    def on_lod_bias_editingFinished(self):
+        self.commit_attribute('lod_bias')
 
     @QtCore.pyqtSlot(int)
     def on_unknown0_valueChanged(self, value):
-        if self.texture is None: return
         self.texture.unknown0 = value
 
     @QtCore.pyqtSlot()
-    def on_unknown0_editingFinished(self, value):
-        if self.texture is None: return
-        self.texture.commit()
+    def on_unknown0_editingFinished(self):
+        self.commit_attribute('unknown0')
 
     @QtCore.pyqtSlot(int)
     def on_unknown1_valueChanged(self, value):
-        if self.texture is None: return
         self.texture.unknown1 = value
 
     @QtCore.pyqtSlot()
-    def on_unknown1_editingFinished(self, value):
-        if self.texture is None: return
-        self.texture.commit()
+    def on_unknown1_editingFinished(self):
+        self.commit_attribute('unknown1')
 
     @QtCore.pyqtSlot(int)
     def on_unknown2_valueChanged(self, value):
-        if self.texture is None: return
         self.texture.unknown2 = value
 
     @QtCore.pyqtSlot()
-    def on_unknown2_editingFinished(self, value):
-        if self.texture is None: return
-        self.texture.commit()
+    def on_unknown2_editingFinished(self):
+        self.commit_attribute('unknown2')
 
