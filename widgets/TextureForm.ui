@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string>Texture Form</string>
   </property>
   <layout class="QFormLayout" name="form_layout">
    <property name="fieldGrowthPolicy">

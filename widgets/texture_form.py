@@ -31,20 +31,10 @@ class TextureForm(QtWidgets.QWidget):
 
         self.ui = uic.loadUi(io.BytesIO(pkgutil.get_data(__package__, 'TextureForm.ui')), self)
 
-        self.wrap_s.addItem(gx.CLAMP.name, gx.CLAMP)
-        self.wrap_s.addItem(gx.REPEAT.name, gx.REPEAT)
-        self.wrap_s.addItem(gx.MIRROR.name, gx.MIRROR)
+        self.wrap_s.addEnumItems(gx.WrapMode)
+        self.wrap_t.addEnumItems(gx.WrapMode)
 
-        self.wrap_t.addItem(gx.CLAMP.name, gx.CLAMP)
-        self.wrap_t.addItem(gx.REPEAT.name, gx.REPEAT)
-        self.wrap_t.addItem(gx.MIRROR.name, gx.MIRROR)
-
-        self.minification_filter.addItem(gx.NEAR.name, gx.NEAR)
-        self.minification_filter.addItem(gx.LINEAR.name, gx.LINEAR)
-        self.minification_filter.addItem(gx.NEAR_MIP_NEAR.name, gx.NEAR_MIP_NEAR)
-        self.minification_filter.addItem(gx.LIN_MIP_NEAR.name, gx.LIN_MIP_NEAR)
-        self.minification_filter.addItem(gx.NEAR_MIP_LIN.name, gx.NEAR_MIP_LIN)
-        self.minification_filter.addItem(gx.LIN_MIP_LIN.name, gx.LIN_MIP_LIN)
+        self.minification_filter.addEnumItems(gx.FilterMode)
 
         self.magnification_filter.addItem(gx.NEAR.name, gx.NEAR)
         self.magnification_filter.addItem(gx.LINEAR.name, gx.LINEAR)

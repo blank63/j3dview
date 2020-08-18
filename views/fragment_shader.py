@@ -628,30 +628,30 @@ def convert_alpha_comparison(function,reference):
     raise ValueError('invalid alpha compare function') #<-?
 
 
-def convert_alpha_test_operation(operation):
-    if operation == gx.AOP_AND:
+def convert_alpha_test_operator(operator):
+    if operator == gx.AOP_AND:
         return '&&'
-    if operation == gx.AOP_OR:
+    if operator == gx.AOP_OR:
         return '||'
-    if operation == gx.AOP_XOR:
+    if operator == gx.AOP_XOR:
         return '!='
-    if operation == gx.AOP_XNOR:
+    if operator == gx.AOP_XNOR:
         return '=='
 
-    raise ValueError('invalid alpha test operation')
+    raise ValueError('invalid alpha test operator')
 
 
 def write_alpha_test(stream,test):
-    if test.operation == gx.AOP_AND:
+    if test.operator == gx.AOP_AND:
         never_pass = test.function0 == gx.CompareFunction.NEVER or test.function1 == gx.CompareFunction.NEVER
         always_pass = test.function0 == test.function1 == gx.CompareFunction.ALWAYS
-    elif test.operation == gx.AOP_OR:
+    elif test.operator == gx.AOP_OR:
         never_pass = test.function0 == test.function1 == gx.CompareFunction.NEVER
         always_pass = test.function0 == gx.CompareFunction.ALWAYS or test.function1 == gx.CompareFunction.ALWAYS
-    elif test.operation == gx.AOP_XOR:
+    elif test.operator == gx.AOP_XOR:
         never_pass = test.function0 == test.function1 in {gx.CompareFunction.NEVER,gx.CompareFunction.ALWAYS}
         always_pass = {test.function0,test.function1} == {gx.CompareFunction.NEVER,gx.CompareFunction.ALWAYS}
-    elif test.operation == gx.AOP_XNOR:
+    elif test.operator == gx.AOP_XNOR:
         never_pass = {test.function0,test.function1} == {gx.CompareFunction.NEVER,gx.CompareFunction.ALWAYS}
         always_pass = test.function0 == test.function1 in {gx.CompareFunction.NEVER,gx.CompareFunction.ALWAYS}
 
@@ -664,8 +664,8 @@ def write_alpha_test(stream,test):
 
     comparison0 = convert_alpha_comparison(test.function0,test.reference0)
     comparison1 = convert_alpha_comparison(test.function1,test.reference1)
-    operation = convert_alpha_test_operation(test.operation)
-    stream.write('if ( !(({}) {} ({})) ){{\n'.format(comparison0,operation,comparison1))
+    operator = convert_alpha_test_operator(test.operator)
+    stream.write('if ( !(({}) {} ({})) ){{\n'.format(comparison0,operator,comparison1))
     stream.write('    discard;}\n')
 
 

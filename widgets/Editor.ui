@@ -41,7 +41,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>25</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_file">
@@ -176,8 +176,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>76</width>
-          <height>548</height>
+          <width>68</width>
+          <height>557</height>
          </rect>
         </property>
        </widget>
@@ -186,15 +186,15 @@
     </layout>
    </widget>
   </widget>
-  <widget class="QDockWidget" name="dock_texture">
+  <widget class="QDockWidget" name="dock_material_form">
    <property name="windowTitle">
-    <string>Texture</string>
+    <string>Material</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>1</number>
    </attribute>
-   <widget class="QWidget" name="dock_texture_contents">
-    <layout class="QVBoxLayout" name="dock_texture_contents_layout">
+   <widget class="QWidget" name="dock_material_form_contents">
+    <layout class="QVBoxLayout" name="dock_material_form_contents_layout">
      <property name="spacing">
       <number>0</number>
      </property>
@@ -211,17 +211,61 @@
       <number>0</number>
      </property>
      <item>
-      <widget class="QScrollArea" name="scroll_area_texture">
+      <widget class="QScrollArea" name="scroll_area_material_form">
        <property name="widgetResizable">
         <bool>true</bool>
        </property>
-       <widget class="TextureForm" name="texture">
+       <widget class="MaterialForm" name="material_form">
         <property name="geometry">
          <rect>
           <x>0</x>
           <y>0</y>
           <width>254</width>
-          <height>134</height>
+          <height>86</height>
+         </rect>
+        </property>
+       </widget>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="dock_texture_form">
+   <property name="windowTitle">
+    <string>Texture</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dock_texture_form_contents">
+    <layout class="QVBoxLayout" name="dock_texture_form_contents_layout">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QScrollArea" name="scroll_area_texture_form">
+       <property name="widgetResizable">
+        <bool>true</bool>
+       </property>
+       <widget class="TextureForm" name="texture_form">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>254</width>
+          <height>100</height>
          </rect>
         </property>
        </widget>
@@ -294,6 +338,12 @@
    <class>PreviewWidget</class>
    <extends>QOpenGLWidget</extends>
    <header>widgets.preview_widget</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>MaterialForm</class>
+   <extends>QWidget</extends>
+   <header>widgets.material_form</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

@@ -604,7 +604,7 @@ class Packet:
         self.alphacompare[8:16] = mode.reference1
         self.alphacompare[16:19] = mode.function0
         self.alphacompare[19:22] = mode.function1
-        self.alphacompare[22:24] = mode.operation
+        self.alphacompare[22:24] = mode.operator
 
     def SetBlendMode(self, mode):
         self.blendmode[0] = mode.function in {gx.BM_BLEND, gx.BM_SUBTRACT}

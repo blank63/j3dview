@@ -399,7 +399,7 @@ class AlphaTest(Struct):
     """Arguments to GXSetAlphaCompare."""
     function0 = EnumConverter(uint8, gx.CompareFunction)
     reference0 = uint8
-    operation = EnumConverter(uint8, gx.AlphaOperator)
+    operator = EnumConverter(uint8, gx.AlphaOperator)
     function1 = EnumConverter(uint8, gx.CompareFunction)
     reference1 = uint8
     __padding__ = Padding(3)
@@ -409,7 +409,7 @@ class AlphaTest(Struct):
         self.reference0 = 0
         self.function1 = gx.ALWAYS
         self.reference1 = 0
-        self.operation = gx.AOP_AND
+        self.operator = gx.AOP_AND
 
 
 class Fog(Struct):

@@ -9,6 +9,10 @@ class ComboBox(QtWidgets.QComboBox):
         assert index != -1
         self.setCurrentIndex(index)
 
+    def addEnumItems(self, enum_type):
+        for value in enum_type:
+            self.addItem(value.name, value)
+
 
 class OpenGLWidget(QtWidgets.QOpenGLWidget, gl.ResourceOwner):
 

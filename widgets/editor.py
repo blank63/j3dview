@@ -49,7 +49,8 @@ class Editor(QtWidgets.QMainWindow):
         self.menu_window.addAction(self.dock_view_settings.toggleViewAction())
         self.menu_window.addAction(self.dock_explorer.toggleViewAction())
         self.menu_window.addAction(self.dock_preview.toggleViewAction())
-        self.menu_window.addAction(self.dock_texture.toggleViewAction())
+        self.menu_window.addAction(self.dock_material_form.toggleViewAction())
+        self.menu_window.addAction(self.dock_texture_form.toggleViewAction())
 
         self.action_open_model.setShortcut(QtGui.QKeySequence.Open)
         self.action_save_model.setShortcut(QtGui.QKeySequence.Save)
@@ -73,8 +74,9 @@ class Editor(QtWidgets.QMainWindow):
 
         self.view_settings.setViewer(self.viewer)
         self.dock_view_settings.hide()
+        self.tabifyDockWidget(self.dock_material_form, self.dock_texture_form)
 
-        self.texture.undo_stack = self.undo_stack
+        self.texture_form.undo_stack = self.undo_stack
 
         self.setWindowFilePath('')
 
@@ -188,9 +190,15 @@ class Editor(QtWidgets.QMainWindow):
     def on_undo_stack_cleanChanged(self, clean):
         self.setWindowModified(not clean)
 
+    def on_explorer_currentMaterialChanged(self, material):
+        #TODO preview
+        self.material_form.setMaterial(material)
+        self.dock_material_form.raise_()
+
     def on_explorer_currentTextureChanged(self, texture):
         self.preview.setTexture(texture)
-        self.texture.setTexture(texture)
+        self.texture_form.setTexture(texture)
+        self.dock_texture_form.raise_()
 
     @QtCore.pyqtSlot(QtCore.QPoint)
     def on_explorer_customContextMenuRequested(self, position):
