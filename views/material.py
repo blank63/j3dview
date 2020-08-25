@@ -3,6 +3,7 @@ import numpy
 from OpenGL.GL import *
 import gl
 import gx
+import views
 import views.vertex_shader
 import views.fragment_shader
 
@@ -16,11 +17,37 @@ MATRIX_TABLE_TEXTURE_UNIT = 0
 TEXTURE_UNITS = [1,2,3,4,5,6,7,8]
 
 
-class Material(gl.ResourceOwner):
+class ShaderInvalidatingAttribute(views.Attribute):
+    #TODO actually invalidate shaders
+    pass
 
-    def __init__(self, base):
-        super().__init__()
-        self.base = base
+
+class AlphaTest(views.SubView):
+    function0 = ShaderInvalidatingAttribute()
+    reference0 = ShaderInvalidatingAttribute()
+    function1 = ShaderInvalidatingAttribute()
+    reference1 = ShaderInvalidatingAttribute()
+    operator = ShaderInvalidatingAttribute()
+
+
+class DepthMode(views.SubView):
+    enable = views.Attribute()
+    function = views.Attribute()
+    update_enable = views.Attribute()
+
+
+class BlendMode(views.SubView):
+    function = views.Attribute()
+    source_factor = views.Attribute()
+    destination_factor = views.Attribute()
+    logical_operation = views.Attribute()
+
+
+class Material(views.View, gl.ResourceOwner):
+
+    def __init__(self, viewed_object):
+        views.View.__init__(self, viewed_object)
+        gl.ResourceOwner.__init__(self)
 
         self.update_use_variables()
 
@@ -68,8 +95,35 @@ class Material(gl.ResourceOwner):
 
         self.gl_program_table = {}
 
-    def __getattr__(self, name):
-        return getattr(self.base, name)
+    name = views.Attribute()
+    unknown0 = views.Attribute()
+    cull_mode = views.Attribute()
+
+    channel_count = views.ReadOnlyAttribute()
+    channels = views.ReadOnlyAttribute()
+
+    texcoord_generator_count = views.ReadOnlyAttribute()
+    texcoord_generators = views.ReadOnlyAttribute()
+    texture_matrices = views.ReadOnlyAttribute()
+    texture_indices = views.ReadOnlyAttribute()
+
+    tev_stage_count = views.ReadOnlyAttribute()
+    tev_stages = views.ReadOnlyAttribute()
+    tev_colors = views.ReadOnlyAttribute()
+    tev_color_previous = views.ReadOnlyAttribute()
+    kcolors = views.ReadOnlyAttribute()
+    swap_tables = views.ReadOnlyAttribute()
+
+    indirect_stage_count = views.ReadOnlyAttribute()
+    indirect_stages = views.ReadOnlyAttribute()
+    indirect_matrices = views.ReadOnlyAttribute()
+
+    alpha_test = views.SubViewAttribute(AlphaTest)
+    fog = views.ReadOnlyAttribute()
+    depth_test_early = ShaderInvalidatingAttribute()
+    depth_mode = views.SubViewAttribute(DepthMode)
+    blend_mode = views.SubViewAttribute(BlendMode)
+    dither = views.Attribute()
 
     @property
     def enabled_channels(self):

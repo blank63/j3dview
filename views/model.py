@@ -4,10 +4,11 @@ from OpenGL.GL import *
 import gl
 import gx
 import j3d.inf1
+import views
 import views.shape
 import views.material
 import views.texture
-import views.vertex_shader #<-?
+import views.vertex_shader
 
 
 def matrix3x4_array_multiply(a,b):
@@ -132,17 +133,37 @@ def gl_convert_color_array(source):
     return destination
 
 
-class Model(gl.ResourceOwner):
+class TexturesChangedEvent:
+    pass
 
-    def __init__(self, base):
-        super().__init__()
-        self.base = base
-        self.shapes = [self.gl_create(views.shape.Shape, shape) for shape in base.shapes]
-        self.materials = [self.gl_create(views.material.Material, material) for material in base.materials]
-        self.textures = [self.gl_create(views.texture.Texture, texture) for texture in base.textures]
 
-    def __getattr__(self, name):
-        return getattr(self.base, name)
+class Model(views.View, gl.ResourceOwner):
+
+    def __init__(self, viewed_object):
+        views.View.__init__(self, viewed_object)
+        gl.ResourceOwner.__init__(self)
+        self.shapes = [
+            self.gl_create(views.shape.Shape, shape)
+            for shape in viewed_object.shapes
+        ]
+        self.materials = [
+            self.gl_create(views.material.Material, material)
+            for material in viewed_object.materials
+        ]
+        self.textures = [
+            self.gl_create(views.texture.Texture, texture)
+            for texture in viewed_object.textures
+        ]
+
+    scene_graph = views.ReadOnlyAttribute()
+    position_array = views.ReadOnlyAttribute()
+    normal_array = views.ReadOnlyAttribute()
+    color_arrays = views.ReadOnlyAttribute()
+    texcoord_arrays = views.ReadOnlyAttribute()
+    influence_groups = views.ReadOnlyAttribute()
+    inverse_bind_matrices = views.ReadOnlyAttribute()
+    matrix_descriptors = views.ReadOnlyAttribute()
+    joints = views.ReadOnlyAttribute()
 
     def gl_init(self):
         array_table = {}
@@ -210,11 +231,9 @@ class Model(gl.ResourceOwner):
         self.gl_draw_node(self.scene_graph)
 
     def replace_texture(self, index, texture):
-        self.base.textures[index] = texture
-        texture_view = self.textures[index]
-        texture_view.base = texture
-        texture_view.reload()
-        texture_view.gl_sampler_invalidate()
-        texture_view.gl_texture_invalidate()
-        texture_view.notify()
+        old_view = self.textures[index]
+        self.viewed_object.textures[index] = texture
+        self.textures[index] = self.gl_create(views.texture.Texture, texture)
+        self.send_event(TexturesChangedEvent())
+        #TODO gl_delete old_view
 

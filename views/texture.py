@@ -2,6 +2,7 @@ import numpy
 from OpenGL.GL import *
 import gl
 import gx
+import views
 
 
 class LazyProperty:
@@ -15,61 +16,32 @@ class LazyProperty:
         return value
 
 
-class SamplerInvalidatingProperty:
+class SamplerInvalidatingAttribute(views.Attribute):
 
-    def __set_name__(self, owner, name):
-        self.private_name = '_' + name
-
-    def __get__(self, instance, owner=None):
-        return getattr(instance, self.private_name)
-
-    def __set__(self, instance, value):
-        setattr(instance, self.private_name, value)
+    def attribute_changed(self, instance):
         instance.gl_sampler_invalidate()
+        super().attribute_changed(instance)
 
 
-class Texture(gl.ResourceOwner):
+class Texture(views.View, gl.ResourceOwner):
 
-    def __init__(self, base):
-        super().__init__()
-        self.base = base
-        self.reload()
-        self.callbacks = []
+    def __init__(self, viewed_object):
+        views.View.__init__(self, viewed_object)
+        gl.ResourceOwner.__init__(self)
 
-    def register(self, callback):
-        self.callbacks.append(callback)
-
-    def unregister(self, callback):
-        self.callbacks.remove(callback)
-
-    def reload(self):
-        self.name = self.base.name
-        self.wrap_s = self.base.wrap_s
-        self.wrap_t = self.base.wrap_t
-        self.minification_filter = self.base.minification_filter
-        self.magnification_filter = self.base.magnification_filter
-        self.minimum_lod = self.base.minimum_lod
-        self.maximum_lod = self.base.maximum_lod
-        self.lod_bias = self.base.lod_bias
-        self.unknown0 = self.base.unknown0
-        self.unknown1 = self.base.unknown1
-        self.unknown2 = self.base.unknown2
-
-    def notify(self):
-        for callback in self.callbacks:
-            callback()
-
-    wrap_s = SamplerInvalidatingProperty()
-    wrap_t = SamplerInvalidatingProperty()
-    minification_filter = SamplerInvalidatingProperty()
-    magnification_filter = SamplerInvalidatingProperty()
-    minimum_lod = SamplerInvalidatingProperty()
-    maximum_lod = SamplerInvalidatingProperty()
-    lod_bias = SamplerInvalidatingProperty()
-
-    @property
-    def images(self):
-        return self.base.images
+    name = views.Attribute()
+    wrap_s = SamplerInvalidatingAttribute()
+    wrap_t = SamplerInvalidatingAttribute()
+    minification_filter = SamplerInvalidatingAttribute()
+    magnification_filter = SamplerInvalidatingAttribute()
+    minimum_lod = SamplerInvalidatingAttribute()
+    maximum_lod = SamplerInvalidatingAttribute()
+    lod_bias = SamplerInvalidatingAttribute()
+    unknown0 = views.Attribute()
+    unknown1 = views.Attribute()
+    unknown2 = views.Attribute()
+    palette = views.ReadOnlyAttribute()
+    images = views.ReadOnlyAttribute()
     
     @property
     def width(self):
@@ -82,10 +54,6 @@ class Texture(gl.ResourceOwner):
     @property
     def image_format(self):
         return self.images[0].image_format
-
-    @property
-    def palette(self):
-        return self.base.palette
 
     @property
     def palette_format(self):
@@ -209,7 +177,7 @@ class Texture(gl.ResourceOwner):
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, len(self.images) - 1)
         glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, numpy.array(swizzle, numpy.int32))
 
-        for level,image in enumerate(self.images):
+        for level, image in enumerate(self.images):
             glTexImage2D(GL_TEXTURE_2D, level, component_count, image.width, image.height, 0, component_count, image_format, convert(image))
 
         return self._gl_texture

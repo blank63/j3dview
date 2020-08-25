@@ -10,18 +10,16 @@ class CommitAttributeCommand(QtWidgets.QUndoCommand):
         super().__init__(f'Change {attribute_name}')
         self.view = view
         self.attribute_name = attribute_name
-        self.old_value = getattr(view.base, attribute_name)
+        self.old_value = getattr(view.viewed_object, attribute_name)
         self.new_value = getattr(view, attribute_name)
 
     def redo(self):
-        setattr(self.view.base, self.attribute_name, self.new_value)
         setattr(self.view, self.attribute_name, self.new_value)
-        self.view.notify()
+        setattr(self.view.viewed_object, self.attribute_name, self.new_value)
 
     def undo(self):
-        setattr(self.view.base, self.attribute_name, self.old_value)
         setattr(self.view, self.attribute_name, self.old_value)
-        self.view.notify()
+        setattr(self.view.viewed_object, self.attribute_name, self.old_value)
 
 
 class TextureForm(QtWidgets.QWidget):
@@ -45,11 +43,14 @@ class TextureForm(QtWidgets.QWidget):
 
     def setTexture(self, texture):
         if self.texture is not None:
-            self.texture.unregister(self.reload)
+            self.texture.unregister_listener(self)
         self.texture = texture
         self.reload()
-        self.texture.register(self.reload)
+        self.texture.register_listener(self)
         self.setEnabled(True)
+
+    def receive_event(self, sender, event):
+        self.reload()
 
     def reload(self):
         self.name.setText(self.texture.name)
@@ -80,7 +81,7 @@ class TextureForm(QtWidgets.QWidget):
         self.unknown2.setValue(self.texture.unknown2)
 
     def commit_attribute(self, attribute_name):
-        old_value = getattr(self.texture.base, attribute_name)
+        old_value = getattr(self.texture.viewed_object, attribute_name)
         new_value = getattr(self.texture, attribute_name)
         if new_value == old_value:
             return

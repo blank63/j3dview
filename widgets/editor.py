@@ -22,7 +22,7 @@ class ReplaceTextureCommand(QtWidgets.QUndoCommand):
         super().__init__('Replace Texture')
         self.view = view
         self.index = index
-        self.old_texture = view.base.textures[index]
+        self.old_texture = view.viewed_object.textures[index]
         self.new_texture = texture
 
     def redo(self):
@@ -155,7 +155,7 @@ class Editor(QtWidgets.QMainWindow):
     def saveModel(self, file_name):
         with open(file_name, 'wb') as stream:
             #TODO: What if the file extension isn't .bmd/.bdl?
-            j3d.model.pack(stream, self.model.base, os.path.splitext(file_name)[1].lower())
+            j3d.model.pack(stream, self.model.viewed_object, os.path.splitext(file_name)[1].lower())
 
         self.undo_stack.setClean()
         self.setWindowFilePath(file_name)
@@ -262,7 +262,7 @@ class Editor(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def on_action_texture_export_triggered(self):
-        texture = self.model.base.textures[self.explorer.current_texture_index]
+        texture = self.model.viewed_object.textures[self.explorer.current_texture_index]
         file_name, _ = QtWidgets.QFileDialog.getSaveFileName(
                 self,
                 'Export Texture',

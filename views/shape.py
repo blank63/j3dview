@@ -2,6 +2,7 @@ import numpy
 from OpenGL.GL import *
 import gl
 import gx
+import views
 
 import logging
 logger = logging.getLogger(__name__)
@@ -67,27 +68,24 @@ def gl_create_element_array(shape,element_map,element_count):
     return element_array
 
     
-class Shape(gl.ResourceOwner):
+class Shape(views.View, gl.ResourceOwner):
 
-    def __init__(self, base):
-        super().__init__()
-        self.base = base
+    def __init__(self, viewed_object):
+        views.View.__init__(self, viewed_object)
+        gl.ResourceOwner.__init__(self)
 
-    def __getattr__(self, name):
-        return getattr(self.base, name)
-
-    @property
-    def primitives(self):
-        return self.base.primitives
+    transformation_type = views.ReadOnlyAttribute()
+    batches = views.ReadOnlyAttribute()
+    attribute_descriptors = views.ReadOnlyAttribute()
 
     @property
     def attributes(self):
-        for descriptor in self.base.attribute_descriptors:
+        for descriptor in self.attribute_descriptors:
             yield descriptor.attribute
 
     @property
     def primitives(self):
-        for batch in self.base.batches:
+        for batch in self.batches:
             yield from batch.primitives
 
     def gl_init(self,array_table):
