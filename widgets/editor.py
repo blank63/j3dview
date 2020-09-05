@@ -84,6 +84,8 @@ class Editor(QtWidgets.QMainWindow):
 
         #self.readSettings()
 
+        self.model = None
+
     def windowFilePath(self):
         if not self.has_window_file_path:
             return ''
@@ -141,8 +143,16 @@ class Editor(QtWidgets.QMainWindow):
             model = j3d.model.unpack(stream)
 
         self.undo_stack.clear()
+        self.preview.clear()
+        self.material_form.clear()
+        self.texture_form.clear()
 
+        self.viewer.makeCurrent()
+        if self.model is not None:
+            self.model.gl_delete()
         self.model = views.model.Model(model)
+        self.model.gl_init()
+
         self.viewer.setModel(self.model)
         self.explorer.setModel(self.model)
 
@@ -191,7 +201,7 @@ class Editor(QtWidgets.QMainWindow):
         self.setWindowModified(not clean)
 
     def on_explorer_currentMaterialChanged(self, material):
-        #TODO preview
+        self.preview.clear()
         self.material_form.setMaterial(material)
         self.dock_material_form.raise_()
 

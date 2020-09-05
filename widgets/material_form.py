@@ -36,6 +36,13 @@ class MaterialForm(QtWidgets.QWidget):
         self.material.register_listener(self)
         self.setEnabled(True)
 
+    def clear(self):
+        if self.material is None:
+            return
+        self.material.unregister_listener(self)
+        self.material = None
+        self.setEnabled(False)
+
     def receive_event(self, sender, event):
         self.reload()
 

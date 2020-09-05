@@ -13,11 +13,3 @@ class ComboBox(QtWidgets.QComboBox):
         for value in enum_type:
             self.addItem(value.name, value)
 
-
-class OpenGLWidget(QtWidgets.QOpenGLWidget, gl.ResourceOwner):
-
-    def __init__(self, *args, **kwargs):
-        super(QtWidgets.QOpenGLWidget, self).__init__(*args, **kwargs)
-        super(gl.ResourceOwner, self).__init__()
-        self.destroyed.connect(self.gl_delete)
-

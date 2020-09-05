@@ -23,11 +23,7 @@ class SamplerInvalidatingAttribute(views.Attribute):
         super().attribute_changed(instance)
 
 
-class Texture(views.View, gl.ResourceOwner):
-
-    def __init__(self, viewed_object):
-        views.View.__init__(self, viewed_object)
-        gl.ResourceOwner.__init__(self)
+class Texture(gl.ResourceManagerMixin, views.View):
 
     name = views.Attribute()
     wrap_s = SamplerInvalidatingAttribute()
@@ -105,7 +101,7 @@ class Texture(views.View, gl.ResourceOwner):
 
     @LazyProperty
     def _gl_sampler(self):
-        return self.gl_create(gl.Sampler)
+        return self.gl_create_resource(gl.Sampler)
 
     @LazyProperty
     def gl_sampler(self):
@@ -126,7 +122,7 @@ class Texture(views.View, gl.ResourceOwner):
 
     @LazyProperty
     def _gl_texture(self):
-        return self.gl_create(gl.Texture)
+        return self.gl_create_resource(gl.Texture)
 
     @LazyProperty
     def gl_texture(self):

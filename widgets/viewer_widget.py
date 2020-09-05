@@ -4,7 +4,6 @@ import numpy
 from OpenGL.GL import *
 from PyQt5 import QtCore, QtWidgets
 import gl
-import qt
 from views.material import MATRIX_BLOCK_BINDING_POINT
 from views.vertex_shader import MatrixBlock
 
@@ -53,7 +52,7 @@ def create_frustum_matrix(left,right,bottom,top,near,far):
         numpy.float32)
 
 
-class ViewerWidget(qt.OpenGLWidget):
+class ViewerWidget(gl.ResourceManagerMixin, QtWidgets.QOpenGLWidget):
 
     @property
     def projection_matrix(self):
@@ -114,11 +113,13 @@ class ViewerWidget(qt.OpenGLWidget):
         if self.format().samples() > 1:
             glEnable(GL_MULTISAMPLE)
 
-        self.matrix_block = self.gl_create(MatrixBlock, GL_DYNAMIC_DRAW)
+        self.matrix_block = self.gl_create_resource(MatrixBlock, GL_DYNAMIC_DRAW)
         self.projection_matrix_need_update = True
         self.view_matrix_need_update = True
 
         self.animation_timer.start(1000/self.fps)
+
+        self.context().aboutToBeDestroyed.connect(self.gl_delete)
 
     def paintGL(self):
         glClearColor(0.5, 0.5, 0.5, 1)
@@ -195,9 +196,6 @@ class ViewerWidget(qt.OpenGLWidget):
         self.update()
 
     def setModel(self, model):
-        self.makeCurrent()
-        model = model
-        model.gl_init()
         self.model = model
         self.animation = None
 

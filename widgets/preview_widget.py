@@ -1,7 +1,6 @@
 import numpy
 from OpenGL.GL import *
 from PyQt5 import QtCore, QtWidgets
-import qt
 import gl
 
 
@@ -41,7 +40,7 @@ void main()
 """
 
 
-class PreviewWidget(qt.OpenGLWidget):
+class PreviewWidget(gl.ResourceManagerMixin, QtWidgets.QOpenGLWidget):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -59,17 +58,19 @@ class PreviewWidget(qt.OpenGLWidget):
         return self.vertex_buffer['texcoord']
 
     def initializeGL(self):
-        vertex_shader = self.gl_create(gl.Shader, GL_VERTEX_SHADER, VERTEX_SHADER_STRING)
-        fragment_shader = self.gl_create(gl.Shader, GL_FRAGMENT_SHADER, FRAGMENT_SHADER_STRING)
-        self.program = self.gl_create(gl.Program, vertex_shader, fragment_shader)
+        vertex_shader = self.gl_create_resource(gl.Shader, GL_VERTEX_SHADER, VERTEX_SHADER_STRING)
+        fragment_shader = self.gl_create_resource(gl.Shader, GL_FRAGMENT_SHADER, FRAGMENT_SHADER_STRING)
+        self.program = self.gl_create_resource(gl.Program, vertex_shader, fragment_shader)
+        self.gl_delete_resource(vertex_shader)
+        self.gl_delete_resource(fragment_shader)
 
         glUseProgram(self.program)
         display_texture_location = glGetUniformLocation(self.program, 'display_texture')
         glUniform1i(display_texture_location, DISPLAY_TEXTURE_UNIT)
 
-        self.vertex_array = self.gl_create(gl.VertexArray)
+        self.vertex_array = self.gl_create_resource(gl.VertexArray)
         glBindVertexArray(self.vertex_array)
-        self.vertex_buffer = self.gl_create(gl.ManagedBuffer, GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW, 4, VERTEX_TYPE)
+        self.vertex_buffer = self.gl_create_resource(gl.ManagedBuffer, GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW, 4, VERTEX_TYPE)
 
         offset = VERTEX_TYPE.fields['position'][1]
         glEnableVertexAttribArray(POSITION_ATTRIBUTE_LOCATION)
@@ -87,6 +88,8 @@ class PreviewWidget(qt.OpenGLWidget):
         self.texcoord_array[2,1] = 0
         self.texcoord_array[3,0] = 1
         self.texcoord_array[3,1] = 1
+
+        self.context().aboutToBeDestroyed.connect(self.gl_delete)
 
     def set_display_rectangle(self, x0, y0, x1, y1):
         self.position_array[0,0] = x0
@@ -131,6 +134,13 @@ class PreviewWidget(qt.OpenGLWidget):
         self.update_display_rectangle()
         self.update()
         self.texture.register_listener(self)
+
+    def clear(self):
+        if self.texture is None:
+            return
+        self.texture.unregister_listener(self)
+        self.texture = None
+        self.update()
 
     def receive_event(self, sender, event):
         self.update()

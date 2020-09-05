@@ -137,21 +137,21 @@ class TexturesChangedEvent:
     pass
 
 
-class Model(views.View, gl.ResourceOwner):
+class Model(gl.ResourceManagerMixin, views.View):
 
     def __init__(self, viewed_object):
-        views.View.__init__(self, viewed_object)
-        gl.ResourceOwner.__init__(self)
+        super().__init__(viewed_object)
+
         self.shapes = [
-            self.gl_create(views.shape.Shape, shape)
+            self.gl_create_resource(views.shape.Shape, shape)
             for shape in viewed_object.shapes
         ]
         self.materials = [
-            self.gl_create(views.material.Material, material)
+            self.gl_create_resource(views.material.Material, material)
             for material in viewed_object.materials
         ]
         self.textures = [
-            self.gl_create(views.texture.Texture, texture)
+            self.gl_create_resource(views.texture.Texture, texture)
             for texture in viewed_object.textures
         ]
 
@@ -179,7 +179,7 @@ class Model(views.View, gl.ResourceOwner):
 
         self.gl_joints = [copy.copy(joint) for joint in self.joints]
         self.gl_joint_matrices = numpy.empty((len(self.joints),3,4),numpy.float32)
-        self.gl_matrix_table = self.gl_create(gl.TextureBuffer, GL_DYNAMIC_DRAW,GL_RGBA32F,(len(self.matrix_descriptors),3,4),numpy.float32)
+        self.gl_matrix_table = self.gl_create_resource(gl.TextureBuffer, GL_DYNAMIC_DRAW,GL_RGBA32F,(len(self.matrix_descriptors),3,4),numpy.float32)
         self.gl_update_matrix_table()
 
     def gl_update_joint_matrices(self,node,parent_joint=None,parent_joint_matrix=numpy.eye(3,4,dtype=numpy.float32)):
@@ -231,9 +231,8 @@ class Model(views.View, gl.ResourceOwner):
         self.gl_draw_node(self.scene_graph)
 
     def replace_texture(self, index, texture):
-        old_view = self.textures[index]
+        self.gl_delete_resource(self.textures[index])
         self.viewed_object.textures[index] = texture
-        self.textures[index] = self.gl_create(views.texture.Texture, texture)
+        self.textures[index] = self.gl_create_resource(views.texture.Texture, texture)
         self.send_event(TexturesChangedEvent())
-        #TODO gl_delete old_view
 

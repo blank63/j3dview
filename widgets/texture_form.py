@@ -49,6 +49,13 @@ class TextureForm(QtWidgets.QWidget):
         self.texture.register_listener(self)
         self.setEnabled(True)
 
+    def clear(self):
+        if self.texture is None:
+            return
+        self.texture.unregister_listener(self)
+        self.texture = None
+        self.setEnabled(False)
+
     def receive_event(self, sender, event):
         self.reload()
 

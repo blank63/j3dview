@@ -14,21 +14,6 @@ class Resource(GLuint):
         return self.value
 
 
-class ResourceOwner:
-
-    def __init__(self):
-        self.__gl_resources = []
-
-    def gl_create(self, resource_type, *args, **kwargs):
-        resource = resource_type(*args, **kwargs)
-        self.__gl_resources.append(resource)
-        return resource
-
-    def gl_delete(self):
-        for resource in self.__gl_resources:
-            resource.gl_delete()
-
-
 class Buffer(Resource):
 
     def __init__(self):
@@ -137,16 +122,19 @@ class ChangeRegisteringArray(numpy.ndarray):
         super().__setitem__(*args)
 
 
-class ManagedBuffer(ResourceOwner):
+class ManagedBuffer:
 
     def __init__(self, target, usage, *args, **kwargs):
         super().__init__()
         self.target = target
         self.usage = usage
         self.data = ChangeRegisteringArray(*args, **kwargs)
-        self.buffer = self.gl_create(Buffer)
+        self.buffer = Buffer()
         glBindBuffer(target, self.buffer)
         glBufferData(target, self.data.nbytes, None, usage)
+
+    def gl_delete(self):
+        self.buffer.gl_delete()
 
     def __getitem__(self, key):
         return self.data[key]
@@ -179,7 +167,11 @@ class TextureBuffer(ManagedBuffer):
     def __init__(self, usage, element_type, *args, **kwargs):
         super().__init__(GL_TEXTURE_BUFFER, usage, *args, **kwargs)
         self.element_type = element_type
-        self.texture = self.gl_create(Texture)
+        self.texture = Texture()
+
+    def gl_delete(self):
+        super().gl_delete()
+        self.texture.gl_delete()
 
     def bind_texture(self, texture_unit):
         self.sync_data()
@@ -272,4 +264,45 @@ def uniform_block(class_name, fields):
         classdict[name] = field_type
 
     return UniformBlockMetaClass(class_name, bases, classdict)
+
+
+class ResourceManager:
+
+    def __init__(self):
+        self.resources = []
+
+    def manage(self, resource):
+        self.resources.append(resource)
+        return resource
+
+    def create(self, resource_type, *args, **kwargs):
+        return self.manage(resource_type(*args, **kwargs))
+
+    def delete(self, resource):
+        for i in range(len(self.resources)):
+            if self.resources[i] is resource:
+                del self.resources[i]
+                resource.gl_delete()
+                return
+        assert False
+
+    def clear(self):
+        for resource in self.resources:
+            resource.gl_delete()
+
+
+class ResourceManagerMixin:
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.gl_resource_manager = ResourceManager()
+
+    def gl_create_resource(self, resource_type, *args, **kwargs):
+        return self.gl_resource_manager.create(resource_type, *args, **kwargs)
+
+    def gl_delete_resource(self, resource):
+        self.gl_resource_manager.delete(resource)
+
+    def gl_delete(self):
+        self.gl_resource_manager.clear()
 

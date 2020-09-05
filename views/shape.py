@@ -68,11 +68,7 @@ def gl_create_element_array(shape,element_map,element_count):
     return element_array
 
     
-class Shape(views.View, gl.ResourceOwner):
-
-    def __init__(self, viewed_object):
-        views.View.__init__(self, viewed_object)
-        gl.ResourceOwner.__init__(self)
+class Shape(gl.ResourceManagerMixin, views.View):
 
     transformation_type = views.ReadOnlyAttribute()
     batches = views.ReadOnlyAttribute()
@@ -91,14 +87,14 @@ class Shape(views.View, gl.ResourceOwner):
     def gl_init(self,array_table):
         self.gl_hide = False
 
-        self.gl_vertex_array = self.gl_create(gl.VertexArray)
+        self.gl_vertex_array = self.gl_create_resource(gl.VertexArray)
         glBindVertexArray(self.gl_vertex_array)
 
-        self.gl_vertex_buffer = self.gl_create(gl.Buffer)
+        self.gl_vertex_buffer = self.gl_create_resource(gl.Buffer)
         glBindBuffer(GL_ARRAY_BUFFER,self.gl_vertex_buffer)
 
         self.gl_element_count = 3*gl_count_triangles(self)
-        self.gl_element_buffer = self.gl_create(gl.Buffer)
+        self.gl_element_buffer = self.gl_create_resource(gl.Buffer)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,self.gl_element_buffer)
 
         vertex_type =  numpy.dtype([array_table[attribute].field() for attribute in self.attributes])

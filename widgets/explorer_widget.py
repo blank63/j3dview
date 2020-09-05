@@ -65,6 +65,7 @@ class ExplorerWidget(QtWidgets.QTreeWidget):
         if self.model is not None:
             self.model.unregister_listener(self)
         self.model = model
+        self.setCurrentItem(None)
         self.reload_materials()
         self.reload_textures()
         self.model.register_listener(self)
