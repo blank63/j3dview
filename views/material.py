@@ -18,8 +18,10 @@ TEXTURE_UNITS = [1,2,3,4,5,6,7,8]
 
 
 class ShaderInvalidatingAttribute(views.Attribute):
-    #TODO actually invalidate shaders
-    pass
+
+    def attribute_changed(self, instance):
+        instance.gl_shader_invalidate()
+        super().attribute_changed(instance)
 
 
 class AlphaTest(views.SubView):
@@ -28,6 +30,9 @@ class AlphaTest(views.SubView):
     function1 = ShaderInvalidatingAttribute()
     reference1 = ShaderInvalidatingAttribute()
     operator = ShaderInvalidatingAttribute()
+
+    def gl_shader_invalidate(self):
+        self._parent().gl_shader_invalidate()
 
 
 class DepthMode(views.SubView):
@@ -244,6 +249,11 @@ class Material(gl.ResourceManagerMixin, views.View):
 
         self.gl_program_table[transformation_type] = program
         return program
+
+    def gl_shader_invalidate(self):
+        for program in self.gl_program_table.values():
+            self.gl_delete_resource(program)
+        self.gl_program_table.clear()
 
     @property
     def gl_cull_mode(self):
