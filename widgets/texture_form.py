@@ -2,6 +2,7 @@ import io
 import pkgutil
 from PyQt5 import QtCore, QtWidgets, uic
 import gx
+from views import path_builder as _p, ValueChangedEvent
 
 
 class CommitAttributeCommand(QtWidgets.QUndoCommand):
@@ -39,25 +40,33 @@ class TextureForm(QtWidgets.QWidget):
 
         self.setEnabled(False)
 
-        self.texture = None
+        self.model = None
+        self.texture_index = None
 
-    def setTexture(self, texture):
-        if self.texture is not None:
-            self.texture.unregister_listener(self)
-        self.texture = texture
+    @property
+    def texture(self):
+        return self.model.textures[self.texture_index]
+
+    def setTexture(self, model, texture_index):
+        if self.model is not None:
+            self.model.unregister_listener(self)
+        self.model = model
+        self.texture_index = texture_index
         self.reload()
-        self.texture.register_listener(self)
+        self.model.register_listener(self)
         self.setEnabled(True)
 
     def clear(self):
-        if self.texture is None:
-            return
-        self.texture.unregister_listener(self)
-        self.texture = None
+        if self.model is not None:
+            self.model.unregister_listener(self)
+        self.model = None
+        self.texture_index = None
         self.setEnabled(False)
 
-    def receive_event(self, sender, event):
-        self.reload()
+    def receive_event(self, event, path):
+        if isinstance(event, ValueChangedEvent) and path.match(+_p.textures[self.texture_index]):
+            self.reload()
+            return
 
     def reload(self):
         self.name.setText(self.texture.name)

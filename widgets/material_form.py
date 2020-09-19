@@ -2,6 +2,7 @@ import io
 import pkgutil
 from PyQt5 import QtCore, QtWidgets, uic
 import gx
+from views import path_builder as _p, ValueChangedEvent
 
 
 class MaterialForm(QtWidgets.QWidget):
@@ -10,6 +11,21 @@ class MaterialForm(QtWidgets.QWidget):
         super().__init__(*args, **kwargs)
 
         self.ui = uic.loadUi(io.BytesIO(pkgutil.get_data(__package__, 'MaterialForm.ui')), self)
+
+        self.textures = [
+            self.texture0,
+            self.texture1,
+            self.texture2,
+            self.texture3,
+            self.texture4,
+            self.texture5,
+            self.texture6,
+            self.texture7
+        ]
+
+        self.texture_template = QtWidgets.QComboBox()
+        for texture in self.textures:
+            texture.setModel(self.texture_template.model())
 
         self.cull_mode.addEnumItems(gx.CullMode)
 
@@ -26,31 +42,54 @@ class MaterialForm(QtWidgets.QWidget):
 
         self.setEnabled(False)
 
-        self.material = None
+        self.model = None
+        self.material_index = None
 
-    def setMaterial(self, material):
-        if self.material is not None:
-            self.material.unregister_listener(self)
-        self.material = material
+    @property
+    def material(self):
+        return self.model.materials[self.material_index]
+
+    def setMaterial(self, model, material_index):
+        if self.model is not None:
+            self.model.unregister_listener(self)
+        self.model = model
+        self.material_index = material_index
+
+        self.texture_template.clear()
+        self.texture_template.addItem('None', None)
+        for i, texture in enumerate(model.textures):
+            self.texture_template.addItem(texture.name, i)
+
         self.reload()
-        self.material.register_listener(self)
+        self.model.register_listener(self)
         self.setEnabled(True)
 
     def clear(self):
-        if self.material is None:
-            return
-        self.material.unregister_listener(self)
-        self.material = None
+        if self.model is not None:
+            self.model.unregister_listener(self)
+        self.model = None
+        self.material_index = None
         self.setEnabled(False)
 
-    def receive_event(self, sender, event):
-        self.reload()
+    def receive_event(self, event, path):
+        if isinstance(event, ValueChangedEvent) and path.match(+_p.materials[self.material_index]):
+            self.reload()
+            return
+        if isinstance(event, ValueChangedEvent) and path.match(+_p.textures[...].name):
+            index = path[1].key
+            texture = self.model.textures[index]
+            item = self.texture_template.findData(index)
+            self.texture_template.setItemText(item, texture.name)
+            return
 
     def reload(self):
         self.name.setText(self.material.name)
         self.unknown0.setValue(self.material.unknown0)
         self.cull_mode.setCurrentData(self.material.cull_mode)
         self.dither.setChecked(self.material.dither)
+
+        for texture, index in zip(self.textures, self.material.texture_indices):
+            texture.setCurrentData(index)
 
         self.alpha_test_function0.setCurrentData(self.material.alpha_test.function0)
         self.alpha_test_reference0.setValue(self.material.alpha_test.reference0)
@@ -83,6 +122,38 @@ class MaterialForm(QtWidgets.QWidget):
     @QtCore.pyqtSlot(bool)
     def on_dither_clicked(self, checked):
         self.material.dither = checked
+
+    @QtCore.pyqtSlot(int)
+    def on_texture0_activated(self, index):
+        self.material.texture_indices[0] = self.texture0.itemData(index)
+
+    @QtCore.pyqtSlot(int)
+    def on_texture1_activated(self, index):
+        self.material.texture_indices[1] = self.texture1.itemData(index)
+
+    @QtCore.pyqtSlot(int)
+    def on_texture2_activated(self, index):
+        self.material.texture_indices[2] = self.texture2.itemData(index)
+
+    @QtCore.pyqtSlot(int)
+    def on_texture3_activated(self, index):
+        self.material.texture_indices[3] = self.texture3.itemData(index)
+
+    @QtCore.pyqtSlot(int)
+    def on_texture4_activated(self, index):
+        self.material.texture_indices[4] = self.texture4.itemData(index)
+
+    @QtCore.pyqtSlot(int)
+    def on_texture5_activated(self, index):
+        self.material.texture_indices[5] = self.texture5.itemData(index)
+
+    @QtCore.pyqtSlot(int)
+    def on_texture6_activated(self, index):
+        self.material.texture_indices[6] = self.texture6.itemData(index)
+
+    @QtCore.pyqtSlot(int)
+    def on_texture7_activated(self, index):
+        self.material.texture_indices[7] = self.texture7.itemData(index)
 
     @QtCore.pyqtSlot(int)
     def on_alpha_test_function0_activated(self, index):

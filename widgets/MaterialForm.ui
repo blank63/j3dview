@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>246</width>
-    <height>506</height>
+    <height>732</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -69,7 +69,252 @@
    <item row="2" column="1">
     <widget class="ComboBox" name="cull_mode"/>
    </item>
+   <item row="6" column="0" colspan="2">
+    <widget class="QGroupBox" name="group_depth_mode">
+     <property name="title">
+      <string>Depth Mode</string>
+     </property>
+     <property name="flat">
+      <bool>false</bool>
+     </property>
+     <layout class="QFormLayout" name="group_depth_mode_layout">
+      <property name="horizontalSpacing">
+       <number>4</number>
+      </property>
+      <property name="verticalSpacing">
+       <number>0</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_depth_mode_function">
+        <property name="text">
+         <string>Function:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="ComboBox" name="depth_mode_function"/>
+      </item>
+      <item row="2" column="0" colspan="2">
+       <widget class="QCheckBox" name="depth_mode_test_early">
+        <property name="text">
+         <string>Test Early</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0" colspan="2">
+       <widget class="QCheckBox" name="depth_mode_enable">
+        <property name="text">
+         <string>Enable</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0" colspan="2">
+       <widget class="QCheckBox" name="depth_mode_update_enable">
+        <property name="text">
+         <string>Update Enable</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="9" column="0" colspan="2">
+    <widget class="QGroupBox" name="group_blend_mode">
+     <property name="title">
+      <string>Blend Mode</string>
+     </property>
+     <property name="flat">
+      <bool>false</bool>
+     </property>
+     <layout class="QFormLayout" name="group_blend__mode_layout">
+      <property name="horizontalSpacing">
+       <number>4</number>
+      </property>
+      <property name="verticalSpacing">
+       <number>0</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_blend_mode_function">
+        <property name="text">
+         <string>Function:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="ComboBox" name="blend_mode_function"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_blend_mode_source_factor">
+        <property name="text">
+         <string>Src. Factor:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="ComboBox" name="blend_mode_source_factor"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_blend_mode_destination_factor">
+        <property name="text">
+         <string>Dst. Factor:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="ComboBox" name="blend_mode_destination_factor"/>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_blend_mode_logical_operation">
+        <property name="text">
+         <string>Logic Op:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="ComboBox" name="blend_mode_logical_operation"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="3" column="0" colspan="2">
+    <widget class="QCheckBox" name="dither">
+     <property name="text">
+      <string>Dither</string>
+     </property>
+    </widget>
+   </item>
    <item row="4" column="0" colspan="2">
+    <widget class="QGroupBox" name="group_textures">
+     <property name="title">
+      <string>Textures</string>
+     </property>
+     <layout class="QFormLayout" name="group_textures_layout">
+      <property name="horizontalSpacing">
+       <number>4</number>
+      </property>
+      <property name="verticalSpacing">
+       <number>0</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_texture0">
+        <property name="text">
+         <string>0:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="ComboBox" name="texture0"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_texture1">
+        <property name="text">
+         <string>1:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_texture2">
+        <property name="text">
+         <string>2:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_texture3">
+        <property name="text">
+         <string>3:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_texture4">
+        <property name="text">
+         <string>4:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_texture5">
+        <property name="text">
+         <string>5:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="label_texture6">
+        <property name="text">
+         <string>6:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QLabel" name="label_texture7">
+        <property name="text">
+         <string>7:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="ComboBox" name="texture1"/>
+      </item>
+      <item row="2" column="1">
+       <widget class="ComboBox" name="texture2"/>
+      </item>
+      <item row="3" column="1">
+       <widget class="ComboBox" name="texture3"/>
+      </item>
+      <item row="4" column="1">
+       <widget class="ComboBox" name="texture4"/>
+      </item>
+      <item row="5" column="1">
+       <widget class="ComboBox" name="texture5"/>
+      </item>
+      <item row="6" column="1">
+       <widget class="ComboBox" name="texture6"/>
+      </item>
+      <item row="7" column="1">
+       <widget class="ComboBox" name="texture7"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="5" column="0" colspan="2">
     <widget class="QGroupBox" name="group_alpha_test">
      <property name="title">
       <string>Alpha Test</string>
@@ -155,144 +400,6 @@
        <widget class="ComboBox" name="alpha_test_operator"/>
       </item>
      </layout>
-    </widget>
-   </item>
-   <item row="5" column="0" colspan="2">
-    <widget class="QGroupBox" name="group_depth_mode">
-     <property name="title">
-      <string>Depth Mode</string>
-     </property>
-     <property name="flat">
-      <bool>false</bool>
-     </property>
-     <layout class="QFormLayout" name="group_depth_mode_layout">
-      <property name="horizontalSpacing">
-       <number>4</number>
-      </property>
-      <property name="verticalSpacing">
-       <number>0</number>
-      </property>
-      <property name="leftMargin">
-       <number>0</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>0</number>
-      </property>
-      <property name="bottomMargin">
-       <number>0</number>
-      </property>
-      <item row="3" column="0">
-       <widget class="QLabel" name="label_depth_mode_function">
-        <property name="text">
-         <string>Function:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="ComboBox" name="depth_mode_function"/>
-      </item>
-      <item row="2" column="0" colspan="2">
-       <widget class="QCheckBox" name="depth_mode_test_early">
-        <property name="text">
-         <string>Test Early</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0" colspan="2">
-       <widget class="QCheckBox" name="depth_mode_enable">
-        <property name="text">
-         <string>Enable</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="0" colspan="2">
-       <widget class="QCheckBox" name="depth_mode_update_enable">
-        <property name="text">
-         <string>Update Enable</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item row="8" column="0" colspan="2">
-    <widget class="QGroupBox" name="group_blend_mode">
-     <property name="title">
-      <string>Blend Mode</string>
-     </property>
-     <property name="flat">
-      <bool>false</bool>
-     </property>
-     <layout class="QFormLayout" name="group_blend__mode_layout">
-      <property name="horizontalSpacing">
-       <number>4</number>
-      </property>
-      <property name="verticalSpacing">
-       <number>0</number>
-      </property>
-      <property name="leftMargin">
-       <number>0</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>0</number>
-      </property>
-      <property name="bottomMargin">
-       <number>0</number>
-      </property>
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_blend_mode_function">
-        <property name="text">
-         <string>Function:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="ComboBox" name="blend_mode_function"/>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_blend_mode_source_factor">
-        <property name="text">
-         <string>Src. Factor:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="ComboBox" name="blend_mode_source_factor"/>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_blend_mode_destination_factor">
-        <property name="text">
-         <string>Dst. Factor:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="ComboBox" name="blend_mode_destination_factor"/>
-      </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="label_blend_mode_logical_operation">
-        <property name="text">
-         <string>Logic Op:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="ComboBox" name="blend_mode_logical_operation"/>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item row="3" column="0" colspan="2">
-    <widget class="QCheckBox" name="dither">
-     <property name="text">
-      <string>Dither</string>
-     </property>
     </widget>
    </item>
   </layout>

@@ -1,53 +1,20 @@
 from PyQt5 import QtCore, QtWidgets
+from views import path_builder as _p, ValueChangedEvent
 import views.model
 
 
 class MaterialItem(QtWidgets.QTreeWidgetItem):
-
-    def __init__(self, material):
-        super().__init__()
-        self.material = None
-        self.setMaterial(material)
-
-    def setMaterial(self, material):
-        if self.material is not None:
-            self.material.unregister_listener(self)
-        self.material = material
-        self.reload()
-        self.material.register_listener(self)
-
-    def receive_event(self, sender, event):
-        self.reload()
-
-    def reload(self):
-        self.setText(0, self.material.name)
+    pass
 
 
 class TextureItem(QtWidgets.QTreeWidgetItem):
-
-    def __init__(self, texture):
-        super().__init__()
-        self.texture = None
-        self.setTexture(texture)
-
-    def setTexture(self, texture):
-        if self.texture is not None:
-            self.texture.unregister_listener(self)
-        self.texture = texture
-        self.reload()
-        self.texture.register_listener(self)
-
-    def receive_event(self, sender, event):
-        self.reload()
-
-    def reload(self):
-        self.setText(0, self.texture.name)
+    pass
 
 
 class ExplorerWidget(QtWidgets.QTreeWidget):
 
-    currentMaterialChanged = QtCore.pyqtSignal(object)
-    currentTextureChanged = QtCore.pyqtSignal(object)
+    currentMaterialChanged = QtCore.pyqtSignal(int)
+    currentTextureChanged = QtCore.pyqtSignal(int)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -70,26 +37,35 @@ class ExplorerWidget(QtWidgets.QTreeWidget):
         self.reload_textures()
         self.model.register_listener(self)
 
-    def receive_event(self, sender, event):
-        if isinstance(event, views.model.TexturesChangedEvent):
-            self.reload_textures()
+    def receive_event(self, event, path):
+        if isinstance(event, ValueChangedEvent) and path.match(+_p.materials[...].name):
+            index = path[1].key
+            material = self.model.materials[index]
+            self.material_list.child(index).setText(0, material.name)
+            return
+        if isinstance(event, ValueChangedEvent) and path.match(+_p.textures[...].name):
+            index = path[1].key
+            texture = self.model.textures[index]
+            self.texture_list.child(index).setText(0, texture.name)
+            return
 
     def reload_materials(self):
         self.material_list.takeChildren()
         self.material_list.addChildren([
-            MaterialItem(material)
+            MaterialItem([material.name])
             for material in self.model.materials
         ])
 
     def reload_textures(self):
-        index = self.current_texture_index
         self.texture_list.takeChildren()
         self.texture_list.addChildren([
-            TextureItem(texture)
+            TextureItem([texture.name])
             for texture in self.model.textures
         ])
-        if index != -1:
-            self.setCurrentItem(self.texture_list.child(index))
+
+    @property
+    def current_material_index(self):
+        return self.material_list.indexOfChild(self.currentItem())
 
     @property
     def current_texture_index(self):
@@ -98,7 +74,9 @@ class ExplorerWidget(QtWidgets.QTreeWidget):
     @QtCore.pyqtSlot(QtWidgets.QTreeWidgetItem, QtWidgets.QTreeWidgetItem)
     def on_currentItemChanged(self, current, previous):
         if isinstance(current, MaterialItem):
-            self.currentMaterialChanged.emit(current.material)
+            index = self.material_list.indexOfChild(current)
+            self.currentMaterialChanged.emit(index)
         if isinstance(current, TextureItem):
-            self.currentTextureChanged.emit(current.texture)
+            index = self.texture_list.indexOfChild(current)
+            self.currentTextureChanged.emit(index)
 

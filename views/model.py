@@ -5,6 +5,7 @@ import gl
 import gx
 import j3d.inf1
 import views
+from views import path_builder as _p, ValueChangedEvent
 import views.shape
 import views.material
 import views.texture
@@ -133,10 +134,6 @@ def gl_convert_color_array(source):
     return destination
 
 
-class TexturesChangedEvent:
-    pass
-
-
 class Model(gl.ResourceManagerMixin, views.View):
 
     def __init__(self, viewed_object):
@@ -154,6 +151,11 @@ class Model(gl.ResourceManagerMixin, views.View):
             self.gl_create_resource(views.texture.Texture, texture)
             for texture in viewed_object.textures
         ]
+
+        for i, material in enumerate(self.materials):
+            material.register_listener(self, +_p.materials[i])
+        for i, texture in enumerate(self.textures):
+            texture.register_listener(self, +_p.textures[i])
 
     scene_graph = views.ReadOnlyAttribute()
     position_array = views.ReadOnlyAttribute()
@@ -230,9 +232,14 @@ class Model(gl.ResourceManagerMixin, views.View):
         self.gl_matrix_table.bind_texture(views.material.MATRIX_TABLE_TEXTURE_UNIT)
         self.gl_draw_node(self.scene_graph)
 
+    def receive_event(self, event, path):
+        self.send_event(event, path)
+
     def replace_texture(self, index, texture):
+        self.textures[index].unregister_listener(self)
         self.gl_delete_resource(self.textures[index])
         self.viewed_object.textures[index] = texture
         self.textures[index] = self.gl_create_resource(views.texture.Texture, texture)
-        self.send_event(TexturesChangedEvent())
+        self.textures[index].register_listener(self, +_p.textures[index])
+        self.send_event(ValueChangedEvent(), +_p.textures[index])
 
