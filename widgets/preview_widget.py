@@ -151,7 +151,7 @@ class PreviewWidget(gl.ResourceManagerMixin, QtWidgets.QOpenGLWidget):
         self.texture_index = None
         self.update()
 
-    def receive_event(self, event, path):
+    def handle_event(self, event, path):
         if isinstance(event, ValueChangedEvent) and path.match(+_p.textures[self.texture_index]):
             self.update_display_rectangle()
             self.update()

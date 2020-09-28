@@ -3,6 +3,7 @@ import pkgutil
 from PyQt5 import QtCore, QtWidgets, uic
 import gx
 from views import path_builder as _p, ValueChangedEvent
+import qt
 
 
 class MaterialForm(QtWidgets.QWidget):
@@ -71,7 +72,7 @@ class MaterialForm(QtWidgets.QWidget):
         self.material_index = None
         self.setEnabled(False)
 
-    def receive_event(self, event, path):
+    def handle_event(self, event, path):
         if isinstance(event, ValueChangedEvent) and path.match(+_p.materials[self.material_index]):
             self.reload()
             return
@@ -88,8 +89,22 @@ class MaterialForm(QtWidgets.QWidget):
         self.cull_mode.setCurrentData(self.material.cull_mode)
         self.dither.setChecked(self.material.dither)
 
+        self.material_color0.setColor(self.material.channels[0].material_color)
+        self.ambient_color0.setColor(self.material.channels[0].ambient_color)
+        self.material_color1.setColor(self.material.channels[1].material_color)
+        self.ambient_color1.setColor(self.material.channels[1].ambient_color)
+
         for texture, index in zip(self.textures, self.material.texture_indices):
             texture.setCurrentData(index)
+
+        self.tev_color_previous.setColor(self.material.tev_color_previous)
+        self.tev_color0.setColor(self.material.tev_colors[0])
+        self.tev_color1.setColor(self.material.tev_colors[1])
+        self.tev_color2.setColor(self.material.tev_colors[2])
+        self.kcolor0.setColor(self.material.kcolors[0])
+        self.kcolor1.setColor(self.material.kcolors[1])
+        self.kcolor2.setColor(self.material.kcolors[2])
+        self.kcolor3.setColor(self.material.kcolors[3])
 
         self.alpha_test_function0.setCurrentData(self.material.alpha_test.function0)
         self.alpha_test_reference0.setValue(self.material.alpha_test.reference0)
@@ -123,6 +138,22 @@ class MaterialForm(QtWidgets.QWidget):
     def on_dither_clicked(self, checked):
         self.material.dither = checked
 
+    @QtCore.pyqtSlot(qt.Color)
+    def on_material_color0_currentColorChanged(self, color):
+        self.material.channels[0].material_color = color
+
+    @QtCore.pyqtSlot(qt.Color)
+    def on_ambient_color0_currentColorChanged(self, color):
+        self.material.channels[0].ambient_color = color
+
+    @QtCore.pyqtSlot(qt.Color)
+    def on_material_color1_currentColorChanged(self, color):
+        self.material.channels[1].material_color = color
+
+    @QtCore.pyqtSlot(qt.Color)
+    def on_ambient_color1_currentColorChanged(self, color):
+        self.material.channels[1].ambient_color = color
+
     @QtCore.pyqtSlot(int)
     def on_texture0_activated(self, index):
         self.material.texture_indices[0] = self.texture0.itemData(index)
@@ -154,6 +185,38 @@ class MaterialForm(QtWidgets.QWidget):
     @QtCore.pyqtSlot(int)
     def on_texture7_activated(self, index):
         self.material.texture_indices[7] = self.texture7.itemData(index)
+
+    @QtCore.pyqtSlot(qt.Color)
+    def on_tev_color_previous_currentColorChanged(self, color):
+        self.material.tev_color_previous = color
+
+    @QtCore.pyqtSlot(qt.Color)
+    def on_tev_color0_currentColorChanged(self, color):
+        self.material.tev_colors[0] = color
+
+    @QtCore.pyqtSlot(qt.Color)
+    def on_tev_color1_currentColorChanged(self, color):
+        self.material.tev_colors[1] = color
+
+    @QtCore.pyqtSlot(qt.Color)
+    def on_tev_color2_currentColorChanged(self, color):
+        self.material.tev_colors[2] = color
+
+    @QtCore.pyqtSlot(qt.Color)
+    def on_kcolor0_currentColorChanged(self, color):
+        self.material.kcolors[0] = color
+
+    @QtCore.pyqtSlot(qt.Color)
+    def on_kcolor1_currentColorChanged(self, color):
+        self.material.kcolors[1] = color
+
+    @QtCore.pyqtSlot(qt.Color)
+    def on_kcolor2_currentColorChanged(self, color):
+        self.material.kcolors[2] = color
+
+    @QtCore.pyqtSlot(qt.Color)
+    def on_kcolor3_currentColorChanged(self, color):
+        self.material.kcolors[3] = color
 
     @QtCore.pyqtSlot(int)
     def on_alpha_test_function0_activated(self, index):

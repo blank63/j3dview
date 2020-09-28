@@ -23,7 +23,7 @@ class SamplerInvalidatingAttribute(views.Attribute):
         super().attribute_changed(instance)
 
 
-class Texture(gl.ResourceManagerMixin, views.View):
+class Texture(views.View):
 
     name = views.Attribute()
     wrap_s = SamplerInvalidatingAttribute()

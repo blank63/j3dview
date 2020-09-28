@@ -1,5 +1,8 @@
+import logging
 import numpy
 from OpenGL.GL import *
+
+logger = logging.getLogger(__name__)
 
 
 class Resource(GLuint):
@@ -271,6 +274,10 @@ class ResourceManager:
     def __init__(self):
         self.resources = []
 
+    def __del__(self):
+        if self.resources:
+            logger.warning('Resource leak')
+
     def manage(self, resource):
         self.resources.append(resource)
         return resource
@@ -289,6 +296,7 @@ class ResourceManager:
     def clear(self):
         for resource in self.resources:
             resource.gl_delete()
+        self.resources.clear()
 
 
 class ResourceManagerMixin:

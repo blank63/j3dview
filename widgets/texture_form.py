@@ -63,7 +63,7 @@ class TextureForm(QtWidgets.QWidget):
         self.texture_index = None
         self.setEnabled(False)
 
-    def receive_event(self, event, path):
+    def handle_event(self, event, path):
         if isinstance(event, ValueChangedEvent) and path.match(+_p.textures[self.texture_index]):
             self.reload()
             return

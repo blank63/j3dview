@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>246</width>
-    <height>732</height>
+    <width>253</width>
+    <height>922</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -69,7 +69,7 @@
    <item row="2" column="1">
     <widget class="ComboBox" name="cull_mode"/>
    </item>
-   <item row="6" column="0" colspan="2">
+   <item row="8" column="0" colspan="2">
     <widget class="QGroupBox" name="group_depth_mode">
      <property name="title">
       <string>Depth Mode</string>
@@ -130,7 +130,7 @@
      </layout>
     </widget>
    </item>
-   <item row="9" column="0" colspan="2">
+   <item row="11" column="0" colspan="2">
     <widget class="QGroupBox" name="group_blend_mode">
      <property name="title">
       <string>Blend Mode</string>
@@ -207,7 +207,7 @@
      </property>
     </widget>
    </item>
-   <item row="4" column="0" colspan="2">
+   <item row="5" column="0" colspan="2">
     <widget class="QGroupBox" name="group_textures">
      <property name="title">
       <string>Textures</string>
@@ -248,12 +248,18 @@
         </property>
        </widget>
       </item>
+      <item row="1" column="1">
+       <widget class="ComboBox" name="texture1"/>
+      </item>
       <item row="2" column="0">
        <widget class="QLabel" name="label_texture2">
         <property name="text">
          <string>2:</string>
         </property>
        </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="ComboBox" name="texture2"/>
       </item>
       <item row="3" column="0">
        <widget class="QLabel" name="label_texture3">
@@ -262,12 +268,18 @@
         </property>
        </widget>
       </item>
+      <item row="3" column="1">
+       <widget class="ComboBox" name="texture3"/>
+      </item>
       <item row="4" column="0">
        <widget class="QLabel" name="label_texture4">
         <property name="text">
          <string>4:</string>
         </property>
        </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="ComboBox" name="texture4"/>
       </item>
       <item row="5" column="0">
        <widget class="QLabel" name="label_texture5">
@@ -276,12 +288,18 @@
         </property>
        </widget>
       </item>
+      <item row="5" column="1">
+       <widget class="ComboBox" name="texture5"/>
+      </item>
       <item row="6" column="0">
        <widget class="QLabel" name="label_texture6">
         <property name="text">
          <string>6:</string>
         </property>
        </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="ComboBox" name="texture6"/>
       </item>
       <item row="7" column="0">
        <widget class="QLabel" name="label_texture7">
@@ -290,31 +308,13 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="1">
-       <widget class="ComboBox" name="texture1"/>
-      </item>
-      <item row="2" column="1">
-       <widget class="ComboBox" name="texture2"/>
-      </item>
-      <item row="3" column="1">
-       <widget class="ComboBox" name="texture3"/>
-      </item>
-      <item row="4" column="1">
-       <widget class="ComboBox" name="texture4"/>
-      </item>
-      <item row="5" column="1">
-       <widget class="ComboBox" name="texture5"/>
-      </item>
-      <item row="6" column="1">
-       <widget class="ComboBox" name="texture6"/>
-      </item>
       <item row="7" column="1">
        <widget class="ComboBox" name="texture7"/>
       </item>
      </layout>
     </widget>
    </item>
-   <item row="5" column="0" colspan="2">
+   <item row="7" column="0" colspan="2">
     <widget class="QGroupBox" name="group_alpha_test">
      <property name="title">
       <string>Alpha Test</string>
@@ -402,6 +402,228 @@
      </layout>
     </widget>
    </item>
+   <item row="6" column="0" colspan="2">
+    <widget class="QGroupBox" name="group_tev_colors">
+     <property name="title">
+      <string>TEV Colors</string>
+     </property>
+     <layout class="QGridLayout" name="group_tev_colors_layout">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <property name="horizontalSpacing">
+       <number>4</number>
+      </property>
+      <property name="verticalSpacing">
+       <number>0</number>
+      </property>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_tev_color0">
+        <property name="text">
+         <string>TEV Reg. 0:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QLabel" name="label_kcolor0">
+        <property name="text">
+         <string>KColor 0:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="ColorButton" name="tev_color_previous">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="ColorButton" name="tev_color0">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_tev_color_previous">
+        <property name="text">
+         <string>TEV Prev:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="ColorButton" name="tev_color1">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_tev_color2">
+        <property name="text">
+         <string>TEV Reg. 2:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="ColorButton" name="tev_color2">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_tev_color1">
+        <property name="text">
+         <string>TEV Reg. 1:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="ColorButton" name="kcolor0">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QLabel" name="label_kcolor1">
+        <property name="text">
+         <string>KColor 1:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="3">
+       <widget class="ColorButton" name="kcolor1">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="2">
+       <widget class="QLabel" name="label_kcolor2">
+        <property name="text">
+         <string>KColor 2:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="3">
+       <widget class="ColorButton" name="kcolor2">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="2">
+       <widget class="QLabel" name="label_kcolor3">
+        <property name="text">
+         <string>KColor 3:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="3">
+       <widget class="ColorButton" name="kcolor3">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="4" column="0" colspan="2">
+    <widget class="QGroupBox" name="group_channel_colors">
+     <property name="title">
+      <string>Channel Colors</string>
+     </property>
+     <layout class="QGridLayout" name="group_channel_colors_layout">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <property name="horizontalSpacing">
+       <number>4</number>
+      </property>
+      <property name="verticalSpacing">
+       <number>0</number>
+      </property>
+      <item row="0" column="3">
+       <widget class="ColorButton" name="ambient_color0">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_material_color0">
+        <property name="text">
+         <string>Mat. Color 0:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QLabel" name="label_ambient_color0">
+        <property name="text">
+         <string>Amb. Color 0:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="ColorButton" name="material_color0">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_material_color1">
+        <property name="text">
+         <string>Mat. Color 1:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="ColorButton" name="material_color1">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QLabel" name="label_ambient_color1">
+        <property name="text">
+         <string>Amb. Color 1:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="3">
+       <widget class="ColorButton" name="ambient_color1">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
   </layout>
  </widget>
  <customwidgets>
@@ -409,6 +631,11 @@
    <class>ComboBox</class>
    <extends>QComboBox</extends>
    <header>qt</header>
+  </customwidget>
+  <customwidget>
+   <class>ColorButton</class>
+   <extends>QToolButton</extends>
+   <header location="global">qt</header>
   </customwidget>
  </customwidgets>
  <resources/>

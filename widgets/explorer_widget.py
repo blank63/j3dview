@@ -37,7 +37,7 @@ class ExplorerWidget(QtWidgets.QTreeWidget):
         self.reload_textures()
         self.model.register_listener(self)
 
-    def receive_event(self, event, path):
+    def handle_event(self, event, path):
         if isinstance(event, ValueChangedEvent) and path.match(+_p.materials[...].name):
             index = path[1].key
             material = self.model.materials[index]

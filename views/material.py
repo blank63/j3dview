@@ -4,6 +4,7 @@ from OpenGL.GL import *
 import gl
 import gx
 import views
+from views import path_builder as _p
 import views.vertex_shader
 import views.fragment_shader
 
@@ -17,38 +18,35 @@ MATRIX_TABLE_TEXTURE_UNIT = 0
 TEXTURE_UNITS = [1,2,3,4,5,6,7,8]
 
 
-class ShaderInvalidatingAttribute(views.Attribute):
-
-    def attribute_changed(self, instance):
-        instance.gl_shader_invalidate()
-        super().attribute_changed(instance)
-
-
-class AlphaTest(views.SubView):
-    function0 = ShaderInvalidatingAttribute()
-    reference0 = ShaderInvalidatingAttribute()
-    function1 = ShaderInvalidatingAttribute()
-    reference1 = ShaderInvalidatingAttribute()
-    operator = ShaderInvalidatingAttribute()
-
-    def gl_shader_invalidate(self):
-        self._parent().gl_shader_invalidate()
+class Channel(views.View):
+    color_mode = views.ReadOnlyAttribute()
+    alpha_mode = views.ReadOnlyAttribute()
+    material_color = views.Attribute()
+    ambient_color = views.Attribute()
 
 
-class DepthMode(views.SubView):
+class AlphaTest(views.View):
+    function0 = views.Attribute()
+    reference0 = views.Attribute()
+    function1 = views.Attribute()
+    reference1 = views.Attribute()
+    operator = views.Attribute()
+
+
+class DepthMode(views.View):
     enable = views.Attribute()
     function = views.Attribute()
     update_enable = views.Attribute()
 
 
-class BlendMode(views.SubView):
+class BlendMode(views.View):
     function = views.Attribute()
     source_factor = views.Attribute()
     destination_factor = views.Attribute()
     logical_operation = views.Attribute()
 
 
-class Material(gl.ResourceManagerMixin, views.View):
+class Material(views.View):
 
     def __init__(self, viewed_object):
         super().__init__(viewed_object)
@@ -104,7 +102,7 @@ class Material(gl.ResourceManagerMixin, views.View):
     cull_mode = views.Attribute()
 
     channel_count = views.ReadOnlyAttribute()
-    channels = views.ReadOnlyAttribute()
+    channels = views.ViewAttribute(views.ViewListView, Channel)
 
     texcoord_generator_count = views.ReadOnlyAttribute()
     texcoord_generators = views.ReadOnlyAttribute()
@@ -113,20 +111,20 @@ class Material(gl.ResourceManagerMixin, views.View):
 
     tev_stage_count = views.ReadOnlyAttribute()
     tev_stages = views.ReadOnlyAttribute()
-    tev_colors = views.ReadOnlyAttribute()
-    tev_color_previous = views.ReadOnlyAttribute()
-    kcolors = views.ReadOnlyAttribute()
+    tev_colors = views.ViewAttribute(views.ListView)
+    tev_color_previous = views.Attribute()
+    kcolors = views.ViewAttribute(views.ListView)
     swap_tables = views.ReadOnlyAttribute()
 
     indirect_stage_count = views.ReadOnlyAttribute()
     indirect_stages = views.ReadOnlyAttribute()
     indirect_matrices = views.ReadOnlyAttribute()
 
-    alpha_test = views.SubViewAttribute(AlphaTest)
+    alpha_test = views.ViewAttribute(AlphaTest)
     fog = views.ReadOnlyAttribute()
-    depth_test_early = ShaderInvalidatingAttribute()
-    depth_mode = views.SubViewAttribute(DepthMode)
-    blend_mode = views.SubViewAttribute(BlendMode)
+    depth_test_early = views.Attribute()
+    depth_mode = views.ViewAttribute(DepthMode)
+    blend_mode = views.ViewAttribute(BlendMode)
     dither = views.Attribute()
 
     @property
@@ -148,6 +146,40 @@ class Material(gl.ResourceManagerMixin, views.View):
     def enabled_indirect_stages(self):
         for i in range(self.indirect_stage_count):
             yield self.indirect_stages[i]
+
+    def handle_event(self, event, path):
+        if isinstance(event, views.ValueChangedEvent):
+            if (
+                path == +_p.depth_test_early or
+                path == +_p.alpha_test.function0 or
+                path == +_p.alpha_test.reference0 or
+                path == +_p.alpha_test.function1 or
+                path == +_p.alpha_test.reference1 or
+                path == +_p.alpha_test.operator
+                ):
+                self.gl_shader_invalidate()
+            elif path.match(+_p.channels[...].material_color):
+                index = path[1].key
+                if self.use_material_color[index]:
+                    c = self.channels[index].material_color
+                    self.gl_block[f'material_color{index}'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
+            elif path.match(+_p.channels[...].ambient_color):
+                index = path[1].key
+                if self.use_ambient_color[index]:
+                    c = self.channels[index].material_color
+                    self.gl_block[f'ambient_color{index}'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
+            elif path.match(+_p.tev_color_previous):
+                c = self.tev_color_previous
+                self.gl_block[f'tev_color_previouse'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
+            elif path.match(+_p.tev_colors[...]):
+                index = path[1].key
+                c = self.tev_colors[index]
+                self.gl_block[f'tev_color{index}'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
+            elif path.match(+_p.kcolors[...]):
+                index = path[1].key
+                c = self.kcolors[index]
+                self.gl_block[f'kcolor{index}'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
+        super().handle_event(event, path)
 
     def update_use_variables(self):
         self.use_normal = False

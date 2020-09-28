@@ -134,28 +134,7 @@ def gl_convert_color_array(source):
     return destination
 
 
-class Model(gl.ResourceManagerMixin, views.View):
-
-    def __init__(self, viewed_object):
-        super().__init__(viewed_object)
-
-        self.shapes = [
-            self.gl_create_resource(views.shape.Shape, shape)
-            for shape in viewed_object.shapes
-        ]
-        self.materials = [
-            self.gl_create_resource(views.material.Material, material)
-            for material in viewed_object.materials
-        ]
-        self.textures = [
-            self.gl_create_resource(views.texture.Texture, texture)
-            for texture in viewed_object.textures
-        ]
-
-        for i, material in enumerate(self.materials):
-            material.register_listener(self, +_p.materials[i])
-        for i, texture in enumerate(self.textures):
-            texture.register_listener(self, +_p.textures[i])
+class Model(views.View):
 
     scene_graph = views.ReadOnlyAttribute()
     position_array = views.ReadOnlyAttribute()
@@ -166,6 +145,9 @@ class Model(gl.ResourceManagerMixin, views.View):
     inverse_bind_matrices = views.ReadOnlyAttribute()
     matrix_descriptors = views.ReadOnlyAttribute()
     joints = views.ReadOnlyAttribute()
+    shapes = views.ViewAttribute(views.ViewListView, views.shape.Shape)
+    materials = views.ViewAttribute(views.ViewListView, views.material.Material)
+    textures = views.ViewAttribute(views.ViewListView, views.texture.Texture)
 
     def gl_init(self):
         array_table = {}
@@ -232,14 +214,6 @@ class Model(gl.ResourceManagerMixin, views.View):
         self.gl_matrix_table.bind_texture(views.material.MATRIX_TABLE_TEXTURE_UNIT)
         self.gl_draw_node(self.scene_graph)
 
-    def receive_event(self, event, path):
-        self.send_event(event, path)
-
     def replace_texture(self, index, texture):
-        self.textures[index].unregister_listener(self)
-        self.gl_delete_resource(self.textures[index])
-        self.viewed_object.textures[index] = texture
-        self.textures[index] = self.gl_create_resource(views.texture.Texture, texture)
-        self.textures[index].register_listener(self, +_p.textures[index])
-        self.send_event(ValueChangedEvent(), +_p.textures[index])
+        self.textures[index] = texture
 

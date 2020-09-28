@@ -68,7 +68,7 @@ def gl_create_element_array(shape,element_map,element_count):
     return element_array
 
     
-class Shape(gl.ResourceManagerMixin, views.View):
+class Shape(views.View):
 
     transformation_type = views.ReadOnlyAttribute()
     batches = views.ReadOnlyAttribute()

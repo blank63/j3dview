@@ -1,31 +1,36 @@
 import weakref
+import gl
 
 
-class PathFragment:
-
-    def __add__(self, other):
-        if isinstance(other, PathFragment):
-            return Path((self, other))
-        if isinstance(other, Path):
-            return Path((self, *other))
-        return NotImplemented
-
-
-class AttributePathFragment(PathFragment):
+class AttributePathFragment:
 
     def __init__(self, attribute_name):
         self.attribute_name = attribute_name
 
-    def match(self, other):
+    def __eq__(self, other):
         if not isinstance(other, AttributePathFragment):
             return False
         return self.attribute_name == other.attribute_name
 
+    def __str__(self):
+        return f'.{self.attribute_name}'
 
-class ItemPathFragment(PathFragment):
+    def match(self, other):
+        return self == other
+
+
+class ItemPathFragment:
 
     def __init__(self, key):
         self.key = key
+
+    def __eq__(self, other):
+        if not isinstance(other, ItemPathFragment):
+            return False
+        return self.key == other.key
+
+    def __str__(self):
+        return f'[{self.key}]'
 
     def match(self, other):
         if not isinstance(other, ItemPathFragment):
@@ -38,14 +43,24 @@ class ItemPathFragment(PathFragment):
 class Path(tuple):
 
     def __add__(self, other):
-        if isinstance(other, PathFragment):
-            return Path((*self, other))
-        if isinstance(other, Path):
-            return Path((*self, *other))
-        return NotImplemented
+        if not isinstance(other, Path):
+            return NotImplemented
+        return Path((*self, *other))
+
+    def __str__(self):
+        return ''.join(self)
 
     def match(self, other):
         return all(a.match(b) for a, b in zip(self, other))
+
+
+    @staticmethod
+    def for_attribute(attribute_name):
+        return Path((AttributePathFragment(attribute_name),))
+
+    @staticmethod
+    def for_item(key):
+        return Path((ItemPathFragment(key),))
 
 
 class PathBuilder:
@@ -54,10 +69,10 @@ class PathBuilder:
         self.__path = path
 
     def __getattr__(self, attribute_name):
-        return PathBuilder(self.__path + AttributePathFragment(attribute_name))
+        return PathBuilder(self.__path + Path.for_attribute(attribute_name))
 
     def __getitem__(self, key):
-        return PathBuilder(self.__path + ItemPathFragment(key))
+        return PathBuilder(self.__path + Path.for_item(key))
 
     def __pos__(self):
         """Return the built path.
@@ -91,9 +106,10 @@ class ListenerRegistration:
         return self.listener_reference() is not None
 
 
-class View:
+class View(gl.ResourceManagerMixin):
 
     def __init__(self, viewed_object):
+        super().__init__()
         self.viewed_object = viewed_object
         self._listener_registrations = []
 
@@ -114,29 +130,67 @@ class View:
             i += 1
         assert False
 
-    def send_event(self, event, path=Path()):
+    def emit_event(self, event, path=Path()):
         i = 0
         while i < len(self._listener_registrations):
             registration = self._listener_registrations[i]
             if not registration.still_active:
                 del self._listener_registrations[i]
                 continue
-            registration.listener.receive_event(event, registration.path + path)
+            registration.listener.handle_event(event, registration.path + path)
             i += 1
 
+    def handle_event(self, event, path=Path()):
+        self.emit_event(event, path)
 
-class SubView:
+    def _create_child_view(self, path, view_type, viewed_object, *args, **kwargs):
+        view = self.gl_create_resource(view_type, viewed_object, *args, **kwargs)
+        view.register_listener(self, path)
+        return view
 
-    def __init__(self, parent, attribute_name):
-        self._parent = weakref.ref(parent)
-        self._attribute_name = attribute_name
+    def _delete_child_view(self, view):
+        self.gl_delete_resource(view)
+        view.unregister_listener(self)
 
-    @property
-    def viewed_object(self):
-        return getattr(self._parent().viewed_object, self._attribute_name)
 
-    def send_event(self, event, path):
-        self._parent().send_event(event, AttributePathFragment(self._attribute_name) + path)
+class ListView(View):
+
+    def __len__(self):
+        return len(self.viewed_object)
+
+    def __getitem__(self, key):
+        return self.viewed_object[key]
+
+    def __setitem__(self, key, value):
+        if value == self.viewed_object[key]:
+            return
+        self.viewed_object[key] = value
+        self.handle_event(ValueChangedEvent(), Path.for_item(key))
+
+
+class ViewListView(View):
+
+    def __init__(self, viewed_object, item_type):
+        super().__init__(viewed_object)
+        self._item_type = item_type
+        self._items = [
+            self._create_child_view(Path.for_item(i), item_type, item)
+            for i, item in enumerate(viewed_object)
+        ]
+
+    def __len__(self):
+        return len(self._items)
+
+    def __getitem__(self, key):
+        return self._items[key]
+
+    def __setitem__(self, key, value):
+        if value == self._items[key].viewed_object:
+            return
+        self._delete_child_view(self._items[key])
+        path = Path.for_item(key)
+        self._items[key] = self._create_child_view(path, self._item_type, value)
+        self.handle_event(ValueChangedEvent(), path)
 
 
 class ReadOnlyAttribute:
@@ -151,11 +205,12 @@ class ReadOnlyAttribute:
 class Attribute:
 
     def __set_name__(self, owner, name):
+        self.attribute_path = Path.for_attribute(name)
         self.attribute_name = name
         self.private_name = '_' + name
 
     def attribute_changed(self, instance):
-        instance.send_event(ValueChangedEvent(), AttributePathFragment(self.attribute_name))
+        instance.handle_event(ValueChangedEvent(), self.attribute_path)
 
     def __get__(self, instance, owner=None):
         try:
@@ -175,12 +230,15 @@ class Attribute:
         self.attribute_changed(instance)
 
 
-class SubViewAttribute:
+class ViewAttribute:
 
-    def __init__(self, sub_view_type):
-        self.sub_view_type = sub_view_type
+    def __init__(self, view_type, *view_args, **view_kwargs):
+        self.view_type = view_type
+        self.view_args = view_args
+        self.view_kwargs = view_kwargs
 
     def __set_name__(self, owner, name):
+        self.attribute_path = Path.for_attribute(name)
         self.attribute_name = name
         self.private_name = '_' + name
 
@@ -189,7 +247,11 @@ class SubViewAttribute:
             return getattr(instance, self.private_name)
         except AttributeError:
             pass
-        sub_view = self.sub_view_type(instance, self.attribute_name)
-        setattr(instance, self.private_name, sub_view)
-        return sub_view
+        viewed_object = getattr(instance.viewed_object, self.attribute_name)
+        view = instance._create_child_view(
+            self.attribute_path, self.view_type, viewed_object,
+            *self.view_args, **self.view_kwargs
+        )
+        setattr(instance, self.private_name, view)
+        return view
 
