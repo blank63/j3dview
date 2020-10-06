@@ -1,182 +1,64 @@
 import io
 import pkgutil
-from PyQt5 import QtCore, QtWidgets, uic
+from PyQt5 import uic
 import gx
-from views import path_builder as _p, ValueChangedEvent
+from views import path_builder as _p
+from widgets.view_form import (
+    ViewForm,
+    LineEditHandler,
+    ComboBoxHandler,
+    SpinBoxHandler
+)
 
 
-class CommitAttributeCommand(QtWidgets.QUndoCommand):
-
-    def __init__(self, view, attribute_name):
-        super().__init__(f'Change {attribute_name}')
-        self.view = view
-        self.attribute_name = attribute_name
-        self.old_value = getattr(view.viewed_object, attribute_name)
-        self.new_value = getattr(view, attribute_name)
-
-    def redo(self):
-        setattr(self.view, self.attribute_name, self.new_value)
-        setattr(self.view.viewed_object, self.attribute_name, self.new_value)
-
-    def undo(self):
-        setattr(self.view, self.attribute_name, self.old_value)
-        setattr(self.view.viewed_object, self.attribute_name, self.old_value)
-
-
-class TextureForm(QtWidgets.QWidget):
+class TextureForm(ViewForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.ui = uic.loadUi(io.BytesIO(pkgutil.get_data(__package__, 'TextureForm.ui')), self)
 
-        self.wrap_s.addEnumItems(gx.WrapMode)
-        self.wrap_t.addEnumItems(gx.WrapMode)
+        for value in gx.WrapMode:
+            self.wrap_s.addItem(value.name, value)
+            self.wrap_t.addItem(value.name, value)
 
-        self.minification_filter.addEnumItems(gx.FilterMode)
-
+        for value in gx.FilterMode:
+            self.minification_filter.addItem(value.name, value)
         self.magnification_filter.addItem(gx.NEAR.name, gx.NEAR)
         self.magnification_filter.addItem(gx.LINEAR.name, gx.LINEAR)
 
-        self.setEnabled(False)
+        self.add_handler(+_p.name, LineEditHandler(self.name), 'Name')
+        self.add_handler(+_p.wrap_s, ComboBoxHandler(self.wrap_s), 'Wrap S')
+        self.add_handler(+_p.wrap_t, ComboBoxHandler(self.wrap_t), 'Wrap T')
+        self.add_handler(+_p.minification_filter, ComboBoxHandler(self.minification_filter), 'Min. Filter')
+        self.add_handler(+_p.magnification_filter, ComboBoxHandler(self.magnification_filter), 'Mag. Filter')
+        self.add_handler(+_p.minimum_lod, SpinBoxHandler(self.minimum_lod), 'Min. LOD')
+        self.add_handler(+_p.maximum_lod, SpinBoxHandler(self.maximum_lod), 'max. LOD')
+        self.add_handler(+_p.lod_bias, SpinBoxHandler(self.lod_bias), 'LOD Bias')
+        self.add_handler(+_p.unknown0, SpinBoxHandler(self.unknown0), 'Unknown 0')
+        self.add_handler(+_p.unknown1, SpinBoxHandler(self.unknown1), 'Unknown 1')
+        self.add_handler(+_p.unknown2, SpinBoxHandler(self.unknown2), 'Unknown 2')
 
-        self.model = None
-        self.texture_index = None
-
-    @property
-    def texture(self):
-        return self.model.textures[self.texture_index]
-
-    def setTexture(self, model, texture_index):
-        if self.model is not None:
-            self.model.unregister_listener(self)
-        self.model = model
-        self.texture_index = texture_index
-        self.reload()
-        self.model.register_listener(self)
-        self.setEnabled(True)
-
-    def clear(self):
-        if self.model is not None:
-            self.model.unregister_listener(self)
-        self.model = None
-        self.texture_index = None
-        self.setEnabled(False)
-
-    def handle_event(self, event, path):
-        if isinstance(event, ValueChangedEvent) and path.match(+_p.textures[self.texture_index]):
-            self.reload()
-            return
+    def setTexture(self, texture):
+        self.setView(texture)
 
     def reload(self):
-        self.name.setText(self.texture.name)
-
-        self.image_format.setText(self.texture.image_format.name)
-        self.image_size.setText('{} x {}'.format(self.texture.width, self.texture.height))
-        self.image_levels.setText(str(len(self.texture.images)))
-
-        if self.texture.palette is not None:
-            self.palette_format.setText(self.texture.palette.palette_format.name)
-            self.palette_size.setText(str(len(self.texture.palette)))
+        super().reload()
+        self.image_format.setText(self.view.image_format.name)
+        self.image_size.setText(f'{self.view.width} x {self.view.height}')
+        self.image_levels.setText(str(len(self.view.images)))
+        if self.view.palette is not None:
+            self.palette_format.setText(self.view.palette.palette_format.name)
+            self.palette_size.setText(str(len(self.view.palette)))
         else:
             self.palette_format.setText('-')
             self.palette_size.setText('-')
 
-        self.wrap_s.setCurrentData(self.texture.wrap_s)
-        self.wrap_t.setCurrentData(self.texture.wrap_t)
-
-        self.minification_filter.setCurrentData(self.texture.minification_filter)
-        self.magnification_filter.setCurrentData(self.texture.magnification_filter)
-
-        self.minimum_lod.setValue(self.texture.minimum_lod)
-        self.maximum_lod.setValue(self.texture.maximum_lod)
-        self.lod_bias.setValue(self.texture.lod_bias)
-
-        self.unknown0.setValue(self.texture.unknown0)
-        self.unknown1.setValue(self.texture.unknown1)
-        self.unknown2.setValue(self.texture.unknown2)
-
-    def commit_attribute(self, attribute_name):
-        old_value = getattr(self.texture.viewed_object, attribute_name)
-        new_value = getattr(self.texture, attribute_name)
-        if new_value == old_value:
-            return
-        command = CommitAttributeCommand(self.texture, attribute_name)
-        self.undo_stack.push(command)
-
-    @QtCore.pyqtSlot(str)
-    def on_name_textEdited(self, value):
-        self.texture.name = value
-
-    @QtCore.pyqtSlot()
-    def on_name_editingFinished(self):
-        self.commit_attribute('name')
-
-    @QtCore.pyqtSlot(int)
-    def on_wrap_s_activated(self, index):
-        self.texture.wrap_s = self.wrap_s.itemData(index)
-        self.commit_attribute('wrap_s')
-
-    @QtCore.pyqtSlot(int)
-    def on_wrap_t_activated(self, index):
-        self.texture.wrap_t = self.wrap_t.itemData(index)
-        self.commit_attribute('wrap_t')
-
-    @QtCore.pyqtSlot(int)
-    def on_minification_filter_activated(self, index):
-        self.texture.minification_filter = self.minification_filter.itemData(index)
-        self.commit_attribute('minification_filter')
-
-    @QtCore.pyqtSlot(int)
-    def on_magnification_filter_activated(self, index):
-        self.texture.magnification_filter = self.magnification_filter.itemData(index)
-        self.commit_attribute('magnification_filter')
-
-    @QtCore.pyqtSlot(float)
-    def on_minimum_lod_valueChanged(self, value):
-        self.texture.minimum_lod = value
-
-    @QtCore.pyqtSlot()
-    def on_minimum_lod_editingFinished(self):
-        self.commit_attribute('minimum_lod')
-
-    @QtCore.pyqtSlot(float)
-    def on_maximum_lod_valueChanged(self, value):
-        self.texture.maximum_lod = value
-
-    @QtCore.pyqtSlot()
-    def on_maximum_lod_editingFinished(self):
-        self.commit_attribute('maximum_lod')
-
-    @QtCore.pyqtSlot(float)
-    def on_lod_bias_valueChanged(self, value):
-        self.texture.lod_bias = value
-
-    @QtCore.pyqtSlot()
-    def on_lod_bias_editingFinished(self):
-        self.commit_attribute('lod_bias')
-
-    @QtCore.pyqtSlot(int)
-    def on_unknown0_valueChanged(self, value):
-        self.texture.unknown0 = value
-
-    @QtCore.pyqtSlot()
-    def on_unknown0_editingFinished(self):
-        self.commit_attribute('unknown0')
-
-    @QtCore.pyqtSlot(int)
-    def on_unknown1_valueChanged(self, value):
-        self.texture.unknown1 = value
-
-    @QtCore.pyqtSlot()
-    def on_unknown1_editingFinished(self):
-        self.commit_attribute('unknown1')
-
-    @QtCore.pyqtSlot(int)
-    def on_unknown2_valueChanged(self, value):
-        self.texture.unknown2 = value
-
-    @QtCore.pyqtSlot()
-    def on_unknown2_editingFinished(self):
-        self.commit_attribute('unknown2')
+    def clear(self):
+        super().clear()
+        self.image_format.clear()
+        self.image_size.clear()
+        self.image_levels.clear()
+        self.palette_format.clear()
+        self.palette_size.clear()
 

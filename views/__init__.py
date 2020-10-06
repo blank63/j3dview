@@ -4,30 +4,58 @@ import gl
 
 class AttributePathFragment:
 
-    def __init__(self, attribute_name):
-        self.attribute_name = attribute_name
+    __slots__ = ['name']
+
+    def __init__(self, name):
+        super().__setattr__('name', name)
+
+    def __setattr__(self, name, value):
+        raise AttributeError(f'Cannot assign to field {name}')
+
+    def __delattr__(self, name):
+        raise AttributeError(f'Cannot delete field {name}')
 
     def __eq__(self, other):
         if not isinstance(other, AttributePathFragment):
             return False
-        return self.attribute_name == other.attribute_name
+        return self.name == other.name
+
+    def __hash__(self):
+        return hash(self.name)
 
     def __str__(self):
-        return f'.{self.attribute_name}'
+        return f'.{self.name}'
 
     def match(self, other):
         return self == other
 
+    def get_value(self, obj):
+        return getattr(obj, self.name)
+
+    def set_value(self, obj, value):
+        setattr(obj, self.name, value)
+
 
 class ItemPathFragment:
 
+    __slots__ = ['key']
+
     def __init__(self, key):
-        self.key = key
+        super().__setattr__('key', key)
+
+    def __setattr__(self, name, value):
+        raise AttributeError(f'Cannot assign to field {name}')
+
+    def __delattr__(self, name):
+        raise AttributeError(f'Cannot delete field {name}')
 
     def __eq__(self, other):
         if not isinstance(other, ItemPathFragment):
             return False
         return self.key == other.key
+
+    def __hash__(self):
+        return hash(self.key)
 
     def __str__(self):
         return f'[{self.key}]'
@@ -39,6 +67,12 @@ class ItemPathFragment:
             return True
         return self.key == other.key
 
+    def get_value(self, obj):
+        return obj[self.key]
+
+    def set_value(self, obj, value):
+        obj[self.key] = value
+
 
 class Path(tuple):
 
@@ -48,15 +82,24 @@ class Path(tuple):
         return Path((*self, *other))
 
     def __str__(self):
-        return ''.join(self)
+        return ''.join(str(fragment) for fragment in self)
 
     def match(self, other):
         return all(a.match(b) for a, b in zip(self, other))
 
+    def get_value(self, obj):
+        for fragment in self:
+            obj = fragment.get_value(obj)
+        return obj
+
+    def set_value(self, obj, value):
+        for i in range(len(self) - 1):
+            obj = self[i].get_value(obj)
+        self[-1].set_value(obj, value)
 
     @staticmethod
-    def for_attribute(attribute_name):
-        return Path((AttributePathFragment(attribute_name),))
+    def for_attribute(name):
+        return Path((AttributePathFragment(name),))
 
     @staticmethod
     def for_item(key):
@@ -68,8 +111,8 @@ class PathBuilder:
     def __init__(self, path=Path()):
         self.__path = path
 
-    def __getattr__(self, attribute_name):
-        return PathBuilder(self.__path + Path.for_attribute(attribute_name))
+    def __getattr__(self, name):
+        return PathBuilder(self.__path + Path.for_attribute(name))
 
     def __getitem__(self, key):
         return PathBuilder(self.__path + Path.for_item(key))
@@ -78,7 +121,8 @@ class PathBuilder:
         """Return the built path.
 
         Using the unary plus operator for this is admittedly somewhat jank, but
-        it allows for path building to be expressed very succinctly."""
+        it allows for path building to be expressed very succinctly.
+        """
         return self.__path
 
 
@@ -192,41 +236,36 @@ class ViewListView(View):
         self._items[key] = self._create_child_view(path, self._item_type, value)
         self.handle_event(ValueChangedEvent(), path)
 
+    def index(self, value):
+        return self._items.index(value)
+
 
 class ReadOnlyAttribute:
 
     def __set_name__(self, owner, name):
-        self.attribute_name = name
+        self.name = name
 
     def __get__(self, instance, owner=None):
-        return getattr(instance.viewed_object, self.attribute_name)
+        return getattr(instance.viewed_object, self.name)
 
 
 class Attribute:
 
     def __set_name__(self, owner, name):
-        self.attribute_path = Path.for_attribute(name)
-        self.attribute_name = name
-        self.private_name = '_' + name
+        self.name = name
+        self.path = Path.for_attribute(name)
 
     def attribute_changed(self, instance):
-        instance.handle_event(ValueChangedEvent(), self.attribute_path)
+        instance.handle_event(ValueChangedEvent(), self.path)
 
     def __get__(self, instance, owner=None):
-        try:
-            return getattr(instance, self.private_name)
-        except AttributeError:
-            pass
-        return getattr(instance.viewed_object, self.attribute_name)
+        return getattr(instance.viewed_object, self.name)
 
     def __set__(self, instance, value):
-        try:
-            current_value = self.__get__(instance)
-            if value == current_value:
-                return
-        except AttributeError:
-            pass
-        setattr(instance, self.private_name, value)
+        current_value = self.__get__(instance)
+        if value == current_value:
+            return
+        setattr(instance.viewed_object, self.name, value)
         self.attribute_changed(instance)
 
 
@@ -238,8 +277,8 @@ class ViewAttribute:
         self.view_kwargs = view_kwargs
 
     def __set_name__(self, owner, name):
-        self.attribute_path = Path.for_attribute(name)
-        self.attribute_name = name
+        self.name = name
+        self.path = Path.for_attribute(name)
         self.private_name = '_' + name
 
     def __get__(self, instance, owner=None):
@@ -247,9 +286,9 @@ class ViewAttribute:
             return getattr(instance, self.private_name)
         except AttributeError:
             pass
-        viewed_object = getattr(instance.viewed_object, self.attribute_name)
+        viewed_object = getattr(instance.viewed_object, self.name)
         view = instance._create_child_view(
-            self.attribute_path, self.view_type, viewed_object,
+            self.path, self.view_type, viewed_object,
             *self.view_args, **self.view_kwargs
         )
         setattr(instance, self.private_name, view)

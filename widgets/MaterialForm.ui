@@ -67,7 +67,7 @@
     </widget>
    </item>
    <item row="2" column="1">
-    <widget class="ComboBox" name="cull_mode"/>
+    <widget class="QComboBox" name="cull_mode"/>
    </item>
    <item row="8" column="0" colspan="2">
     <widget class="QGroupBox" name="group_depth_mode">
@@ -104,7 +104,7 @@
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="ComboBox" name="depth_mode_function"/>
+       <widget class="QComboBox" name="depth_mode_function"/>
       </item>
       <item row="2" column="0" colspan="2">
        <widget class="QCheckBox" name="depth_mode_test_early">
@@ -165,7 +165,7 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="ComboBox" name="blend_mode_function"/>
+       <widget class="QComboBox" name="blend_mode_function"/>
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label_blend_mode_source_factor">
@@ -175,7 +175,7 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="ComboBox" name="blend_mode_source_factor"/>
+       <widget class="QComboBox" name="blend_mode_source_factor"/>
       </item>
       <item row="2" column="0">
        <widget class="QLabel" name="label_blend_mode_destination_factor">
@@ -185,7 +185,7 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="ComboBox" name="blend_mode_destination_factor"/>
+       <widget class="QComboBox" name="blend_mode_destination_factor"/>
       </item>
       <item row="3" column="0">
        <widget class="QLabel" name="label_blend_mode_logical_operation">
@@ -195,7 +195,7 @@
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="ComboBox" name="blend_mode_logical_operation"/>
+       <widget class="QComboBox" name="blend_mode_logical_operation"/>
       </item>
      </layout>
     </widget>
@@ -239,7 +239,7 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="ComboBox" name="texture0"/>
+       <widget class="QComboBox" name="texture0"/>
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label_texture1">
@@ -249,7 +249,7 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="ComboBox" name="texture1"/>
+       <widget class="QComboBox" name="texture1"/>
       </item>
       <item row="2" column="0">
        <widget class="QLabel" name="label_texture2">
@@ -259,7 +259,7 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="ComboBox" name="texture2"/>
+       <widget class="QComboBox" name="texture2"/>
       </item>
       <item row="3" column="0">
        <widget class="QLabel" name="label_texture3">
@@ -269,7 +269,7 @@
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="ComboBox" name="texture3"/>
+       <widget class="QComboBox" name="texture3"/>
       </item>
       <item row="4" column="0">
        <widget class="QLabel" name="label_texture4">
@@ -279,7 +279,7 @@
        </widget>
       </item>
       <item row="4" column="1">
-       <widget class="ComboBox" name="texture4"/>
+       <widget class="QComboBox" name="texture4"/>
       </item>
       <item row="5" column="0">
        <widget class="QLabel" name="label_texture5">
@@ -289,7 +289,7 @@
        </widget>
       </item>
       <item row="5" column="1">
-       <widget class="ComboBox" name="texture5"/>
+       <widget class="QComboBox" name="texture5"/>
       </item>
       <item row="6" column="0">
        <widget class="QLabel" name="label_texture6">
@@ -299,7 +299,7 @@
        </widget>
       </item>
       <item row="6" column="1">
-       <widget class="ComboBox" name="texture6"/>
+       <widget class="QComboBox" name="texture6"/>
       </item>
       <item row="7" column="0">
        <widget class="QLabel" name="label_texture7">
@@ -309,7 +309,7 @@
        </widget>
       </item>
       <item row="7" column="1">
-       <widget class="ComboBox" name="texture7"/>
+       <widget class="QComboBox" name="texture7"/>
       </item>
      </layout>
     </widget>
@@ -349,7 +349,7 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="ComboBox" name="alpha_test_function0"/>
+       <widget class="QComboBox" name="alpha_test_function0"/>
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label_alpha_test_reference0">
@@ -373,7 +373,7 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="ComboBox" name="alpha_test_function1"/>
+       <widget class="QComboBox" name="alpha_test_function1"/>
       </item>
       <item row="3" column="0">
        <widget class="QLabel" name="label_alpha_test_reference1">
@@ -397,7 +397,7 @@
        </widget>
       </item>
       <item row="4" column="1">
-       <widget class="ComboBox" name="alpha_test_operator"/>
+       <widget class="QComboBox" name="alpha_test_operator"/>
       </item>
      </layout>
     </widget>
@@ -441,14 +441,14 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="ColorButton" name="tev_color_previous">
+       <widget class="QToolButton" name="tev_color_previous">
         <property name="text">
          <string/>
         </property>
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="ColorButton" name="tev_color0">
+       <widget class="QToolButton" name="tev_color0">
         <property name="text">
          <string/>
         </property>
@@ -462,7 +462,7 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="ColorButton" name="tev_color1">
+       <widget class="QToolButton" name="tev_color1">
         <property name="text">
          <string/>
         </property>
@@ -476,7 +476,7 @@
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="ColorButton" name="tev_color2">
+       <widget class="QToolButton" name="tev_color2">
         <property name="text">
          <string/>
         </property>
@@ -490,7 +490,7 @@
        </widget>
       </item>
       <item row="0" column="3">
-       <widget class="ColorButton" name="kcolor0">
+       <widget class="QToolButton" name="kcolor0">
         <property name="text">
          <string/>
         </property>
@@ -504,7 +504,7 @@
        </widget>
       </item>
       <item row="1" column="3">
-       <widget class="ColorButton" name="kcolor1">
+       <widget class="QToolButton" name="kcolor1">
         <property name="text">
          <string/>
         </property>
@@ -518,7 +518,7 @@
        </widget>
       </item>
       <item row="2" column="3">
-       <widget class="ColorButton" name="kcolor2">
+       <widget class="QToolButton" name="kcolor2">
         <property name="text">
          <string/>
         </property>
@@ -532,7 +532,7 @@
        </widget>
       </item>
       <item row="3" column="3">
-       <widget class="ColorButton" name="kcolor3">
+       <widget class="QToolButton" name="kcolor3">
         <property name="text">
          <string/>
         </property>
@@ -566,7 +566,7 @@
        <number>0</number>
       </property>
       <item row="0" column="3">
-       <widget class="ColorButton" name="ambient_color0">
+       <widget class="QToolButton" name="ambient_color0">
         <property name="text">
          <string/>
         </property>
@@ -587,7 +587,7 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="ColorButton" name="material_color0">
+       <widget class="QToolButton" name="material_color0">
         <property name="text">
          <string/>
         </property>
@@ -601,7 +601,7 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="ColorButton" name="material_color1">
+       <widget class="QToolButton" name="material_color1">
         <property name="text">
          <string/>
         </property>
@@ -615,7 +615,7 @@
        </widget>
       </item>
       <item row="1" column="3">
-       <widget class="ColorButton" name="ambient_color1">
+       <widget class="QToolButton" name="ambient_color1">
         <property name="text">
          <string/>
         </property>
@@ -626,18 +626,6 @@
    </item>
   </layout>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>ComboBox</class>
-   <extends>QComboBox</extends>
-   <header>qt</header>
-  </customwidget>
-  <customwidget>
-   <class>ColorButton</class>
-   <extends>QToolButton</extends>
-   <header location="global">qt</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

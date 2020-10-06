@@ -2,16 +2,33 @@ import io
 import pkgutil
 import os.path
 from PyQt5 import QtCore, QtWidgets, QtGui, uic
-import qt
 import gx
 import gx.bti
 import j3d.model
 import j3d.animation
+import views
+from views import path_builder as _p
 import views.model
 import widgets.explorer_widget
 
 
 FILE_OPEN_ERRORS = (FileNotFoundError, IsADirectoryError, PermissionError)
+
+
+class CommitViewValueCommand(QtWidgets.QUndoCommand):
+
+    def __init__(self, message, view, path, old_value, new_value):
+        super().__init__(message)
+        self.view = view
+        self.path = path
+        self.old_value = old_value
+        self.new_value = new_value
+
+    def redo(self):
+        self.path.set_value(self.view, self.new_value)
+
+    def undo(self):
+        self.path.set_value(self.view, self.old_value)
 
 
 class ReplaceTextureCommand(QtWidgets.QUndoCommand):
@@ -75,8 +92,6 @@ class Editor(QtWidgets.QMainWindow):
         self.view_settings.setViewer(self.viewer)
         self.dock_view_settings.hide()
         self.tabifyDockWidget(self.dock_material_form, self.dock_texture_form)
-
-        self.texture_form.undo_stack = self.undo_stack
 
         self.setWindowFilePath('')
 
@@ -155,6 +170,7 @@ class Editor(QtWidgets.QMainWindow):
 
         self.viewer.setModel(self.model)
         self.explorer.setModel(self.model)
+        self.material_form.setTextures(self.model.textures)
 
         self.action_open_animation.setEnabled(True)
         self.action_save_model.setEnabled(True)
@@ -201,12 +217,12 @@ class Editor(QtWidgets.QMainWindow):
         self.setWindowModified(not clean)
 
     def on_explorer_currentMaterialChanged(self, material_index):
-        self.material_form.setMaterial(self.model, material_index)
+        self.material_form.setMaterial(self.model.materials[material_index])
         self.dock_material_form.raise_()
 
     def on_explorer_currentTextureChanged(self, texture_index):
         self.preview.setTexture(self.model, texture_index)
-        self.texture_form.setTexture(self.model, texture_index)
+        self.texture_form.setTexture(self.model.textures[texture_index])
         self.dock_texture_form.raise_()
 
     @QtCore.pyqtSlot(QtCore.QPoint)
@@ -217,6 +233,28 @@ class Editor(QtWidgets.QMainWindow):
             menu.addAction(self.action_texture_export)
             menu.addAction(self.action_texture_replace)
             menu.exec_(self.explorer.mapToGlobal(position))
+
+    @QtCore.pyqtSlot(views.Path, object, object, str)
+    def on_material_form_commitViewValue(self, path, old_value, new_value, label):
+        material = self.material_form.view
+        material_index = self.model.materials.index(material)
+        command = CommitViewValueCommand(
+            f"Changed '{label}' of '{material.name}'",
+            self.model, +_p.materials[material_index] + path,
+            old_value, new_value
+        )
+        self.undo_stack.push(command)
+
+    @QtCore.pyqtSlot(views.Path, object, object, str)
+    def on_texture_form_commitViewValue(self, path, old_value, new_value, label):
+        texture = self.texture_form.view
+        texture_index = self.model.textures.index(texture)
+        command = CommitViewValueCommand(
+            f"Changed '{label}' of '{texture.name}'",
+            self.model, +_p.textures[texture_index] + path,
+            old_value, new_value
+        )
+        self.undo_stack.push(command)
 
     @QtCore.pyqtSlot()
     def on_action_open_model_triggered(self):
