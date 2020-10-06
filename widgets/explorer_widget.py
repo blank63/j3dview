@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
-from views import path_builder as _p, ValueChangedEvent
-import views.model
+import views
+from views import path_builder as _p
 
 
 class MaterialItem(QtWidgets.QTreeWidgetItem):
@@ -38,16 +38,24 @@ class ExplorerWidget(QtWidgets.QTreeWidget):
         self.model.register_listener(self)
 
     def handle_event(self, event, path):
-        if isinstance(event, ValueChangedEvent) and path.match(+_p.materials[...].name):
-            index = path[1].key
-            material = self.model.materials[index]
-            self.material_list.child(index).setText(0, material.name)
-            return
-        if isinstance(event, ValueChangedEvent) and path.match(+_p.textures[...].name):
-            index = path[1].key
-            texture = self.model.textures[index]
-            self.texture_list.child(index).setText(0, texture.name)
-            return
+        if isinstance(event, views.ValueChangedEvent):
+            if path.match(+_p.materials[...].name):
+                index = path[1].key
+                material = self.model.materials[index]
+                self.material_list.child(index).setText(0, material.name)
+                return
+            if path.match(+_p.textures[...].name):
+                index = path[1].key
+                texture = self.model.textures[index]
+                self.texture_list.child(index).setText(0, texture.name)
+                return
+            if path.match(+_p.textures[...]):
+                index = path[1].key
+                texture = self.model.textures[index]
+                self.texture_list.child(index).setText(0, texture.name)
+                if self.texture_list.indexOfChild(self.currentItem()) == index:
+                    self.currentTextureChanged.emit(index)
+                return
 
     def reload_materials(self):
         self.material_list.takeChildren()

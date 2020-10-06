@@ -221,7 +221,7 @@ class Editor(QtWidgets.QMainWindow):
         self.dock_material_form.raise_()
 
     def on_explorer_currentTextureChanged(self, texture_index):
-        self.preview.setTexture(self.model, texture_index)
+        self.preview.setTexture(self.model.textures[texture_index])
         self.texture_form.setTexture(self.model.textures[texture_index])
         self.dock_texture_form.raise_()
 

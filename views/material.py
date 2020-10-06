@@ -149,14 +149,14 @@ class Material(views.View):
 
     def handle_event(self, event, path):
         if isinstance(event, views.ValueChangedEvent):
-            if (
-                path == +_p.depth_test_early or
-                path == +_p.alpha_test.function0 or
-                path == +_p.alpha_test.reference0 or
-                path == +_p.alpha_test.function1 or
-                path == +_p.alpha_test.reference1 or
-                path == +_p.alpha_test.operator
-                ):
+            if path in {
+                +_p.depth_test_early,
+                +_p.alpha_test.function0,
+                +_p.alpha_test.reference0,
+                +_p.alpha_test.function1,
+                +_p.alpha_test.reference1,
+                +_p.alpha_test.operator
+                }:
                 self.gl_shader_invalidate()
             elif path.match(+_p.channels[...].material_color):
                 index = path[1].key

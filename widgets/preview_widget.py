@@ -2,7 +2,7 @@ import numpy
 from OpenGL.GL import *
 from PyQt5 import QtCore, QtWidgets
 import gl
-from views import path_builder as _p, ValueChangedEvent
+import views
 
 
 VERTEX_TYPE = numpy.dtype([('position', numpy.float32, 2), ('texcoord', numpy.float32, 2)])
@@ -45,12 +45,7 @@ class PreviewWidget(gl.ResourceManagerMixin, QtWidgets.QOpenGLWidget):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.model = None
-        self.texture_index = None
-
-    @property
-    def texture(self):
-        return self.model.textures[self.texture_index]
+        self.texture = None
 
     def minimumSizeHint(self):
         return QtCore.QSize(100, 100)
@@ -108,7 +103,7 @@ class PreviewWidget(gl.ResourceManagerMixin, QtWidgets.QOpenGLWidget):
         self.position_array[3,1] = y0
 
     def update_display_rectangle(self):
-        if self.texture_index is None:
+        if self.texture is None:
             return
         if self.height() == 0 or self.width() == 0:
             return
@@ -124,7 +119,7 @@ class PreviewWidget(gl.ResourceManagerMixin, QtWidgets.QOpenGLWidget):
     def paintGL(self):
         glClearColor(0, 0, 0, 1)
         glClear(GL_COLOR_BUFFER_BIT)
-        if self.texture_index is not None and self.height() != 0 and self.width() != 0:
+        if self.texture is not None and self.height() != 0 and self.width() != 0:
             glUseProgram(self.program)
             self.texture.gl_bind(DISPLAY_TEXTURE_UNIT)
             glBindVertexArray(self.vertex_array)
@@ -135,25 +130,22 @@ class PreviewWidget(gl.ResourceManagerMixin, QtWidgets.QOpenGLWidget):
         glViewport(0, 0, width, height)
         self.update_display_rectangle()
 
-    def setTexture(self, model, texture_index):
-        if self.model is not None:
-            self.model.unregister_listener(self)
-        self.model = model
-        self.texture_index = texture_index
+    def setTexture(self, texture):
+        if self.texture is not None:
+            self.texture.unregister_listener(self)
+        self.texture = texture
         self.update_display_rectangle()
         self.update()
-        self.model.register_listener(self)
+        self.texture.register_listener(self)
 
     def clear(self):
-        if self.model is not None:
-            self.model.unregister_listener(self)
-        self.model = None
-        self.texture_index = None
+        if self.texture is not None:
+            self.texture.unregister_listener(self)
+        self.texture = None
         self.update()
 
     def handle_event(self, event, path):
-        if isinstance(event, ValueChangedEvent) and path.match(+_p.textures[self.texture_index]):
+        if isinstance(event, views.ValueChangedEvent):
             self.update_display_rectangle()
             self.update()
-            return
 

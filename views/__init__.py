@@ -85,6 +85,8 @@ class Path(tuple):
         return ''.join(str(fragment) for fragment in self)
 
     def match(self, other):
+        if len(self) != len(other):
+            return False
         return all(a.match(b) for a, b in zip(self, other))
 
     def get_value(self, obj):
@@ -233,6 +235,7 @@ class ViewListView(View):
             return
         self._delete_child_view(self._items[key])
         path = Path.for_item(key)
+        self.viewed_object[key] = value
         self._items[key] = self._create_child_view(path, self._item_type, value)
         self.handle_event(ValueChangedEvent(), path)
 
