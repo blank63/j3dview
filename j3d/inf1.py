@@ -1,14 +1,14 @@
-from enum import IntEnum
+from enum import Enum
 from btypes.big_endian import *
-
 import logging
+
 logger = logging.getLogger(__name__)
 
 
 class Header(Struct):
     magic = ByteString(4)
     section_size = uint32
-    unknown0 = uint16
+    unknown0 = uint16 # noclip.website: load flags
     __padding__ = Padding(2)
     shape_batch_count = uint32
     vertex_position_count = uint32
@@ -21,13 +21,13 @@ class Header(Struct):
     def unpack(cls, stream):
         header = super().unpack(stream)
         if header.magic != b'INF1':
-            raise FormatError('invalid magic')
+            raise FormatError(f'invalid magic: {header.magic}')
         if header.unknown0 not in {0, 1, 2}:
-            logger.warning('unknown0 different from default')
+            logger.warning('unexpected unknown0 value: %s', header.unknown0)
         return header
 
 
-class NodeType(IntEnum):
+class NodeType(Enum):
     END_GRAPH = 0x00
     BEGIN_CHILDREN = 0x01
     END_CHILDREN = 0x02
@@ -45,6 +45,12 @@ class Node(Struct):
         self.index = index
         self.children = []
 
+    @classmethod
+    def unpack(cls, stream):
+        node = super().unpack(stream)
+        node.children = []
+        return node
+
 
 class SceneGraph:
 
@@ -53,25 +59,33 @@ class SceneGraph:
         self.children = []
 
 
-def pack_children(stream, parent):
-    for node in parent.children:
+class SectionData:
+
+    def __init__(self, scene_graph, shape_batch_count, vertex_position_count):
+        self.scene_graph = scene_graph
+        self.shape_batch_count = shape_batch_count
+        self.vertex_position_count = vertex_position_count
+
+
+def pack_nodes(stream, nodes):
+    for node in nodes:
         Node.pack(stream, node)
         if node.children:
             Node.pack(stream, Node(NodeType.BEGIN_CHILDREN, 0))
-            pack_children(stream, node)
+            pack_nodes(stream, node.children)
             Node.pack(stream, Node(NodeType.END_CHILDREN, 0))
 
 
-def unpack_children(stream, parent, end_node_type=NodeType.END_CHILDREN):
+def unpack_nodes(stream, end_node_type=NodeType.END_CHILDREN):
+    nodes = []
     while True:
         node = Node.unpack(stream)
         if node.node_type == end_node_type:
-            break
+            return nodes
         elif node.node_type == NodeType.BEGIN_CHILDREN:
-            unpack_children(stream, parent.children[-1])
+            nodes[-1].children = unpack_nodes(stream)
         else:
-            node.children = []
-            parent.children.append(node)
+            nodes.append(node)
 
 
 def pack(stream, scene_graph, shape_batch_count, vertex_position_count):
@@ -83,7 +97,7 @@ def pack(stream, scene_graph, shape_batch_count, vertex_position_count):
     stream.write(b'\x00'*Header.sizeof())
 
     header.scene_graph_offset = stream.tell() - base
-    pack_children(stream, scene_graph)
+    pack_nodes(stream, scene_graph.children)
     Node.pack(stream, Node(NodeType.END_GRAPH, 0))
 
     align(stream, 0x20)
@@ -100,8 +114,12 @@ def unpack(stream):
     stream.seek(base + header.scene_graph_offset)
     scene_graph = SceneGraph()
     scene_graph.unknown0 = header.unknown0
-    unpack_children(stream, scene_graph, NodeType.END_GRAPH)
+    scene_graph.children = unpack_nodes(stream, NodeType.END_GRAPH)
 
     stream.seek(base + header.section_size)
-    return scene_graph, header.shape_batch_count, header.vertex_position_count
+    return SectionData(
+        scene_graph=scene_graph,
+        shape_batch_count=header.shape_batch_count,
+        vertex_position_count=header.vertex_position_count
+    )
 

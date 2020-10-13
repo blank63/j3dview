@@ -1,10 +1,17 @@
 from btypes.big_endian import *
-from btypes.utils import OffsetPoolPacker, OffsetPoolUnpacker
 import gx
 import gx.texture
-
 import logging
+
 logger = logging.getLogger(__name__)
+
+
+MIPMAP_FILTERS = {
+    gx.NEAR_MIP_NEAR,
+    gx.LIN_MIP_NEAR,
+    gx.NEAR_MIP_LIN,
+    gx.LIN_MIP_LIN
+}
 
 
 class Texture(Struct):
@@ -38,17 +45,19 @@ class Texture(Struct):
     @classmethod
     def pack(cls, stream, texture):
         texture.level_count = len(texture.images)
-        texture.use_mipmapping = texture.minification_filter in {gx.NEAR_MIP_NEAR, gx.LIN_MIP_NEAR, gx.NEAR_MIP_LIN, gx.LIN_MIP_LIN}
+        texture.use_mipmapping = texture.minification_filter in MIPMAP_FILTERS
         super().pack(stream, texture)
 
     @classmethod
     def unpack(cls, stream):
         texture = super().unpack(stream)
         texture.palette = None
+        if texture.use_mipmapping != (texture.minification_filter in MIPMAP_FILTERS):
+            logger.warning('unexpected use_mipmapping value: %s', texture.use_mipmapping)
         if texture.unknown0 not in {0x00, 0x01, 0x02, 0xCC}:
-            logger.warning('unknown0 different from default')
+            logger.warning('unexpected unknown0 value: %s', texture.unknown0)
         if texture.unknown1 not in {0, 1}:
-            logger.warning('unknown1 different from default')
+            logger.warning('unexpected unknown1 value: %s', texture.unknown1)
         return texture
 
 
@@ -57,21 +66,26 @@ def pack_textures(stream, textures):
 
     stream.write(b'\x00'*Texture.sizeof()*len(textures))
 
-    pack_palette = OffsetPoolPacker(stream, gx.texture.pack_palette)
-    pack_images = OffsetPoolPacker(stream, gx.texture.pack_images)
-
+    deduplicate_table = {}
     for i, texture in enumerate(textures):
         texture_offset = base + i*Texture.sizeof()
-
         if texture.palette is None:
             texture.palette_offset = stream.tell() - texture_offset
             continue
+        key = id(texture.palette)
+        if key not in deduplicate_table:
+            deduplicate_table[key] = stream.tell()
+            gx.texture.pack_palette(stream, texture.palette)
+        texture.palette_offset = deduplicate_table[key] - texture_offset
 
-        texture.palette_offset = pack_palette(texture.palette) - texture_offset
-
+    deduplicate_table = {}
     for i, texture in enumerate(textures):
         texture_offset = base + i*Texture.sizeof()
-        texture.image_offset = pack_images(texture.images) - texture_offset
+        key = id(texture.images)
+        if key not in deduplicate_table:
+            deduplicate_table[key] = stream.tell()
+            gx.texture.pack_images(stream, texture.images)
+        texture.image_offset = deduplicate_table[key] - texture_offset
 
     end = stream.tell()
 
@@ -88,19 +102,31 @@ def unpack_textures(stream, texture_count):
 
     textures = [Texture.unpack(stream) for _ in range(texture_count)]
 
-    unpack_palette = OffsetPoolUnpacker(stream, gx.texture.unpack_palette)
-    unpack_images = OffsetPoolUnpacker(stream, gx.texture.unpack_images)
-
+    duplicate_table = {}
     for i, texture in enumerate(textures):
-        if texture.palette_entry_count == 0: continue
+        if texture.palette_entry_count == 0:
+            continue
         texture_offset = base + i*Texture.sizeof()
         palette_offset = texture_offset + texture.palette_offset
-        texture.palette = unpack_palette(palette_offset, texture.palette_format, texture.palette_entry_count)
+        palette_attributes = (texture.palette_format, texture.palette_entry_count)
+        key = (palette_offset, palette_attributes)
+        if key not in duplicate_table:
+            stream.seek(palette_offset)
+            palette = gx.texture.unpack_palette(stream, *palette_attributes)
+            duplicate_table[key] = palette
+        texture.palette = duplicate_table[key]
 
+    duplicate_table = {}
     for i, texture in enumerate(textures):
         texture_offset = base + i*Texture.sizeof()
         image_offset = texture_offset + texture.image_offset
-        texture.images = unpack_images(image_offset, texture.image_format, texture.width, texture.height, texture.level_count)
+        image_attributes = (texture.image_format, texture.width, texture.height, texture.level_count)
+        key = (image_offset, image_attributes)
+        if key not in duplicate_table:
+            stream.seek(image_offset)
+            images = gx.texture.unpack_images(stream, *image_attributes)
+            duplicate_table[key] = images
+        texture.images = duplicate_table[key]
 
     return textures
 

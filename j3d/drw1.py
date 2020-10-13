@@ -1,11 +1,11 @@
-from enum import IntEnum
+from enum import Enum
 from btypes.big_endian import *
 
 
 class Header(Struct):
     magic = ByteString(4)
     section_size = uint32
-    matrix_descriptor_count = uint16
+    matrix_definition_count = uint16
     __padding__ = Padding(2)
     matrix_type_offset = uint32
     index_offset = uint32
@@ -17,36 +17,36 @@ class Header(Struct):
     def unpack(cls, stream):
         header = super().unpack(stream)
         if header.magic != b'DRW1':
-            raise FormatError('invalid magic')
+            raise FormatError(f'invalid magic: {header.magic}')
         return header
 
 
-class MatrixType(IntEnum):
+class MatrixType(Enum):
     JOINT = 0
     INFLUENCE_GROUP = 1
 
 
-class MatrixDescriptor:
+class MatrixDefinition:
 
     def __init__(self, matrix_type, index):
         self.matrix_type = matrix_type
         self.index = index
 
 
-def pack(stream, matrix_descriptors):
+def pack(stream, matrix_definitions):
     base = stream.tell()
     header = Header()
-    header.matrix_descriptor_count = len(matrix_descriptors)
+    header.matrix_definition_count = len(matrix_definitions)
     stream.write(b'\x00'*Header.sizeof())
 
     header.matrix_type_offset = stream.tell() - base
-    for matrix_descriptor in matrix_descriptors:
-        uint8.pack(stream, matrix_descriptor.matrix_type)
+    for matrix_definition in matrix_definitions:
+        uint8.pack(stream, matrix_definition.matrix_type.value)
 
     align(stream, 2)
     header.index_offset = stream.tell() - base
-    for matrix_descriptor in matrix_descriptors:
-        uint16.pack(stream, matrix_descriptor.index)
+    for matrix_definition in matrix_definitions:
+        uint16.pack(stream, matrix_definition.index)
 
     align(stream, 0x20)
     header.section_size = stream.tell() - base
@@ -59,16 +59,19 @@ def unpack(stream):
     base = stream.tell()
     header = Header.unpack(stream)
 
-    matrix_descriptors = [MatrixDescriptor(None, None) for _ in range(header.matrix_descriptor_count)]
+    matrix_definitions = [
+        MatrixDefinition(None, None)
+        for _ in range(header.matrix_definition_count)
+    ]
 
     stream.seek(base + header.matrix_type_offset)
-    for matrix_descriptor in matrix_descriptors:
-        matrix_descriptor.matrix_type = MatrixType(uint8.unpack(stream))
+    for matrix_definition in matrix_definitions:
+        matrix_definition.matrix_type = MatrixType(uint8.unpack(stream))
 
     stream.seek(base + header.index_offset)
-    for matrix_descriptor in matrix_descriptors:
-        matrix_descriptor.index = uint16.unpack(stream)
+    for matrix_definition in matrix_definitions:
+        matrix_definition.index = uint16.unpack(stream)
 
     stream.seek(base + header.section_size)
-    return matrix_descriptors
+    return matrix_definitions
 

@@ -18,7 +18,7 @@ class Header(Struct):
     def unpack(cls, stream):
         header = super().unpack(stream)
         if header.magic != b'TEX1':
-            raise FormatError('invalid magic')
+            raise FormatError(f'invalid magic: {header.magic}')
         return header
 
 

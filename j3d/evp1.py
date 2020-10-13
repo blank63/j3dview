@@ -19,7 +19,7 @@ class Header(Struct):
     def unpack(cls, stream):
         header = super().unpack(stream)
         if header.magic != b'EVP1':
-            raise FormatError('invalid magic')
+            raise FormatError(f'invalid magic: {header.magic}')
         return header
 
 
@@ -28,6 +28,13 @@ class Influence:
     def __init__(self, index, weight):
         self.index = index
         self.weight = weight
+
+
+class SectionData:
+
+    def __init__(self, influence_groups, inverse_bind_matrices):
+        self.influence_groups = influence_groups
+        self.inverse_bind_matrices = inverse_bind_matrices
 
 
 def pack(stream, influence_groups, inverse_bind_matrices):
@@ -92,9 +99,16 @@ def unpack(stream):
     if header.inverse_bind_matrix_offset != 0:
         stream.seek(base + header.inverse_bind_matrix_offset)
         element_type = numpy.dtype((numpy.float32, (3, 4))).newbyteorder('>')
+        # There should be one inverse bind matrix per joint, but at this point
+        # we do not know how many joints there are, as we have not yet read the
+        # JNT1 section. We just assume that the inverse bind matrices continues
+        # to the end of the section.
         element_count = (header.section_size - header.inverse_bind_matrix_offset)//element_type.itemsize
         inverse_bind_matrices = numpy.fromfile(stream, element_type, element_count)
 
     stream.seek(base + header.section_size)
-    return influence_groups, inverse_bind_matrices
+    return SectionData(
+        influence_groups=influence_groups,
+        inverse_bind_matrices=inverse_bind_matrices
+    )
 

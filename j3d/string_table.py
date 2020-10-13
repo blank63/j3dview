@@ -1,5 +1,6 @@
 from btypes.big_endian import *
 
+
 cstring_sjis = CString('shift-jis')
 
 
@@ -24,20 +25,19 @@ def calculate_hash(string):
     return h
 
 
-def pack(stream,strings):
+def pack(stream, strings):
     strings = [string.encode('shift-jis') for string in strings]
 
     header = Header()
     header.string_count = len(strings)
-    Header.pack(stream,header)
+    Header.pack(stream, header)
 
     offset = Header.sizeof() + Entry.sizeof()*len(strings)
-
     for string in strings:
         entry = Entry()
         entry.string_hash = calculate_hash(string)
         entry.string_offset = offset
-        Entry.pack(stream,entry)
+        Entry.pack(stream, entry)
         offset += len(string) + 1
 
     for string in strings:

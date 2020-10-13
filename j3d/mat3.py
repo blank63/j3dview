@@ -32,9 +32,9 @@ class Header(Struct):
     light_offset = offset32
     texcoord_generator_count_offset = offset32
     texcoord_generator_offset = offset32
-    unknown2_offset = offset32
+    unknown2_offset = offset32 # noclip.website: post tex gen table
     texture_matrix_offset = offset32
-    unknown3_offset = offset32
+    unknown3_offset = offset32 # noclip.website: post tex mtx table
     texture_index_offset = offset32
     tev_order_offset = offset32
     tev_color_offset = offset32
@@ -172,14 +172,14 @@ class TextureMatrix(Struct):
     __padding__ = Padding(2)
     center_s = float32
     center_t = float32
-    unknown0 = float32
+    unknown0 = float32 # noclip.website: center q
     scale_s = float32
     scale_t = float32
     rotation = FixedPointConverter(sint16, 180/32768)
     __padding__ = Padding(2)
     translation_s = float32
     translation_t = float32
-    projection_matrix = Array(Array(float32, 4), 4)
+    projection_matrix = Array(Array(float32, 4), 4) # noclip.website: effect matrix
 
     def __init__(self):
         self.matrix_type = 0
@@ -577,7 +577,7 @@ class ChannelEntry(Struct):
 
 
 class Entry(Struct):
-    unknown0 = uint8
+    unknown0 = uint8 # noclip.website: material mode
     cull_mode_index = index8
     channel_count_index = index8
     texcoord_generator_count_index = index8
@@ -644,8 +644,8 @@ class Entry(Struct):
 
 
 class IndirectEntry(Struct):
-    unknown0 = uint8 # enable or indirect stage count?
-    unknown1 = uint8 # enable or indirect stage count?
+    unknown0 = uint8 # enable or indirect stage count? noclip.website: enable
+    unknown1 = uint8 # enable or indirect stage count? noclip.website: indirect stage count
     __padding__ = Padding(2)
     indirect_orders = Array(IndirectOrder, 4)
     indirect_matrices = Array(IndirectMatrix, 3)

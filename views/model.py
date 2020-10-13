@@ -136,6 +136,7 @@ def gl_convert_color_array(source):
 
 class Model(views.View):
 
+    file_type = views.Attribute()
     scene_graph = views.ReadOnlyAttribute()
     position_array = views.ReadOnlyAttribute()
     normal_array = views.ReadOnlyAttribute()
@@ -143,7 +144,7 @@ class Model(views.View):
     texcoord_arrays = views.ReadOnlyAttribute()
     influence_groups = views.ReadOnlyAttribute()
     inverse_bind_matrices = views.ReadOnlyAttribute()
-    matrix_descriptors = views.ReadOnlyAttribute()
+    matrix_definitions = views.ReadOnlyAttribute()
     joints = views.ReadOnlyAttribute()
     shapes = views.ViewAttribute(views.ViewListView, views.shape.Shape)
     materials = views.ViewAttribute(views.ViewListView, views.material.Material)
@@ -163,7 +164,7 @@ class Model(views.View):
 
         self.gl_joints = [copy.copy(joint) for joint in self.joints]
         self.gl_joint_matrices = numpy.empty((len(self.joints),3,4),numpy.float32)
-        self.gl_matrix_table = self.gl_create_resource(gl.TextureBuffer, GL_DYNAMIC_DRAW,GL_RGBA32F,(len(self.matrix_descriptors),3,4),numpy.float32)
+        self.gl_matrix_table = self.gl_create_resource(gl.TextureBuffer, GL_DYNAMIC_DRAW,GL_RGBA32F,(len(self.matrix_definitions),3,4),numpy.float32)
         self.gl_update_matrix_table()
 
     def gl_update_joint_matrices(self,node,parent_joint=None,parent_joint_matrix=numpy.eye(3,4,dtype=numpy.float32)):
@@ -182,11 +183,11 @@ class Model(views.View):
         if self.inverse_bind_matrices is not None:
             influence_matrices = matrix3x4_array_multiply(self.gl_joint_matrices,self.inverse_bind_matrices)
 
-        for matrix,matrix_descriptor in zip(self.gl_matrix_table,self.matrix_descriptors):
-            if matrix_descriptor.matrix_type == j3d.drw1.MatrixType.JOINT:
-                matrix[:] = self.gl_joint_matrices[matrix_descriptor.index]
-            elif matrix_descriptor.matrix_type == j3d.drw1.MatrixType.INFLUENCE_GROUP:
-                influence_group = self.influence_groups[matrix_descriptor.index]
+        for matrix,matrix_definition in zip(self.gl_matrix_table,self.matrix_definitions):
+            if matrix_definition.matrix_type == j3d.drw1.MatrixType.JOINT:
+                matrix[:] = self.gl_joint_matrices[matrix_definition.index]
+            elif matrix_definition.matrix_type == j3d.drw1.MatrixType.INFLUENCE_GROUP:
+                influence_group = self.influence_groups[matrix_definition.index]
                 matrix[:] = sum(influence.weight*influence_matrices[influence.index] for influence in influence_group)
             else:
                 ValueError('invalid matrix type')

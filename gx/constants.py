@@ -1,5 +1,4 @@
 import enum
-import numpy
 
 
 class Value(int):
@@ -82,11 +81,11 @@ VA_NULL = Attribute.VA_NULL
 
 
 class ComponentType(Enum):
-    U8 = Value(0,numpy_type=numpy.uint8)
-    S8 = Value(1,numpy_type=numpy.int8)
-    U16 = Value(2,numpy_type=numpy.uint16)
-    S16 = Value(3,numpy_type=numpy.int16)
-    F32 = Value(4,numpy_type=numpy.float32)
+    U8 = 0
+    S8 = 1
+    U16 = 2
+    S16 = 3
+    F32 = 4
 
 
 U8 = ComponentType.U8
@@ -114,8 +113,8 @@ RGBA8 = ColorComponentType.RGBA8
 
 
 class PositionComponentCount(Enum):
-    POS_XY = Value(0,actual_value=2)
-    POS_XYZ = Value(1,actual_value=3)
+    POS_XY = 0
+    POS_XYZ = 1
 
 
 POS_XY = PositionComponentCount.POS_XY
@@ -123,7 +122,7 @@ POS_XYZ = PositionComponentCount.POS_XYZ
 
 
 class NormalComponentCount(Enum):
-    NRM_XYZ = Value(0,actual_value=3)
+    NRM_XYZ = 0
     NRM_NBT = 1
     NRM_NBT3 = 2
 
@@ -143,8 +142,8 @@ CLR_RGBA = ColorComponentCount.CLR_RGBA
 
 
 class TexCoordComponentCount(Enum):
-    TEX_S = Value(0,actual_value=1)
-    TEX_ST = Value(1,actual_value=2)
+    TEX_S = 0
+    TEX_ST = 1
 
 
 TEX_S = TexCoordComponentCount.TEX_S

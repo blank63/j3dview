@@ -2,8 +2,8 @@ from math import cos, sin, radians
 import numpy
 from btypes.big_endian import *
 import j3d.string_table
-
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -23,7 +23,7 @@ class Header(Struct):
     def unpack(cls, stream):
         header = super().unpack(stream)
         if header.magic != b'JNT1':
-            raise FormatError('invalid magic')
+            raise FormatError(f'invalid magic: {header.magic}')
         return header
 
 
@@ -76,7 +76,7 @@ class Joint(Struct):
     def unpack(cls, stream):
         joint = super().unpack(stream)
         if joint.unknown0 not in {0, 1, 2}:
-            logger.warning('unknown0 different from default')
+            logger.warning('unexpected unknown0 value: %s', joint.unknown0)
         return joint
 
     def create_matrix(self, parent_joint, parent_joint_matrix):
