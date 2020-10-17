@@ -1,17 +1,18 @@
 import io
 import pkgutil
-from PyQt5 import QtWidgets, uic
+from PyQt5 import QtCore, QtWidgets, uic
 import gx
 import views
 from views import path_builder as _p
 from widgets.view_form import (
     ViewForm,
-    LineEditHandler,
-    ComboBoxHandler,
-    SpinBoxHandler,
-    CheckBoxHandler,
-    ColorButtonHandler
+    LineEditAdaptor,
+    ComboBoxAdaptor,
+    SpinBoxAdaptor,
+    CheckBoxAdaptor,
+    ColorButtonAdaptor
 )
+import widgets.channel_dialog
 
 
 class TextureBoxHandler:
@@ -84,58 +85,69 @@ class MaterialForm(ViewForm):
         for value in gx.LogicalOperation:
             self.blend_mode_logical_operation.addItem(value.name, value)
 
-        self.add_handler(+_p.name, LineEditHandler(self.name), 'Name')
-        self.add_handler(+_p.unknown0, SpinBoxHandler(self.unknown0), 'Unknown 0')
-        self.add_handler(+_p.cull_mode, ComboBoxHandler(self.cull_mode), 'Cull Mode')
-        self.add_handler(+_p.dither, CheckBoxHandler(self.dither), 'Dither')
+        self.add_widget(+_p.name, LineEditAdaptor(self.name), 'Name')
+        self.add_widget(+_p.unknown0, SpinBoxAdaptor(self.unknown0), 'Unknown 0')
+        self.add_widget(+_p.cull_mode, ComboBoxAdaptor(self.cull_mode), 'Cull Mode')
+        self.add_widget(+_p.dither, CheckBoxAdaptor(self.dither), 'Dither')
 
-        self.add_handler(+_p.channels[0].material_color, ColorButtonHandler(self.material_color0), 'Mat. Color 0')
-        self.add_handler(+_p.channels[0].ambient_color, ColorButtonHandler(self.ambient_color0), 'Amb. Color 0')
-        self.add_handler(+_p.channels[1].material_color, ColorButtonHandler(self.material_color1), 'Mat. Color 1')
-        self.add_handler(+_p.channels[1].ambient_color, ColorButtonHandler(self.ambient_color1), 'Amb. Color 1')
+        self.add_widget(+_p.channels[0].material_color, ColorButtonAdaptor(self.material_color0), 'Mat. Color 0')
+        self.add_widget(+_p.channels[0].ambient_color, ColorButtonAdaptor(self.ambient_color0), 'Amb. Color 0')
+        self.add_widget(+_p.channels[1].material_color, ColorButtonAdaptor(self.material_color1), 'Mat. Color 1')
+        self.add_widget(+_p.channels[1].ambient_color, ColorButtonAdaptor(self.ambient_color1), 'Amb. Color 1')
 
-        self.add_handler(+_p.texture_indices[0], ComboBoxHandler(self.texture0), 'Texture 0')
-        self.add_handler(+_p.texture_indices[1], ComboBoxHandler(self.texture1), 'Texture 1')
-        self.add_handler(+_p.texture_indices[2], ComboBoxHandler(self.texture2), 'Texture 2')
-        self.add_handler(+_p.texture_indices[3], ComboBoxHandler(self.texture3), 'Texture 3')
-        self.add_handler(+_p.texture_indices[4], ComboBoxHandler(self.texture4), 'Texture 4')
-        self.add_handler(+_p.texture_indices[5], ComboBoxHandler(self.texture5), 'Texture 5')
-        self.add_handler(+_p.texture_indices[6], ComboBoxHandler(self.texture6), 'Texture 6')
-        self.add_handler(+_p.texture_indices[7], ComboBoxHandler(self.texture6), 'Texture 7')
+        self.add_widget(+_p.texture_indices[0], ComboBoxAdaptor(self.texture0), 'Texture 0')
+        self.add_widget(+_p.texture_indices[1], ComboBoxAdaptor(self.texture1), 'Texture 1')
+        self.add_widget(+_p.texture_indices[2], ComboBoxAdaptor(self.texture2), 'Texture 2')
+        self.add_widget(+_p.texture_indices[3], ComboBoxAdaptor(self.texture3), 'Texture 3')
+        self.add_widget(+_p.texture_indices[4], ComboBoxAdaptor(self.texture4), 'Texture 4')
+        self.add_widget(+_p.texture_indices[5], ComboBoxAdaptor(self.texture5), 'Texture 5')
+        self.add_widget(+_p.texture_indices[6], ComboBoxAdaptor(self.texture6), 'Texture 6')
+        self.add_widget(+_p.texture_indices[7], ComboBoxAdaptor(self.texture6), 'Texture 7')
 
         #TODO support for S10 TEV colors
-        self.add_handler(+_p.tev_color_previous, ColorButtonHandler(self.tev_color_previous), 'TEV Prev')
-        self.add_handler(+_p.tev_colors[0], ColorButtonHandler(self.tev_color0), 'TEV Reg. 0')
-        self.add_handler(+_p.tev_colors[1], ColorButtonHandler(self.tev_color1), 'TEV Reg. 1')
-        self.add_handler(+_p.tev_colors[2], ColorButtonHandler(self.tev_color2), 'TEV Reg. 2')
-        self.add_handler(+_p.kcolors[0], ColorButtonHandler(self.kcolor0), 'KColor 0')
-        self.add_handler(+_p.kcolors[1], ColorButtonHandler(self.kcolor1), 'KColor 1')
-        self.add_handler(+_p.kcolors[2], ColorButtonHandler(self.kcolor2), 'KColor 2')
-        self.add_handler(+_p.kcolors[3], ColorButtonHandler(self.kcolor3), 'KColor 3')
+        self.add_widget(+_p.tev_color_previous, ColorButtonAdaptor(self.tev_color_previous), 'TEV Prev')
+        self.add_widget(+_p.tev_colors[0], ColorButtonAdaptor(self.tev_color0), 'TEV Reg. 0')
+        self.add_widget(+_p.tev_colors[1], ColorButtonAdaptor(self.tev_color1), 'TEV Reg. 1')
+        self.add_widget(+_p.tev_colors[2], ColorButtonAdaptor(self.tev_color2), 'TEV Reg. 2')
+        self.add_widget(+_p.kcolors[0], ColorButtonAdaptor(self.kcolor0), 'KColor 0')
+        self.add_widget(+_p.kcolors[1], ColorButtonAdaptor(self.kcolor1), 'KColor 1')
+        self.add_widget(+_p.kcolors[2], ColorButtonAdaptor(self.kcolor2), 'KColor 2')
+        self.add_widget(+_p.kcolors[3], ColorButtonAdaptor(self.kcolor3), 'KColor 3')
 
-        self.add_handler(+_p.alpha_test.function0, ComboBoxHandler(self.alpha_test_function0), 'Alpha Test Function 0')
-        self.add_handler(+_p.alpha_test.reference0, SpinBoxHandler(self.alpha_test_reference0), 'Alpha Test Reference 0')
-        self.add_handler(+_p.alpha_test.function1, ComboBoxHandler(self.alpha_test_function1), 'Alpha Test Function 1')
-        self.add_handler(+_p.alpha_test.reference1, SpinBoxHandler(self.alpha_test_reference1), 'Alpha Test Reference 1')
-        self.add_handler(+_p.alpha_test.operator, ComboBoxHandler(self.alpha_test_operator), 'Alpha Test Operator')
+        self.add_widget(+_p.alpha_test.function0, ComboBoxAdaptor(self.alpha_test_function0), 'Alpha Test Function 0')
+        self.add_widget(+_p.alpha_test.reference0, SpinBoxAdaptor(self.alpha_test_reference0), 'Alpha Test Reference 0')
+        self.add_widget(+_p.alpha_test.function1, ComboBoxAdaptor(self.alpha_test_function1), 'Alpha Test Function 1')
+        self.add_widget(+_p.alpha_test.reference1, SpinBoxAdaptor(self.alpha_test_reference1), 'Alpha Test Reference 1')
+        self.add_widget(+_p.alpha_test.operator, ComboBoxAdaptor(self.alpha_test_operator), 'Alpha Test Operator')
 
-        self.add_handler(+_p.depth_mode.enable, CheckBoxHandler(self.depth_mode_enable), 'Depth Enable')
-        self.add_handler(+_p.depth_test_early, CheckBoxHandler(self.depth_mode_test_early), 'Depth Test Early')
-        self.add_handler(+_p.depth_mode.function, ComboBoxHandler(self.depth_mode_function), 'Depth Function')
-        self.add_handler(+_p.depth_mode.update_enable, CheckBoxHandler(self.depth_mode_update_enable), 'Depth Update Enable')
+        self.add_widget(+_p.depth_mode.enable, CheckBoxAdaptor(self.depth_mode_enable), 'Depth Enable')
+        self.add_widget(+_p.depth_test_early, CheckBoxAdaptor(self.depth_mode_test_early), 'Depth Test Early')
+        self.add_widget(+_p.depth_mode.function, ComboBoxAdaptor(self.depth_mode_function), 'Depth Function')
+        self.add_widget(+_p.depth_mode.update_enable, CheckBoxAdaptor(self.depth_mode_update_enable), 'Depth Update Enable')
 
-        self.add_handler(+_p.blend_mode.function, ComboBoxHandler(self.blend_mode_function), 'Blend Function')
-        self.add_handler(+_p.blend_mode.source_factor, ComboBoxHandler(self.blend_mode_source_factor), 'Blend Src. Factor')
-        self.add_handler(+_p.blend_mode.destination_factor, ComboBoxHandler(self.blend_mode_destination_factor), 'Blend Dst. Factor')
-        self.add_handler(+_p.blend_mode.logical_operation, ComboBoxHandler(self.blend_mode_logical_operation), 'Blend Logical Op')
+        self.add_widget(+_p.blend_mode.function, ComboBoxAdaptor(self.blend_mode_function), 'Blend Function')
+        self.add_widget(+_p.blend_mode.source_factor, ComboBoxAdaptor(self.blend_mode_source_factor), 'Blend Src. Factor')
+        self.add_widget(+_p.blend_mode.destination_factor, ComboBoxAdaptor(self.blend_mode_destination_factor), 'Blend Dst. Factor')
+        self.add_widget(+_p.blend_mode.logical_operation, ComboBoxAdaptor(self.blend_mode_logical_operation), 'Blend Logical Op')
+
+        self.channel_dialog = widgets.channel_dialog.ChannelDialog()
+        self.channel_dialog.commitViewValue.connect(self.commitViewValue.emit)
 
     def setTextures(self, textures):
         self.texture_template_handler.setTextures(textures)
 
     def setMaterial(self, material):
         self.setView(material)
+        self.channel_dialog.setMaterial(material)
 
     def clear(self):
         super().clear()
         self.texture_template_handler.clear()
+        self.channel_dialog.clear()
+
+    @QtCore.pyqtSlot(bool)
+    def on_edit_channels_button_clicked(self, checked):
+        self.channel_dialog.show()
+        self.channel_dialog.raise_()
+        self.channel_dialog.activateWindow()
 

@@ -18,9 +18,18 @@ MATRIX_TABLE_TEXTURE_UNIT = 0
 TEXTURE_UNITS = [1,2,3,4,5,6,7,8]
 
 
+class LightingMode(views.View):
+    material_source = views.Attribute()
+    ambient_source = views.Attribute()
+    diffuse_function = views.Attribute()
+    attenuation_function = views.Attribute()
+    light_enable = views.Attribute()
+    light_mask = views.Attribute()
+
+
 class Channel(views.View):
-    color_mode = views.ReadOnlyAttribute()
-    alpha_mode = views.ReadOnlyAttribute()
+    color_mode = views.ViewAttribute(LightingMode)
+    alpha_mode = views.ViewAttribute(LightingMode)
     material_color = views.Attribute()
     ambient_color = views.Attribute()
 
@@ -67,11 +76,9 @@ class Material(views.View):
         fields.append(('kcolor2',gl.vec4,convert_color(self.kcolors[2])))
         fields.append(('kcolor3',gl.vec4,convert_color(self.kcolors[3])))
 
-        for i,channel in enumerate(self.enabled_channels):
-            if self.use_material_color[i]:
-                fields.append(('material_color{}'.format(i),gl.vec4,convert_color(channel.material_color)))
-            if self.use_ambient_color[i]:
-                fields.append(('ambient_color{}'.format(i),gl.vec4,convert_color(channel.ambient_color)))
+        for i,channel in enumerate(self.channels):
+            fields.append(('material_color{}'.format(i),gl.vec4,convert_color(channel.material_color)))
+            fields.append(('ambient_color{}'.format(i),gl.vec4,convert_color(channel.ambient_color)))
 
         for i,matrix in enumerate(self.texture_matrices):
             if not self.use_texture_matrix[i]: continue
@@ -101,7 +108,7 @@ class Material(views.View):
     unknown0 = views.Attribute()
     cull_mode = views.Attribute()
 
-    channel_count = views.ReadOnlyAttribute()
+    channel_count = views.Attribute()
     channels = views.ViewAttribute(views.ViewListView, Channel)
 
     texcoord_generator_count = views.ReadOnlyAttribute()
@@ -150,6 +157,13 @@ class Material(views.View):
     def handle_event(self, event, path):
         if isinstance(event, views.ValueChangedEvent):
             if path in {
+                +_p.channel_count,
+                +_p.channels[0].color_mode.material_source,
+                +_p.channels[0].color_mode.ambient_source,
+                +_p.channels[0].color_mode.light_enable,
+                +_p.channels[1].color_mode.material_source,
+                +_p.channels[1].color_mode.ambient_source,
+                +_p.channels[1].color_mode.light_enable,
                 +_p.depth_test_early,
                 +_p.alpha_test.function0,
                 +_p.alpha_test.reference0,
@@ -286,6 +300,7 @@ class Material(views.View):
         for program in self.gl_program_table.values():
             self.gl_delete_resource(program)
         self.gl_program_table.clear()
+        self.update_use_variables()
 
     @property
     def gl_cull_mode(self):

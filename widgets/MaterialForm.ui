@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>253</width>
-    <height>922</height>
+    <height>947</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -40,6 +40,9 @@
      <property name="text">
       <string>Name:</string>
      </property>
+     <property name="buddy">
+      <cstring>name</cstring>
+     </property>
     </widget>
    </item>
    <item row="0" column="1">
@@ -49,6 +52,9 @@
     <widget class="QLabel" name="label_unknown0">
      <property name="text">
       <string>Unknown 0:</string>
+     </property>
+     <property name="buddy">
+      <cstring>unknown0</cstring>
      </property>
     </widget>
    </item>
@@ -63,6 +69,9 @@
     <widget class="QLabel" name="label_cull_mode">
      <property name="text">
       <string>Cull Mode:</string>
+     </property>
+     <property name="buddy">
+      <cstring>cull_mode</cstring>
      </property>
     </widget>
    </item>
@@ -100,6 +109,9 @@
        <widget class="QLabel" name="label_depth_mode_function">
         <property name="text">
          <string>Function:</string>
+        </property>
+        <property name="buddy">
+         <cstring>depth_mode_function</cstring>
         </property>
        </widget>
       </item>
@@ -162,6 +174,9 @@
         <property name="text">
          <string>Function:</string>
         </property>
+        <property name="buddy">
+         <cstring>blend_mode_function</cstring>
+        </property>
        </widget>
       </item>
       <item row="0" column="1">
@@ -171,6 +186,9 @@
        <widget class="QLabel" name="label_blend_mode_source_factor">
         <property name="text">
          <string>Src. Factor:</string>
+        </property>
+        <property name="buddy">
+         <cstring>blend_mode_source_factor</cstring>
         </property>
        </widget>
       </item>
@@ -182,6 +200,9 @@
         <property name="text">
          <string>Dst. Factor:</string>
         </property>
+        <property name="buddy">
+         <cstring>blend_mode_destination_factor</cstring>
+        </property>
        </widget>
       </item>
       <item row="2" column="1">
@@ -191,6 +212,9 @@
        <widget class="QLabel" name="label_blend_mode_logical_operation">
         <property name="text">
          <string>Logic Op:</string>
+        </property>
+        <property name="buddy">
+         <cstring>blend_mode_logical_operation</cstring>
         </property>
        </widget>
       </item>
@@ -236,6 +260,9 @@
         <property name="text">
          <string>0:</string>
         </property>
+        <property name="buddy">
+         <cstring>texture0</cstring>
+        </property>
        </widget>
       </item>
       <item row="0" column="1">
@@ -245,6 +272,9 @@
        <widget class="QLabel" name="label_texture1">
         <property name="text">
          <string>1:</string>
+        </property>
+        <property name="buddy">
+         <cstring>texture1</cstring>
         </property>
        </widget>
       </item>
@@ -256,6 +286,9 @@
         <property name="text">
          <string>2:</string>
         </property>
+        <property name="buddy">
+         <cstring>texture2</cstring>
+        </property>
        </widget>
       </item>
       <item row="2" column="1">
@@ -265,6 +298,9 @@
        <widget class="QLabel" name="label_texture3">
         <property name="text">
          <string>3:</string>
+        </property>
+        <property name="buddy">
+         <cstring>texture3</cstring>
         </property>
        </widget>
       </item>
@@ -276,6 +312,9 @@
         <property name="text">
          <string>4:</string>
         </property>
+        <property name="buddy">
+         <cstring>texture4</cstring>
+        </property>
        </widget>
       </item>
       <item row="4" column="1">
@@ -285,6 +324,9 @@
        <widget class="QLabel" name="label_texture5">
         <property name="text">
          <string>5:</string>
+        </property>
+        <property name="buddy">
+         <cstring>texture5</cstring>
         </property>
        </widget>
       </item>
@@ -296,6 +338,9 @@
         <property name="text">
          <string>6:</string>
         </property>
+        <property name="buddy">
+         <cstring>texture6</cstring>
+        </property>
        </widget>
       </item>
       <item row="6" column="1">
@@ -305,6 +350,9 @@
        <widget class="QLabel" name="label_texture7">
         <property name="text">
          <string>7:</string>
+        </property>
+        <property name="buddy">
+         <cstring>texture7</cstring>
         </property>
        </widget>
       </item>
@@ -346,6 +394,9 @@
         <property name="text">
          <string>Function 0:</string>
         </property>
+        <property name="buddy">
+         <cstring>alpha_test_function0</cstring>
+        </property>
        </widget>
       </item>
       <item row="0" column="1">
@@ -355,6 +406,9 @@
        <widget class="QLabel" name="label_alpha_test_reference0">
         <property name="text">
          <string>Reference 0:</string>
+        </property>
+        <property name="buddy">
+         <cstring>alpha_test_reference0</cstring>
         </property>
        </widget>
       </item>
@@ -370,6 +424,9 @@
         <property name="text">
          <string>Function 1:</string>
         </property>
+        <property name="buddy">
+         <cstring>alpha_test_function1</cstring>
+        </property>
        </widget>
       </item>
       <item row="2" column="1">
@@ -379,6 +436,9 @@
        <widget class="QLabel" name="label_alpha_test_reference1">
         <property name="text">
          <string>Reference 1:</string>
+        </property>
+        <property name="buddy">
+         <cstring>alpha_test_reference1</cstring>
         </property>
        </widget>
       </item>
@@ -393,6 +453,9 @@
        <widget class="QLabel" name="label_alpha_test_operator">
         <property name="text">
          <string>Operator:</string>
+        </property>
+        <property name="buddy">
+         <cstring>alpha_test_operator</cstring>
         </property>
        </widget>
       </item>
@@ -431,12 +494,18 @@
         <property name="text">
          <string>TEV Reg. 0:</string>
         </property>
+        <property name="buddy">
+         <cstring>tev_color0</cstring>
+        </property>
        </widget>
       </item>
       <item row="0" column="2">
        <widget class="QLabel" name="label_kcolor0">
         <property name="text">
          <string>KColor 0:</string>
+        </property>
+        <property name="buddy">
+         <cstring>kcolor0</cstring>
         </property>
        </widget>
       </item>
@@ -459,6 +528,9 @@
         <property name="text">
          <string>TEV Prev:</string>
         </property>
+        <property name="buddy">
+         <cstring>tev_color_previous</cstring>
+        </property>
        </widget>
       </item>
       <item row="2" column="1">
@@ -472,6 +544,9 @@
        <widget class="QLabel" name="label_tev_color2">
         <property name="text">
          <string>TEV Reg. 2:</string>
+        </property>
+        <property name="buddy">
+         <cstring>tev_color2</cstring>
         </property>
        </widget>
       </item>
@@ -487,6 +562,9 @@
         <property name="text">
          <string>TEV Reg. 1:</string>
         </property>
+        <property name="buddy">
+         <cstring>tev_color1</cstring>
+        </property>
        </widget>
       </item>
       <item row="0" column="3">
@@ -500,6 +578,9 @@
        <widget class="QLabel" name="label_kcolor1">
         <property name="text">
          <string>KColor 1:</string>
+        </property>
+        <property name="buddy">
+         <cstring>kcolor1</cstring>
         </property>
        </widget>
       </item>
@@ -515,6 +596,9 @@
         <property name="text">
          <string>KColor 2:</string>
         </property>
+        <property name="buddy">
+         <cstring>kcolor2</cstring>
+        </property>
        </widget>
       </item>
       <item row="2" column="3">
@@ -528,6 +612,9 @@
        <widget class="QLabel" name="label_kcolor3">
         <property name="text">
          <string>KColor 3:</string>
+        </property>
+        <property name="buddy">
+         <cstring>kcolor3</cstring>
         </property>
        </widget>
       </item>
@@ -577,12 +664,18 @@
         <property name="text">
          <string>Mat. Color 0:</string>
         </property>
+        <property name="buddy">
+         <cstring>material_color0</cstring>
+        </property>
        </widget>
       </item>
       <item row="0" column="2">
        <widget class="QLabel" name="label_ambient_color0">
         <property name="text">
          <string>Amb. Color 0:</string>
+        </property>
+        <property name="buddy">
+         <cstring>ambient_color0</cstring>
         </property>
        </widget>
       </item>
@@ -598,6 +691,9 @@
         <property name="text">
          <string>Mat. Color 1:</string>
         </property>
+        <property name="buddy">
+         <cstring>material_color1</cstring>
+        </property>
        </widget>
       </item>
       <item row="1" column="1">
@@ -612,6 +708,9 @@
         <property name="text">
          <string>Amb. Color 1:</string>
         </property>
+        <property name="buddy">
+         <cstring>ambient_color1</cstring>
+        </property>
        </widget>
       </item>
       <item row="1" column="3">
@@ -624,8 +723,55 @@
      </layout>
     </widget>
    </item>
+   <item row="12" column="0" colspan="2">
+    <widget class="QPushButton" name="edit_channels_button">
+     <property name="text">
+      <string>Edit Channels...</string>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>name</tabstop>
+  <tabstop>unknown0</tabstop>
+  <tabstop>cull_mode</tabstop>
+  <tabstop>dither</tabstop>
+  <tabstop>material_color0</tabstop>
+  <tabstop>ambient_color0</tabstop>
+  <tabstop>material_color1</tabstop>
+  <tabstop>ambient_color1</tabstop>
+  <tabstop>texture0</tabstop>
+  <tabstop>texture1</tabstop>
+  <tabstop>texture2</tabstop>
+  <tabstop>texture3</tabstop>
+  <tabstop>texture4</tabstop>
+  <tabstop>texture5</tabstop>
+  <tabstop>texture6</tabstop>
+  <tabstop>texture7</tabstop>
+  <tabstop>tev_color_previous</tabstop>
+  <tabstop>tev_color0</tabstop>
+  <tabstop>tev_color1</tabstop>
+  <tabstop>tev_color2</tabstop>
+  <tabstop>kcolor0</tabstop>
+  <tabstop>kcolor1</tabstop>
+  <tabstop>kcolor2</tabstop>
+  <tabstop>kcolor3</tabstop>
+  <tabstop>alpha_test_function0</tabstop>
+  <tabstop>alpha_test_reference0</tabstop>
+  <tabstop>alpha_test_function1</tabstop>
+  <tabstop>alpha_test_reference1</tabstop>
+  <tabstop>alpha_test_operator</tabstop>
+  <tabstop>depth_mode_enable</tabstop>
+  <tabstop>depth_mode_test_early</tabstop>
+  <tabstop>depth_mode_function</tabstop>
+  <tabstop>depth_mode_update_enable</tabstop>
+  <tabstop>blend_mode_function</tabstop>
+  <tabstop>blend_mode_source_factor</tabstop>
+  <tabstop>blend_mode_destination_factor</tabstop>
+  <tabstop>blend_mode_logical_operation</tabstop>
+  <tabstop>edit_channels_button</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

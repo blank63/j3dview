@@ -70,11 +70,17 @@ class Editor(QtWidgets.QMainWindow):
         self.menu_window.addAction(self.dock_texture_form.toggleViewAction())
 
         self.action_open_model.setShortcut(QtGui.QKeySequence.Open)
+        self.action_open_model.setShortcutContext(QtCore.Qt.ApplicationShortcut)
         self.action_save_model.setShortcut(QtGui.QKeySequence.Save)
+        self.action_save_model.setShortcutContext(QtCore.Qt.ApplicationShortcut)
         self.action_save_model_as.setShortcut(QtGui.QKeySequence.SaveAs)
+        self.action_save_model_as.setShortcutContext(QtCore.Qt.ApplicationShortcut)
         self.action_quit.setShortcut(QtGui.QKeySequence.Quit)
+        self.action_quit.setShortcutContext(QtCore.Qt.ApplicationShortcut)
         self.action_undo.setShortcut(QtGui.QKeySequence.Undo)
+        self.action_undo.setShortcutContext(QtCore.Qt.ApplicationShortcut)
         self.action_redo.setShortcut(QtGui.QKeySequence.Redo)
+        self.action_redo.setShortcutContext(QtCore.Qt.ApplicationShortcut)
 
         #XXX It appears that actions have to be manually added to the widget
         # for shortcuts to work. Possibly a bug?
@@ -314,6 +320,10 @@ class Editor(QtWidgets.QMainWindow):
             self.saveModel(file_name)
         except FILE_OPEN_ERRORS as error:
             self.warning_file_open_failed(error)
+
+    @QtCore.pyqtSlot()
+    def on_action_quit_triggered(self):
+        QtWidgets.qApp.exit()
 
     @QtCore.pyqtSlot()
     def on_action_texture_export_triggered(self):

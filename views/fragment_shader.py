@@ -682,8 +682,11 @@ def create_shader_string(material):
 
     stream.write('{}\n'.format(material.gl_block.glsl_type))
 
-    for i in range(material.channel_count):
-        stream.write('in vec4 channel{};\n'.format(i))
+    for i in range(2):
+        if i < material.channel_count:
+            stream.write('in vec4 channel{};\n'.format(i))
+        else:
+            stream.write('const vec4 channel{} = vec4(1.0);\n'.format(i))
 
     for i,generator in enumerate(material.enabled_texcoord_generators):
         if generator.function == gx.TG_MTX3x4:

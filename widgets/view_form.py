@@ -19,7 +19,7 @@ class Color:
         )
 
 
-class WidgetHandler(QtCore.QObject):
+class WidgetAdaptor(QtCore.QObject):
 
     updateValue = QtCore.pyqtSignal(object)
     commitValue = QtCore.pyqtSignal(object, object)
@@ -28,6 +28,9 @@ class WidgetHandler(QtCore.QObject):
         super().__init__()
         self.current_value = None
         self.transaction_started = False
+
+    def setEnabled(self, value):
+        pass
 
     def update_widget(self, value):
         pass
@@ -62,13 +65,16 @@ class WidgetHandler(QtCore.QObject):
         self.transaction_started = False
 
 
-class LineEditHandler(WidgetHandler):
+class LineEditAdaptor(WidgetAdaptor):
 
     def __init__(self, widget):
         super().__init__()
         self.widget = widget
         widget.textEdited.connect(self.on_textEdited)
         widget.editingFinished.connect(self.on_editingFinished)
+
+    def setEnabled(self, value):
+        self.widget.setEnabled(value)
 
     def update_widget(self, value):
         self.widget.setText(value)
@@ -86,12 +92,15 @@ class LineEditHandler(WidgetHandler):
         self.commit(self.widget.text())
 
 
-class ComboBoxHandler(WidgetHandler):
+class ComboBoxAdaptor(WidgetAdaptor):
 
     def __init__(self, widget):
         super().__init__()
         self.widget = widget
         widget.activated.connect(self.on_activated)
+
+    def setEnabled(self, value):
+        self.widget.setEnabled(value)
 
     def update_widget(self, value):
         index = self.widget.findData(value)
@@ -106,13 +115,16 @@ class ComboBoxHandler(WidgetHandler):
         self.commit(self.widget.itemData(index))
 
 
-class SpinBoxHandler(WidgetHandler):
+class SpinBoxAdaptor(WidgetAdaptor):
 
     def __init__(self, widget):
         super().__init__()
         self.widget = widget
         widget.valueChanged.connect(self.on_valueChanged)
         widget.editingFinished.connect(self.on_editingFinished)
+
+    def setEnabled(self, value):
+        self.widget.setEnabled(value)
 
     def update_widget(self, value):
         self.widget.setValue(value)
@@ -134,12 +146,15 @@ class SpinBoxHandler(WidgetHandler):
         self.commit(self.widget.value())
 
 
-class CheckBoxHandler(WidgetHandler):
+class CheckBoxAdaptor(WidgetAdaptor):
 
     def __init__(self, widget):
         super().__init__()
         self.widget = widget
         widget.clicked.connect(self.on_clicked)
+
+    def setEnabled(self, value):
+        self.widget.setEnabled(value)
 
     def update_widget(self, value):
         self.widget.setChecked(value)
@@ -152,7 +167,7 @@ class CheckBoxHandler(WidgetHandler):
         self.commit(value)
 
 
-class ColorButtonHandler(WidgetHandler):
+class ColorButtonAdaptor(WidgetAdaptor):
 
     def __init__(self, widget):
         super().__init__()
@@ -173,6 +188,9 @@ class ColorButtonHandler(WidgetHandler):
             color.blue(),
             color.alpha()
         )
+
+    def setEnabled(self, value):
+        self.widget.setEnabled(value)
 
     def update_widget(self, value):
         self.pixmap.fill(QtGui.QColor(value.r, value.g, value.b))
@@ -206,48 +224,72 @@ class ColorButtonHandler(WidgetHandler):
         self.updateValue.emit(self._from_qcolor(color))
 
 
+class ViewHandler(QtCore.QObject):
+
+    commitViewValue = QtCore.pyqtSignal(views.Path, object, object, str)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.widget_table = {}
+        self.view = None
+
+    def add_widget(self, path, widget, label):
+        def update_callback(value):
+            path.set_value(self.view, value)
+        def commit_callback(old_value, new_value):
+            self.commitViewValue.emit(path, old_value, new_value, label)
+        widget.updateValue.connect(update_callback)
+        widget.commitValue.connect(commit_callback)
+        self.widget_table[path] = widget
+
+    def setEnabled(self, value):
+        for widget in self.widget_table.values():
+            widget.setEnabled(value)
+
+    def setView(self, view):
+        if self.view is not None:
+            self.view.unregister_listener(self)
+        self.view = view
+        for path, widget in self.widget_table.items():
+            widget.setValue(path.get_value(self.view))
+        self.view.register_listener(self)
+
+    def clear(self):
+        if self.view is not None:
+            self.view.unregister_listener(self)
+        self.view = None
+        for widget in self.widget_table.values():
+            widget.clear()
+
+    def handle_event(self, event, path):
+        if isinstance(event, views.ValueChangedEvent):
+            widget = self.widget_table.get(path)
+            if widget is not None:
+                widget.setValue(path.get_value(self.view))
+
+
 class ViewForm(QtWidgets.QWidget):
 
     commitViewValue = QtCore.pyqtSignal(views.Path, object, object, str)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.handler_table = {}
-        self.view = None
+        self.view_handler = ViewHandler()
+        self.view_handler.commitViewValue.connect(self.commitViewValue)
         self.setEnabled(False)
 
-    def add_handler(self, path, handler, label):
-        def update_callback(value):
-            path.set_value(self.view, value)
-        def commit_callback(old_value, new_value):
-            self.commitViewValue.emit(path, old_value, new_value, label)
-        handler.updateValue.connect(update_callback)
-        handler.commitValue.connect(commit_callback)
-        self.handler_table[path] = handler
+    @property
+    def view(self):
+        return self.view_handler.view
+
+    def add_widget(self, path, widget, label):
+        self.view_handler.add_widget(path, widget, label)
 
     def setView(self, view):
-        if self.view is not None:
-            self.view.unregister_listener(self)
-        self.view = view
-        self.reload()
-        self.view.register_listener(self)
+        self.view_handler.setView(view)
         self.setEnabled(True)
 
-    def reload(self):
-        for path, handler in self.handler_table.items():
-            handler.setValue(path.get_value(self.view))
-
     def clear(self):
-        if self.view is not None:
-            self.view.unregister_listener(self)
-        self.view = None
-        for handler in self.handler_table.values():
-            handler.clear()
+        self.view_handler.clear()
         self.setEnabled(False)
-
-    def handle_event(self, event, path):
-        if isinstance(event, views.ValueChangedEvent):
-            handler = self.handler_table.get(path)
-            if handler is not None:
-                handler.setValue(path.get_value(self.view))
 

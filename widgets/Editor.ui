@@ -221,7 +221,7 @@
           <x>0</x>
           <y>0</y>
           <width>254</width>
-          <height>86</height>
+          <height>96</height>
          </rect>
         </property>
        </widget>
@@ -265,7 +265,7 @@
           <x>0</x>
           <y>0</y>
           <width>254</width>
-          <height>100</height>
+          <height>97</height>
          </rect>
         </property>
        </widget>
@@ -348,22 +348,5 @@
   </customwidget>
  </customwidgets>
  <resources/>
- <connections>
-  <connection>
-   <sender>action_quit</sender>
-   <signal>triggered()</signal>
-   <receiver>MainWindow</receiver>
-   <slot>close()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>399</x>
-     <y>299</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>

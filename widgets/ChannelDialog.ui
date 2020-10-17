@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ChannelDialog</class>
+ <widget class="QDialog" name="ChannelDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>339</width>
+    <height>273</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Channel Dialog</string>
+  </property>
+  <layout class="QGridLayout" name="dialog_layout" rowstretch="0,0,0,0,0,0,0,0,0,0,1,0">
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
+    <number>4</number>
+   </property>
+   <property name="horizontalSpacing">
+    <number>4</number>
+   </property>
+   <property name="verticalSpacing">
+    <number>0</number>
+   </property>
+   <item row="3" column="1">
+    <widget class="QLabel" name="label_diffuse_function">
+     <property name="text">
+      <string>Diff. Function:</string>
+     </property>
+     <property name="buddy">
+      <cstring>diffuse_function</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0" rowspan="9">
+    <widget class="QListWidget" name="lighting_mode_list"/>
+   </item>
+   <item row="4" column="2">
+    <widget class="QComboBox" name="attenuation_function"/>
+   </item>
+   <item row="9" column="2">
+    <widget class="QCheckBox" name="use_light7">
+     <property name="text">
+      <string>Use Light 7</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="2">
+    <widget class="QComboBox" name="diffuse_function"/>
+   </item>
+   <item row="7" column="2">
+    <widget class="QCheckBox" name="use_light5">
+     <property name="text">
+      <string>Use Light 5</string>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="1">
+    <widget class="QCheckBox" name="use_light3">
+     <property name="text">
+      <string>Use Light 3</string>
+     </property>
+    </widget>
+   </item>
+   <item row="11" column="0" colspan="3">
+    <widget class="QDialogButtonBox" name="button_box">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QLabel" name="label_channel_count">
+     <property name="text">
+      <string>Num. Channels:</string>
+     </property>
+     <property name="buddy">
+      <cstring>channel_count</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <widget class="QLabel" name="label_ambient_source">
+     <property name="text">
+      <string>Amb. Source:</string>
+     </property>
+     <property name="buddy">
+      <cstring>ambient_source</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="2">
+    <widget class="QComboBox" name="material_source"/>
+   </item>
+   <item row="7" column="1">
+    <widget class="QCheckBox" name="use_light1">
+     <property name="text">
+      <string>Use Light 1</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="1" colspan="2">
+    <widget class="QCheckBox" name="light_enable">
+     <property name="text">
+      <string>Light Enable</string>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="1">
+    <widget class="QCheckBox" name="use_light2">
+     <property name="text">
+      <string>Use Light 2</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="2">
+    <widget class="QComboBox" name="channel_count"/>
+   </item>
+   <item row="4" column="1">
+    <widget class="QLabel" name="label_attenuation_function">
+     <property name="text">
+      <string>Attn. Function:</string>
+     </property>
+     <property name="buddy">
+      <cstring>attenuation_function</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QLabel" name="label_material_source">
+     <property name="text">
+      <string>Mat. Source:</string>
+     </property>
+     <property name="buddy">
+      <cstring>material_source</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="2">
+    <widget class="QComboBox" name="ambient_source"/>
+   </item>
+   <item row="6" column="1">
+    <widget class="QCheckBox" name="use_light0">
+     <property name="text">
+      <string>Use Light 0</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="2">
+    <widget class="QCheckBox" name="use_light4">
+     <property name="text">
+      <string>Use Light 4</string>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="2">
+    <widget class="QCheckBox" name="use_light6">
+     <property name="text">
+      <string>Use Light 6</string>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="0" colspan="3">
+    <spacer name="bottom_spacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>0</width>
+       <height>0</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>lighting_mode_list</tabstop>
+  <tabstop>channel_count</tabstop>
+  <tabstop>material_source</tabstop>
+  <tabstop>ambient_source</tabstop>
+  <tabstop>diffuse_function</tabstop>
+  <tabstop>attenuation_function</tabstop>
+  <tabstop>light_enable</tabstop>
+  <tabstop>use_light0</tabstop>
+  <tabstop>use_light1</tabstop>
+  <tabstop>use_light2</tabstop>
+  <tabstop>use_light3</tabstop>
+  <tabstop>use_light4</tabstop>
+  <tabstop>use_light5</tabstop>
+  <tabstop>use_light6</tabstop>
+  <tabstop>use_light7</tabstop>
+ </tabstops>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>button_box</sender>
+   <signal>accepted()</signal>
+   <receiver>ChannelDialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>248</x>
+     <y>254</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>157</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>button_box</sender>
+   <signal>rejected()</signal>
+   <receiver>ChannelDialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>316</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>286</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>
