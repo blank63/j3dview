@@ -34,6 +34,12 @@ class Channel(views.View):
     ambient_color = views.Attribute()
 
 
+class TexCoordGenerator(views.View):
+    function = views.Attribute()
+    source = views.Attribute()
+    matrix = views.Attribute()
+
+
 class AlphaTest(views.View):
     function0 = views.Attribute()
     reference0 = views.Attribute()
@@ -81,12 +87,10 @@ class Material(views.View):
             fields.append(('ambient_color{}'.format(i),gl.vec4,convert_color(channel.ambient_color)))
 
         for i,matrix in enumerate(self.texture_matrices):
-            if not self.use_texture_matrix[i]: continue
-            if matrix.shape == gx.TG_MTX2x4:
-                gl_type = gl.mat4x2
-            elif matrix.shape == gx.TG_MTX3x4:
-                gl_type = gl.mat4x3
-            fields.append(('texture_matrix{}'.format(i),gl_type,matrix.create_matrix()))
+            if matrix is None:
+                fields.append(('texture_matrix{}'.format(i), gl.mat4x3, numpy.array([[1,0,0,0],[0,1,0,0],[0,0,0,1]],numpy.float32)))
+                continue
+            fields.append(('texture_matrix{}'.format(i),gl.mat4x3,matrix.create_matrix()))
 
         for i,matrix in enumerate(self.indirect_matrices):
             if not self.use_indirect_matrix[i]: continue
@@ -111,8 +115,8 @@ class Material(views.View):
     channel_count = views.Attribute()
     channels = views.ViewAttribute(views.ViewListView, Channel)
 
-    texcoord_generator_count = views.ReadOnlyAttribute()
-    texcoord_generators = views.ReadOnlyAttribute()
+    texcoord_generator_count = views.Attribute()
+    texcoord_generators = views.ViewAttribute(views.ViewListView, TexCoordGenerator)
     texture_matrices = views.ReadOnlyAttribute()
     texture_indices = views.ReadOnlyAttribute()
 
@@ -156,6 +160,7 @@ class Material(views.View):
 
     def handle_event(self, event, path):
         if isinstance(event, views.ValueChangedEvent):
+            #TODO simplify this
             if path in {
                 +_p.channel_count,
                 +_p.channels[0].color_mode.material_source,
@@ -164,6 +169,31 @@ class Material(views.View):
                 +_p.channels[1].color_mode.material_source,
                 +_p.channels[1].color_mode.ambient_source,
                 +_p.channels[1].color_mode.light_enable,
+                +_p.texcoord_generator_count,
+                +_p.texcoord_generators[0].function,
+                +_p.texcoord_generators[0].source,
+                +_p.texcoord_generators[0].matrix,
+                +_p.texcoord_generators[1].function,
+                +_p.texcoord_generators[1].source,
+                +_p.texcoord_generators[1].matrix,
+                +_p.texcoord_generators[2].function,
+                +_p.texcoord_generators[2].source,
+                +_p.texcoord_generators[2].matrix,
+                +_p.texcoord_generators[3].function,
+                +_p.texcoord_generators[3].source,
+                +_p.texcoord_generators[3].matrix,
+                +_p.texcoord_generators[4].function,
+                +_p.texcoord_generators[4].source,
+                +_p.texcoord_generators[4].matrix,
+                +_p.texcoord_generators[5].function,
+                +_p.texcoord_generators[5].source,
+                +_p.texcoord_generators[5].matrix,
+                +_p.texcoord_generators[6].function,
+                +_p.texcoord_generators[6].source,
+                +_p.texcoord_generators[6].matrix,
+                +_p.texcoord_generators[7].function,
+                +_p.texcoord_generators[7].source,
+                +_p.texcoord_generators[7].matrix,
                 +_p.depth_test_early,
                 +_p.alpha_test.function0,
                 +_p.alpha_test.reference0,

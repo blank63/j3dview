@@ -45,10 +45,9 @@ class LightingModeListHandler:
     def __init__(self, widget):
         self.widget = widget
         self.material = None
-        self.widget.addItem('Color 0')
-        self.widget.addItem('Alpha 0')
-        self.widget.addItem('Color 1')
-        self.widget.addItem('Alpha 1')
+        for color, alpha in zip(gx.COLOR, gx.ALPHA):
+            self.widget.addItem(color.name)
+            self.widget.addItem(alpha.name)
 
     def currentLightingModePath(self):
         row = self.widget.currentRow()
@@ -86,7 +85,7 @@ class LightingModeListHandler:
             alpha_item = self.widget.item(2*i + 1)
             color_item.setFlags(color_item.flags() | QtCore.Qt.ItemIsEnabled)
             alpha_item.setFlags(alpha_item.flags() | QtCore.Qt.ItemIsEnabled)
-        for i in range(self.material.channel_count, 2):
+        for i in range(self.material.channel_count, self.widget.count()//2):
             color_item = self.widget.item(2*i)
             alpha_item = self.widget.item(2*i + 1)
             color_item.setFlags(color_item.flags() & ~QtCore.Qt.ItemIsEnabled)

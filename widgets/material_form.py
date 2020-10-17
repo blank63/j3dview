@@ -13,6 +13,7 @@ from widgets.view_form import (
     ColorButtonAdaptor
 )
 import widgets.channel_dialog
+import widgets.texcoord_generator_dialog
 
 
 class TextureBoxHandler:
@@ -131,7 +132,9 @@ class MaterialForm(ViewForm):
         self.add_widget(+_p.blend_mode.logical_operation, ComboBoxAdaptor(self.blend_mode_logical_operation), 'Blend Logical Op')
 
         self.channel_dialog = widgets.channel_dialog.ChannelDialog()
-        self.channel_dialog.commitViewValue.connect(self.commitViewValue.emit)
+        self.channel_dialog.commitViewValue.connect(self.commitViewValue)
+        self.texcoord_generator_dialog = widgets.texcoord_generator_dialog.TexcoordGeneratorDialog()
+        self.texcoord_generator_dialog.commitViewValue.connect(self.commitViewValue)
 
     def setTextures(self, textures):
         self.texture_template_handler.setTextures(textures)
@@ -139,15 +142,23 @@ class MaterialForm(ViewForm):
     def setMaterial(self, material):
         self.setView(material)
         self.channel_dialog.setMaterial(material)
+        self.texcoord_generator_dialog.setMaterial(material)
 
     def clear(self):
         super().clear()
         self.texture_template_handler.clear()
         self.channel_dialog.clear()
+        self.texcoord_generator_dialog.clear()
 
     @QtCore.pyqtSlot(bool)
     def on_edit_channels_button_clicked(self, checked):
         self.channel_dialog.show()
         self.channel_dialog.raise_()
         self.channel_dialog.activateWindow()
+
+    @QtCore.pyqtSlot(bool)
+    def on_edit_texcoord_generators_button_clicked(self, checked):
+        self.texcoord_generator_dialog.show()
+        self.texcoord_generator_dialog.raise_()
+        self.texcoord_generator_dialog.activateWindow()
 

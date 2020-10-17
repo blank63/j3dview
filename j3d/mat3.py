@@ -216,12 +216,7 @@ class TextureMatrix(Struct):
 
         M = T*C*S*R*C.I*P
 
-        if self.shape == gx.TG_MTX2x4:
-            return M[:2,:]
-        elif self.shape == gx.TG_MTX3x4:
-            return M
-        else:
-            raise ValueError('invalid texture matrix shape')
+        return M
 
 
 class TevOrder(Struct):

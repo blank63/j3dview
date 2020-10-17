@@ -69,7 +69,7 @@ def write_channel(stream,index,channel):
 
 def write_identity_texcoord_generator(stream,generator):
     if generator.source == gx.TG_POS:
-        source = 'position'
+        source = 'position.xyz'
     elif generator.source == gx.TG_NRM:
         source = 'normal'
     elif generator.source == gx.TG_BINRM:
@@ -77,15 +77,11 @@ def write_identity_texcoord_generator(stream,generator):
     elif generator.source == gx.TG_TANGENT:
         source = 'tangent'
     elif generator.source in gx.TG_TEX:
-        source = 'texcoord{}'.format(generator.source.index)
+        source = 'vec3(texcoord{}, 1.0)'.format(generator.source.index)
     else:
-        raise ValueError('invalid texture coordinate generator source')
+        source = 'vec3(1.0)'
 
     stream.write(source)
-    if generator.function == gx.TG_MTX2x4 and generator.source not in gx.TG_TEX:
-        stream.write('.xy')
-    elif generator.function == gx.TG_MTX3x4 and generator.source == gx.TG_POS:
-        stream.write('.xyz')
 
 
 def write_matrix_texcoord_generator(stream,generator,texture_matrices):
@@ -105,8 +101,8 @@ def write_matrix_texcoord_generator(stream,generator,texture_matrices):
     matrix_index = generator.matrix.index
     matrix = texture_matrices[matrix_index]
 
-    if matrix.shape != generator.function:
-        raise ValueError() #<-?
+    #if matrix.shape != generator.function:
+    #    raise ValueError() #<-?
 
     stream.write('texture_matrix{}*'.format(matrix_index))
     if matrix.matrix_type in {0x06,0x07}:
@@ -124,11 +120,26 @@ def write_texcoord_generator(stream,index,generator,texture_matrices):
         if generator.matrix == gx.IDENTITY:
             write_identity_texcoord_generator(stream,generator)
         else:
-            write_matrix_texcoord_generator(stream,generator,texture_matrices)
+            matrix = texture_matrices[generator.matrix.index]
+            if matrix is None:
+                write_identity_texcoord_generator(stream,generator)
+            else:
+                write_matrix_texcoord_generator(stream,generator,texture_matrices)
     elif generator.function in gx.TG_BUMP:
-        stream.write('generated_texcoord{}.st'.format(generator.source.index))
+        if generator.source not in gx.TG_TEXCOORD:
+            stream.write('vec3(1.0)')
+        else:
+            source_index = gx.TG_TEXCOORD.index(generator.source)
+            if source_index >= index:
+                stream.write('vec3(1.0)')
+            else:
+                stream.write('generated_texcoord{}'.format(source_index))
     elif generator.function == gx.TG_SRTG:
-        stream.write('channel{}.rg'.format(generator.source.index))
+        if generator.source not in gx.TG_COLOR:
+            stream.write('vec3(1.0)')
+        else:
+            source_index = gx.TG_COLOR.index(generator.source)
+            stream.write('vec3(channel{}.rg, 1.0)'.format(source_index))
     else:
         raise ValueError('invalid texture coordinate generator function')
 
@@ -182,16 +193,16 @@ def create_shader_string(material, transformation_type):
         stream.write('out vec4 channel{};\n'.format(i))
 
     for i,generator in enumerate(material.enabled_texcoord_generators):
-        if generator.function == gx.TG_MTX3x4 and not (generator.source in gx.TG_TEX and generator.matrix == gx.IDENTITY): #<-?
-            stream.write('out vec3 generated_texcoord{};\n'.format(i))
-        else:
-            stream.write('out vec2 generated_texcoord{};\n'.format(i))
+        stream.write('out vec3 generated_texcoord{};\n'.format(i))
 
     stream.write('\nvoid main()\n{\n')
     stream.write('gl_Position = projection_matrix*vec4({},1.0);\n'.format(position))
 
-    for i,channel in enumerate(material.enabled_channels):
-        write_channel(stream,i,channel)
+    for i,channel in enumerate(material.channels):
+        if i < material.channel_count:
+            write_channel(stream,i,channel)
+        else:
+            stream.write('const vec4 channel{} = vec4(1.0);\n'.format(i))
 
     for i,generator in enumerate(material.enabled_texcoord_generators):
         write_texcoord_generator(stream,i,generator,material.texture_matrices)

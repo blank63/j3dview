@@ -689,10 +689,7 @@ def create_shader_string(material):
             stream.write('const vec4 channel{} = vec4(1.0);\n'.format(i))
 
     for i,generator in enumerate(material.enabled_texcoord_generators):
-        if generator.function == gx.TG_MTX3x4:
-            stream.write('in vec3 generated_texcoord{};\n'.format(i))
-        else:
-            stream.write('in vec2 generated_texcoord{};\n'.format(i))
+        stream.write('in vec3 generated_texcoord{};\n'.format(i))
 
     for i in range(8):
         if not material.use_texture[i]: continue
@@ -708,11 +705,14 @@ def create_shader_string(material):
     stream.write('vec2 tevcoord;\n')
     stream.write('vec4 textemp;\n')
 
-    for i,generator in enumerate(material.enabled_texcoord_generators):
-        stream.write('vec2 uv{} = generated_texcoord{}'.format(i,i))
-        if generator.function == gx.TG_MTX3x4:
-            stream.write('.st/generated_texcoord{}.p'.format(i))
-        stream.write(';\n')
+    for i in range(8):
+        if i < material.texcoord_generator_count:
+            stream.write('vec2 uv{} = generated_texcoord{}.st'.format(i,i))
+            if generator.function == gx.TG_MTX3x4:
+                stream.write('/generated_texcoord{}.p'.format(i))
+            stream.write(';\n')
+        else:
+            stream.write('const vec2 uv{} = vec2(1.0);\n'.format(i))
 
     stream.write('vec4 tevprev = tev_color_previous;\n')
 
