@@ -216,7 +216,12 @@ class TextureMatrix(Struct):
 
         M = T*C*S*R*C.I*P
 
-        return M
+        if self.shape == gx.TG_MTX2x4:
+            return M[:2,:]
+        elif self.shape == gx.TG_MTX3x4:
+            return M
+        else:
+            raise ValueError('invalid texture matrix shape')
 
 
 class TevOrder(Struct):
@@ -515,7 +520,7 @@ class Material:
 
         self.texcoord_generator_count = 0
         self.texcoord_generators = [TexCoordGenerator() for _ in range(8)]
-        self.texture_matrices = [None]*10
+        self.texture_matrices = [TextureMatrix() for _ in range(10)]
         self.texture_indices = [None]*8
 
         self.tev_stage_count = 0
@@ -937,8 +942,18 @@ class SectionPacker:
 
     @pool_load_method(TextureMatrix)
     def pool_texture_matrix(pool, material, entry):
+        # Nintendo seems to pair up texture matrices with texcoord generators in
+        # order, and a matrix is included in the MAT3 section even if it is not
+        # used by the generator. We want to stay as close to what Nintendo does,
+        # but also allow users to assign arbitrary texture matrices to texcoord
+        # generators.
+        use_matrix = [False]*10
+        for generator in material.enabled_texcoord_generators:
+            if generator.matrix != gx.IDENTITY:
+                use_matrix[gx.TEXMTX.index(generator.matrix)] = True
         for i, matrix in enumerate(material.texture_matrices):
-            if matrix is None: continue
+            if i >= material.texcoord_generator_count and not use_matrix[i]:
+                continue
             entry.texture_matrix_indices[i] = pool[matrix]
 
     @pool_load_method(uint16)

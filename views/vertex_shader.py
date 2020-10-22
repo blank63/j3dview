@@ -120,11 +120,7 @@ def write_texcoord_generator(stream,index,generator,texture_matrices):
         if generator.matrix == gx.IDENTITY:
             write_identity_texcoord_generator(stream,generator)
         else:
-            matrix = texture_matrices[generator.matrix.index]
-            if matrix is None:
-                write_identity_texcoord_generator(stream,generator)
-            else:
-                write_matrix_texcoord_generator(stream,generator,texture_matrices)
+            write_matrix_texcoord_generator(stream,generator,texture_matrices)
     elif generator.function in gx.TG_BUMP:
         if generator.source not in gx.TG_TEXCOORD:
             stream.write('vec3(1.0)')

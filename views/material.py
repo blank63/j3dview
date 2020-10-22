@@ -87,10 +87,14 @@ class Material(views.View):
             fields.append(('ambient_color{}'.format(i),gl.vec4,convert_color(channel.ambient_color)))
 
         for i,matrix in enumerate(self.texture_matrices):
-            if matrix is None:
-                fields.append(('texture_matrix{}'.format(i), gl.mat4x3, numpy.array([[1,0,0,0],[0,1,0,0],[0,0,0,1]],numpy.float32)))
-                continue
-            fields.append(('texture_matrix{}'.format(i),gl.mat4x3,matrix.create_matrix()))
+            value = numpy.array([[1,0,0,0],[0,1,0,0],[0,0,0,1]],numpy.float32)
+            if matrix.shape == gx.TG_MTX2x4:
+                value[:2, :] = matrix.create_matrix()
+            elif matrix.shape == gx.TG_MTX3x4:
+                value = matrix.create_matrix()
+            else:
+                raise ValueError('invalid texture matrix shape')
+            fields.append(('texture_matrix{}'.format(i),gl.mat4x3,value))
 
         for i,matrix in enumerate(self.indirect_matrices):
             if not self.use_indirect_matrix[i]: continue
