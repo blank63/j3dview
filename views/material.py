@@ -18,13 +18,43 @@ MATRIX_TABLE_TEXTURE_UNIT = 0
 TEXTURE_UNITS = [1,2,3,4,5,6,7,8]
 
 
+class UseLightAttribute:
+
+    def __init__(self, index):
+        self.index = index
+
+    def __set_name__(self, owner, name):
+        self.name = name
+        self.path = views.Path.for_attribute(name)
+
+    def __get__(self, instance, owner=None):
+        return bool(instance.viewed_object.light_mask & (1 << self.index))
+
+    def __set__(self, instance, value):
+        current_value = self.__get__(instance)
+        if value == current_value:
+            return
+        if value:
+            instance.viewed_object.light_mask |= (1 << self.index)
+        else:
+            instance.viewed_object.light_mask &= ~(1 << self.index)
+        instance.handle_event(views.ValueChangedEvent(), self.path)
+
+
 class LightingMode(views.View):
     material_source = views.Attribute()
     ambient_source = views.Attribute()
     diffuse_function = views.Attribute()
     attenuation_function = views.Attribute()
     light_enable = views.Attribute()
-    light_mask = views.Attribute()
+    use_light0 = UseLightAttribute(0)
+    use_light1 = UseLightAttribute(1)
+    use_light2 = UseLightAttribute(2)
+    use_light3 = UseLightAttribute(3)
+    use_light4 = UseLightAttribute(4)
+    use_light5 = UseLightAttribute(5)
+    use_light6 = UseLightAttribute(6)
+    use_light7 = UseLightAttribute(7)
 
 
 class Channel(views.View):

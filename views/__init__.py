@@ -127,6 +127,11 @@ class PathBuilder:
         """
         return self.__path
 
+    def __radd__(self, other):
+        if isinstance(other, Path):
+            return other + self.__path
+        return NotImplemented
+
 
 path_builder = PathBuilder()
 

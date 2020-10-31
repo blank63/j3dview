@@ -724,9 +724,9 @@
     </widget>
    </item>
    <item row="12" column="0" colspan="2">
-    <widget class="QPushButton" name="edit_channels_button">
+    <widget class="QPushButton" name="advanced_button">
      <property name="text">
-      <string>Edit Channels...</string>
+      <string>Advanced...</string>
      </property>
     </widget>
    </item>
@@ -777,7 +777,7 @@
   <tabstop>blend_mode_source_factor</tabstop>
   <tabstop>blend_mode_destination_factor</tabstop>
   <tabstop>blend_mode_logical_operation</tabstop>
-  <tabstop>edit_channels_button</tabstop>
+  <tabstop>advanced_button</tabstop>
  </tabstops>
  <resources/>
  <connections/>
