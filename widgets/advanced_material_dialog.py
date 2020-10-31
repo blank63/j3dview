@@ -227,10 +227,17 @@ class MaterialAdaptor(ModelAdaptor):
             self.add_lighting_mode('Color', +_p.channels[i].color_mode, channel)
             self.add_lighting_mode('Alpha', +_p.channels[i].alpha_mode, channel)
 
-        self.update_channel_list()
+        self.add_item(PropertyItem('Num. Tex. Gens.', +_p.texcoord_generator_count))
+        self.texcoord_generator_list = GroupItem(['Tex. Gens.', ''])
+        self.add_item(self.texcoord_generator_list)
+        for i in range(8):
+            self.add_texcoord_generator(f'Tex. Gen. {i}', +_p.texcoord_generators[i], self.texcoord_generator_list)
 
-    def add_lighting_mode(self, header, path, parent):
-        lighting_mode = GroupItem([header, ''])
+        self.update_channel_list()
+        self.update_texcoord_generator_list()
+
+    def add_lighting_mode(self, label, path, parent):
+        lighting_mode = GroupItem([label, ''])
         self.add_item(lighting_mode, parent)
         self.add_item(PropertyItem('Mat. Source', path + _p.material_source), lighting_mode)
         self.add_item(PropertyItem('Amb. Source', path + _p.ambient_source), lighting_mode)
@@ -246,6 +253,13 @@ class MaterialAdaptor(ModelAdaptor):
         self.add_item(PropertyItem('Use Light 6', path + _p.use_light6), lighting_mode)
         self.add_item(PropertyItem('Use Light 7', path + _p.use_light7), lighting_mode)
 
+    def add_texcoord_generator(self, label, path, parent):
+        texcoord_generator = GroupItem([label, ''])
+        self.add_item(texcoord_generator, parent)
+        self.add_item(PropertyItem('Function', path + _p.function), texcoord_generator)
+        self.add_item(PropertyItem('Source', path + _p.source), texcoord_generator)
+        self.add_item(PropertyItem('Matrix', path + _p.matrix), texcoord_generator)
+
     def update_channel_list(self):
         for i in range(self.channel_list.child_count):
             enable = i < self.view.channel_count
@@ -254,10 +268,20 @@ class MaterialAdaptor(ModelAdaptor):
         right = self.sibling(left.row(), self.columnCount(left) - 1, left)
         self.dataChanged.emit(left, right)
 
+    def update_texcoord_generator_list(self):
+        for i in range(self.texcoord_generator_list.child_count):
+            enable = i < self.view.texcoord_generator_count
+            self.texcoord_generator_list.get_child(i).set_enabled(enable)
+        left = self.get_item_index(self.texcoord_generator_list)
+        right = self.sibling(left.row(), self.columnCount(left) - 1, left)
+        self.dataChanged.emit(left, right)
+
     def handle_event(self, event, path):
         if isinstance(event, views.ValueChangedEvent):
             if path == +_p.channel_count:
                 self.update_channel_list()
+            elif path == +_p.texcoord_generator_count:
+                self.update_texcoord_generator_list()
 
 
 class ComboBoxDelegate(QtWidgets.QStyledItemDelegate):
@@ -425,6 +449,10 @@ class AdvancedMaterialDialog(QtWidgets.QDialog):
             self.add_lighting_mode_delegates(+_p.channels[i].color_mode)
             self.add_lighting_mode_delegates(+_p.channels[i].alpha_mode)
 
+        self.add_delegate(+_p.texcoord_generator_count, CountDelegate(8))
+        for i in range(8):
+            self.add_texcoord_generator_delegates(+_p.texcoord_generators[i])
+
     def add_delegate(self, path, delegate):
         self.delegate.add_delegate(path, delegate)
 
@@ -442,6 +470,11 @@ class AdvancedMaterialDialog(QtWidgets.QDialog):
         self.add_delegate(path + _p.use_light5, CheckBoxDelegate())
         self.add_delegate(path + _p.use_light6, CheckBoxDelegate())
         self.add_delegate(path + _p.use_light7, CheckBoxDelegate())
+
+    def add_texcoord_generator_delegates(self, path):
+        self.add_delegate(path + _p.function, EnumDelegate(gx.TexCoordFunction))
+        self.add_delegate(path + _p.source, EnumDelegate(gx.TexCoordSource))
+        self.add_delegate(path + _p.matrix, EnumDelegate(gx.TextureMatrix))
 
     def setMaterial(self, material):
         self.tree_view.setModel(MaterialAdaptor(material))
