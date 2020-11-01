@@ -233,6 +233,11 @@ class MaterialAdaptor(ModelAdaptor):
         for i in range(8):
             self.add_texcoord_generator(f'Tex. Gen. {i}', +_p.texcoord_generators[i], self.texcoord_generator_list)
 
+        texture_matrix_list = GroupItem(['Texture Matrices', ''])
+        self.add_item(texture_matrix_list)
+        for i in range(10):
+            self.add_texture_matrix(f'Texture Matrix {i}', +_p.texture_matrices[i], texture_matrix_list)
+
         self.update_channel_list()
         self.update_texcoord_generator_list()
 
@@ -259,6 +264,21 @@ class MaterialAdaptor(ModelAdaptor):
         self.add_item(PropertyItem('Function', path + _p.function), texcoord_generator)
         self.add_item(PropertyItem('Source', path + _p.source), texcoord_generator)
         self.add_item(PropertyItem('Matrix', path + _p.matrix), texcoord_generator)
+
+    def add_texture_matrix(self, label, path, parent):
+        texture_matrix = GroupItem([label, ''])
+        self.add_item(texture_matrix, parent)
+        self.add_item(PropertyItem('Shape', path + _p.shape), texture_matrix)
+        self.add_item(PropertyItem('Type', path + _p.matrix_type), texture_matrix)
+        self.add_item(PropertyItem('Center S', path + _p.center_s), texture_matrix)
+        self.add_item(PropertyItem('Center T', path + _p.center_t), texture_matrix)
+        self.add_item(PropertyItem('Unknown 0', path + _p.unknown0), texture_matrix)
+        self.add_item(PropertyItem('Scale S', path + _p.scale_s), texture_matrix)
+        self.add_item(PropertyItem('Scale T', path + _p.scale_t), texture_matrix)
+        self.add_item(PropertyItem('Rotation', path + _p.rotation), texture_matrix)
+        self.add_item(PropertyItem('Translation S', path + _p.translation_s), texture_matrix)
+        self.add_item(PropertyItem('Translation T', path + _p.translation_t), texture_matrix)
+        #TODO projection matrix
 
     def update_channel_list(self):
         for i in range(self.channel_list.child_count):
@@ -364,6 +384,53 @@ class CheckBoxDelegate(QtWidgets.QStyledItemDelegate):
         return None
 
 
+class SpinBoxDelegate(QtWidgets.QStyledItemDelegate):
+
+    def __init__(self, min, max, step=1):
+        super().__init__()
+        self.minimum = min
+        self.maximum = max
+        self.step = step
+
+    def createEditor(self, parent, option, index):
+        editor = QtWidgets.QSpinBox(parent)
+        editor.setMinimum(self.minimum)
+        editor.setMaximum(self.maximum)
+        editor.setSingleStep(self.step)
+        editor.valueChanged.connect(self.on_editor_valueChanged)
+        return editor
+
+    @QtCore.pyqtSlot(int)
+    def on_editor_valueChanged(self, value):
+        self.commitData.emit(self.sender())
+
+
+class DoubleSpinBoxDelegate(QtWidgets.QStyledItemDelegate):
+
+    def __init__(self, min, max, step=1, decimals=2):
+        super().__init__()
+        self.minimum = min
+        self.maximum = max
+        self.step = step
+        self.decimals = decimals
+
+    def displayText(self, value, locale):
+        return super().displayText(f'{value:.{self.decimals}f}', locale)
+
+    def createEditor(self, parent, option, index):
+        editor = QtWidgets.QDoubleSpinBox(parent)
+        editor.setMinimum(self.minimum)
+        editor.setMaximum(self.maximum)
+        editor.setSingleStep(self.step)
+        editor.setDecimals(self.decimals)
+        editor.valueChanged.connect(self.on_editor_valueChanged)
+        return editor
+
+    @QtCore.pyqtSlot(float)
+    def on_editor_valueChanged(self, value):
+        self.commitData.emit(self.sender())
+
+
 class CountDelegate(ComboBoxDelegate):
 
     def __init__(self, max_count):
@@ -453,6 +520,9 @@ class AdvancedMaterialDialog(QtWidgets.QDialog):
         for i in range(8):
             self.add_texcoord_generator_delegates(+_p.texcoord_generators[i])
 
+        for i in range(10):
+            self.add_texture_matrix_delegates(+_p.texture_matrices[i])
+
     def add_delegate(self, path, delegate):
         self.delegate.add_delegate(path, delegate)
 
@@ -475,6 +545,19 @@ class AdvancedMaterialDialog(QtWidgets.QDialog):
         self.add_delegate(path + _p.function, EnumDelegate(gx.TexCoordFunction))
         self.add_delegate(path + _p.source, EnumDelegate(gx.TexCoordSource))
         self.add_delegate(path + _p.matrix, EnumDelegate(gx.TextureMatrix))
+
+    def add_texture_matrix_delegates(self, path):
+        float_delegate = DoubleSpinBoxDelegate(min=-1000, max=1000, step=0.1)
+        self.add_delegate(path + _p.shape, EnumDelegate([gx.TG_MTX3x4, gx.TG_MTX2x4]))
+        self.add_delegate(path + _p.matrix_type, SpinBoxDelegate(min=0, max=255))
+        self.add_delegate(path + _p.center_s, float_delegate)
+        self.add_delegate(path + _p.center_t, float_delegate)
+        self.add_delegate(path + _p.unknown0, float_delegate)
+        self.add_delegate(path + _p.scale_s, float_delegate)
+        self.add_delegate(path + _p.scale_t, float_delegate)
+        self.add_delegate(path + _p.rotation, DoubleSpinBoxDelegate(min=-180, max=180))
+        self.add_delegate(path + _p.translation_s, float_delegate)
+        self.add_delegate(path + _p.translation_t, float_delegate)
 
     def setMaterial(self, material):
         self.tree_view.setModel(MaterialAdaptor(material))

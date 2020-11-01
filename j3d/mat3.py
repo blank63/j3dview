@@ -212,7 +212,8 @@ class TextureMatrix(Struct):
         elif self.matrix_type in {0x08,0x09}:
             P = numpy.matrix([[0.5,0,0.5,0],[0,-0.5,0.5,0],[0,0,1,0]])*numpy.matrix(self.projection_matrix)
         else:
-            raise ValueError('invalid texture matrix type')
+            logger.warning('unknown texture matrix type: %s', self.matrix_type)
+            P = numpy.matrix([[1,0,0,0],[0,1,0,0],[0,0,0,1]])
 
         M = T*C*S*R*C.I*P
 

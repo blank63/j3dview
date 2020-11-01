@@ -64,6 +64,23 @@ class Channel(views.View):
     ambient_color = views.Attribute()
 
 
+class TextureMatrix(views.View):
+    shape = views.Attribute()
+    matrix_type = views.Attribute()
+    center_s = views.Attribute()
+    center_t = views.Attribute()
+    unknown0 = views.Attribute()
+    scale_s = views.Attribute()
+    scale_t = views.Attribute()
+    rotation = views.Attribute()
+    translation_s = views.Attribute()
+    translation_t = views.Attribute()
+    projection_matrix = views.Attribute()
+
+    def create_matrix(self):
+        return self.viewed_object.create_matrix()
+
+
 class TexCoordGenerator(views.View):
     function = views.Attribute()
     source = views.Attribute()
@@ -151,7 +168,7 @@ class Material(views.View):
 
     texcoord_generator_count = views.Attribute()
     texcoord_generators = views.ViewAttribute(views.ViewListView, TexCoordGenerator)
-    texture_matrices = views.ReadOnlyAttribute()
+    texture_matrices = views.ViewAttribute(views.ViewListView, TextureMatrix)
     texture_indices = views.ReadOnlyAttribute()
 
     tev_stage_count = views.ReadOnlyAttribute()
@@ -228,6 +245,16 @@ class Material(views.View):
                 +_p.texcoord_generators[7].function,
                 +_p.texcoord_generators[7].source,
                 +_p.texcoord_generators[7].matrix,
+                +_p.texture_matrices[0].matrix_type,
+                +_p.texture_matrices[1].matrix_type,
+                +_p.texture_matrices[2].matrix_type,
+                +_p.texture_matrices[3].matrix_type,
+                +_p.texture_matrices[4].matrix_type,
+                +_p.texture_matrices[5].matrix_type,
+                +_p.texture_matrices[6].matrix_type,
+                +_p.texture_matrices[7].matrix_type,
+                +_p.texture_matrices[8].matrix_type,
+                +_p.texture_matrices[9].matrix_type,
                 +_p.depth_test_early,
                 +_p.alpha_test.function0,
                 +_p.alpha_test.reference0,
@@ -238,17 +265,38 @@ class Material(views.View):
                 self.gl_shader_invalidate()
             elif path.match(+_p.channels[...].material_color):
                 index = path[1].key
-                if self.use_material_color[index]:
-                    c = self.channels[index].material_color
-                    self.gl_block[f'material_color{index}'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
+                c = self.channels[index].material_color
+                self.gl_block[f'material_color{index}'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
             elif path.match(+_p.channels[...].ambient_color):
                 index = path[1].key
-                if self.use_ambient_color[index]:
-                    c = self.channels[index].material_color
-                    self.gl_block[f'ambient_color{index}'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
+                c = self.channels[index].material_color
+                self.gl_block[f'ambient_color{index}'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
+            elif (
+                path.match(+_p.texture_matrices[...].shape) or
+                path.match(+_p.texture_matrices[...].matrix_type) or
+                path.match(+_p.texture_matrices[...].center_s) or
+                path.match(+_p.texture_matrices[...].center_t) or
+                path.match(+_p.texture_matrices[...].unknown0) or
+                path.match(+_p.texture_matrices[...].scale_s) or
+                path.match(+_p.texture_matrices[...].scale_t) or
+                path.match(+_p.texture_matrices[...].rotation) or
+                path.match(+_p.texture_matrices[...].translation_s) or
+                path.match(+_p.texture_matrices[...].translation_t) or
+                path.match(+_p.texture_matrices[...].projection_matrix)
+                ):
+                index = path[1].key
+                matrix = self.texture_matrices[index]
+                value = numpy.array([[1,0,0,0],[0,1,0,0],[0,0,0,1]],numpy.float32)
+                if matrix.shape == gx.TG_MTX2x4:
+                    value[:2, :] = matrix.create_matrix()
+                elif matrix.shape == gx.TG_MTX3x4:
+                    value = matrix.create_matrix()
+                else:
+                    raise ValueError('invalid texture matrix shape')
+                self.gl_block[f'texture_matrix{index}'] = value
             elif path.match(+_p.tev_color_previous):
                 c = self.tev_color_previous
-                self.gl_block[f'tev_color_previouse'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
+                self.gl_block[f'tev_color_previous'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
             elif path.match(+_p.tev_colors[...]):
                 index = path[1].key
                 c = self.tev_colors[index]
