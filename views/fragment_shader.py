@@ -691,8 +691,15 @@ def create_shader_string(material):
     for i,generator in enumerate(material.enabled_texcoord_generators):
         stream.write('in vec3 generated_texcoord{};\n'.format(i))
 
+    use_texture = [False]*8
+    for stage in material.enabled_tev_stages:
+        if stage.texture != gx.TEXMAP_NULL:
+            use_texture[stage.texture.index] = True
+    for stage in material.enabled_indirect_stages:
+        use_texture[stage.texture.index] = True
+
     for i in range(8):
-        if not material.use_texture[i]: continue
+        if not use_texture[i]: continue
         stream.write('uniform sampler2D texmap{};\n'.format(i))
 
     stream.write('out vec4 fragment_color;\n')

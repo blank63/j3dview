@@ -108,56 +108,121 @@ class BlendMode(views.View):
     logical_operation = views.Attribute()
 
 
+class ColorBlockProperty:
+
+    def __init__(self, path, field_name):
+        self.path = path
+        self.field_name = field_name
+        self.field_type = gl.vec4
+        self.triggers = [path]
+
+    def update_block(self, block, material):
+        value = self.path.get_value(material)
+        field = block[self.field_name]
+        field[0] = value.r/255
+        field[1] = value.g/255
+        field[2] = value.b/255
+        field[3] = value.a/255
+
+
+class TextureMatrixBlockProperty:
+
+    def __init__(self, path, field_name):
+        self.path = path
+        self.field_name = field_name
+        self.field_type = gl.mat4x3
+        self.triggers = [
+            path + _p.shape,
+            path + _p.matrix_type,
+            path + _p.center_s,
+            path + _p.center_t,
+            path + _p.scale_s,
+            path + _p.scale_t,
+            path + _p.rotation,
+            path + _p.translation_s,
+            path + _p.translation_t,
+            path + _p.projection_matrix
+        ]
+
+    def update_block(self, block, material):
+        value = self.path.get_value(material).create_matrix()
+        block[self.field_name][:value.shape[0], :] = value
+
+
+class IndirectMatrixBlockProperty:
+
+    def __init__(self, path, field_name):
+        self.path = path
+        self.field_name = field_name
+        self.field_type = gl.mat3x2
+        self.triggers = [+_p]
+
+    def update_block(self, block, material):
+        matrix = self.path.get_value(material)
+        value = numpy.zeros((2, 4),numpy.float32) #FIXME
+        value[:, 0:3] = numpy.array(matrix.significand_matrix, numpy.float32)*2**matrix.scale_exponent
+        block[self.field_name] = value
+
+
+BLOCK_PROPERTIES = []
+for i in range(2):
+    BLOCK_PROPERTIES.append(ColorBlockProperty(+_p.channels[i].material_color, f'material_color{i}'))
+    BLOCK_PROPERTIES.append(ColorBlockProperty(+_p.channels[i].ambient_color, f'ambient_color{i}'))
+for i in range(3):
+    BLOCK_PROPERTIES.append(ColorBlockProperty(+_p.tev_colors[i], f'tev_color{i}'))
+BLOCK_PROPERTIES.append(ColorBlockProperty(+_p.tev_color_previous, 'tev_color_previous'))
+for i in range(4):
+    BLOCK_PROPERTIES.append(ColorBlockProperty(+_p.kcolors[i], f'kcolor{i}'))
+for i in range(10):
+    BLOCK_PROPERTIES.append(TextureMatrixBlockProperty(+_p.texture_matrices[i], f'texture_matrix{i}'))
+for i in range(3):
+    BLOCK_PROPERTIES.append(IndirectMatrixBlockProperty(+_p.indirect_matrices[i], f'indmatrix{i}'))
+
+
+MaterialBlock = gl.uniform_block('MaterialBlock', (
+    (block_property.field_name, block_property.field_type)
+    for block_property in BLOCK_PROPERTIES
+))
+
+
+BLOCK_TRIGGER_TABLE = {
+    trigger : block_property
+    for block_property in BLOCK_PROPERTIES
+    for trigger in block_property.triggers
+}
+
+
+SHADER_TRIGGERS = set()
+SHADER_TRIGGERS.add(+_p.channel_count)
+for i in range(2):
+    SHADER_TRIGGERS.add(+_p.channels[i].color_mode.material_source)
+    SHADER_TRIGGERS.add(+_p.channels[i].color_mode.ambient_source)
+    SHADER_TRIGGERS.add(+_p.channels[i].color_mode.light_enable)
+SHADER_TRIGGERS.add(+_p.texcoord_generator_count)
+for i in range(8):
+    SHADER_TRIGGERS.add(+_p.texcoord_generators[i].function)
+    SHADER_TRIGGERS.add(+_p.texcoord_generators[i].source)
+    SHADER_TRIGGERS.add(+_p.texcoord_generators[i].matrix)
+for i in range(10):
+    SHADER_TRIGGERS.add(+_p.texture_matrices[i].matrix_type)
+SHADER_TRIGGERS.add(+_p.depth_test_early)
+SHADER_TRIGGERS.add(+_p.alpha_test.function0)
+SHADER_TRIGGERS.add(+_p.alpha_test.reference0)
+SHADER_TRIGGERS.add(+_p.alpha_test.function1)
+SHADER_TRIGGERS.add(+_p.alpha_test.reference1)
+SHADER_TRIGGERS.add(+_p.alpha_test.operator)
+SHADER_TRIGGERS = frozenset(SHADER_TRIGGERS)
+
+
 class Material(views.View):
 
     def __init__(self, viewed_object):
         super().__init__(viewed_object)
-
-        self.update_use_variables()
-
-        fields = []
-
-        def convert_color(c):
-            return numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
-
-        fields.append(('tev_color0',gl.vec4,convert_color(self.tev_colors[0])))
-        fields.append(('tev_color1',gl.vec4,convert_color(self.tev_colors[1])))
-        fields.append(('tev_color2',gl.vec4,convert_color(self.tev_colors[2])))
-        fields.append(('tev_color_previous',gl.vec4,convert_color(self.tev_color_previous)))
-        fields.append(('kcolor0',gl.vec4,convert_color(self.kcolors[0])))
-        fields.append(('kcolor1',gl.vec4,convert_color(self.kcolors[1])))
-        fields.append(('kcolor2',gl.vec4,convert_color(self.kcolors[2])))
-        fields.append(('kcolor3',gl.vec4,convert_color(self.kcolors[3])))
-
-        for i,channel in enumerate(self.channels):
-            fields.append(('material_color{}'.format(i),gl.vec4,convert_color(channel.material_color)))
-            fields.append(('ambient_color{}'.format(i),gl.vec4,convert_color(channel.ambient_color)))
-
-        for i,matrix in enumerate(self.texture_matrices):
-            value = numpy.array([[1,0,0,0],[0,1,0,0],[0,0,0,1]],numpy.float32)
-            if matrix.shape == gx.TG_MTX2x4:
-                value[:2, :] = matrix.create_matrix()
-            elif matrix.shape == gx.TG_MTX3x4:
-                value = matrix.create_matrix()
-            else:
-                raise ValueError('invalid texture matrix shape')
-            fields.append(('texture_matrix{}'.format(i),gl.mat4x3,value))
-
-        for i,matrix in enumerate(self.indirect_matrices):
-            if not self.use_indirect_matrix[i]: continue
-            gl_value = numpy.zeros((2,4),numpy.float32) #FIXME
-            gl_value[:,0:3] = numpy.array(matrix.significand_matrix,numpy.float32)*2**matrix.scale_exponent
-            fields.append(('indmatrix{}'.format(i),gl.mat3x2,gl_value))
-
-        block_type = gl.uniform_block('MaterialBlock',((name,gl_type) for name,gl_type,_ in fields))
-        block = self.gl_create_resource(block_type, GL_DYNAMIC_DRAW)
-
-        for name,_,value in fields:
-            block[name] = value
-
-        self.gl_block = block
-
+        self.gl_block = self.gl_create_resource(MaterialBlock, GL_DYNAMIC_DRAW)
         self.gl_program_table = {}
+
+        for block_property in BLOCK_PROPERTIES:
+            block_property.update_block(self.gl_block, self)
 
     name = views.Attribute()
     unknown0 = views.Attribute()
@@ -169,7 +234,7 @@ class Material(views.View):
     texcoord_generator_count = views.Attribute()
     texcoord_generators = views.ViewAttribute(views.ViewListView, TexCoordGenerator)
     texture_matrices = views.ViewAttribute(views.ViewListView, TextureMatrix)
-    texture_indices = views.ReadOnlyAttribute()
+    texture_indices = views.ViewAttribute(views.ListView)
 
     tev_stage_count = views.ReadOnlyAttribute()
     tev_stages = views.ReadOnlyAttribute()
@@ -191,7 +256,7 @@ class Material(views.View):
 
     @property
     def enabled_channels(self):
-        for i in range(min(self.channel_count, 2)):
+        for i in range(self.channel_count):
             yield self.channels[i]
 
     @property
@@ -211,167 +276,12 @@ class Material(views.View):
 
     def handle_event(self, event, path):
         if isinstance(event, views.ValueChangedEvent):
-            #TODO simplify this
-            if path in {
-                +_p.channel_count,
-                +_p.channels[0].color_mode.material_source,
-                +_p.channels[0].color_mode.ambient_source,
-                +_p.channels[0].color_mode.light_enable,
-                +_p.channels[1].color_mode.material_source,
-                +_p.channels[1].color_mode.ambient_source,
-                +_p.channels[1].color_mode.light_enable,
-                +_p.texcoord_generator_count,
-                +_p.texcoord_generators[0].function,
-                +_p.texcoord_generators[0].source,
-                +_p.texcoord_generators[0].matrix,
-                +_p.texcoord_generators[1].function,
-                +_p.texcoord_generators[1].source,
-                +_p.texcoord_generators[1].matrix,
-                +_p.texcoord_generators[2].function,
-                +_p.texcoord_generators[2].source,
-                +_p.texcoord_generators[2].matrix,
-                +_p.texcoord_generators[3].function,
-                +_p.texcoord_generators[3].source,
-                +_p.texcoord_generators[3].matrix,
-                +_p.texcoord_generators[4].function,
-                +_p.texcoord_generators[4].source,
-                +_p.texcoord_generators[4].matrix,
-                +_p.texcoord_generators[5].function,
-                +_p.texcoord_generators[5].source,
-                +_p.texcoord_generators[5].matrix,
-                +_p.texcoord_generators[6].function,
-                +_p.texcoord_generators[6].source,
-                +_p.texcoord_generators[6].matrix,
-                +_p.texcoord_generators[7].function,
-                +_p.texcoord_generators[7].source,
-                +_p.texcoord_generators[7].matrix,
-                +_p.texture_matrices[0].matrix_type,
-                +_p.texture_matrices[1].matrix_type,
-                +_p.texture_matrices[2].matrix_type,
-                +_p.texture_matrices[3].matrix_type,
-                +_p.texture_matrices[4].matrix_type,
-                +_p.texture_matrices[5].matrix_type,
-                +_p.texture_matrices[6].matrix_type,
-                +_p.texture_matrices[7].matrix_type,
-                +_p.texture_matrices[8].matrix_type,
-                +_p.texture_matrices[9].matrix_type,
-                +_p.depth_test_early,
-                +_p.alpha_test.function0,
-                +_p.alpha_test.reference0,
-                +_p.alpha_test.function1,
-                +_p.alpha_test.reference1,
-                +_p.alpha_test.operator
-                }:
+            if path in BLOCK_TRIGGER_TABLE:
+                block_property = BLOCK_TRIGGER_TABLE[path]
+                block_property.update_block(self.gl_block, self)
+            if path in SHADER_TRIGGERS:
                 self.gl_shader_invalidate()
-            elif path.match(+_p.channels[...].material_color):
-                index = path[1].key
-                c = self.channels[index].material_color
-                self.gl_block[f'material_color{index}'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
-            elif path.match(+_p.channels[...].ambient_color):
-                index = path[1].key
-                c = self.channels[index].material_color
-                self.gl_block[f'ambient_color{index}'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
-            elif (
-                path.match(+_p.texture_matrices[...].shape) or
-                path.match(+_p.texture_matrices[...].matrix_type) or
-                path.match(+_p.texture_matrices[...].center_s) or
-                path.match(+_p.texture_matrices[...].center_t) or
-                path.match(+_p.texture_matrices[...].unknown0) or
-                path.match(+_p.texture_matrices[...].scale_s) or
-                path.match(+_p.texture_matrices[...].scale_t) or
-                path.match(+_p.texture_matrices[...].rotation) or
-                path.match(+_p.texture_matrices[...].translation_s) or
-                path.match(+_p.texture_matrices[...].translation_t) or
-                path.match(+_p.texture_matrices[...].projection_matrix)
-                ):
-                index = path[1].key
-                matrix = self.texture_matrices[index]
-                value = numpy.array([[1,0,0,0],[0,1,0,0],[0,0,0,1]],numpy.float32)
-                if matrix.shape == gx.TG_MTX2x4:
-                    value[:2, :] = matrix.create_matrix()
-                elif matrix.shape == gx.TG_MTX3x4:
-                    value = matrix.create_matrix()
-                else:
-                    raise ValueError('invalid texture matrix shape')
-                self.gl_block[f'texture_matrix{index}'] = value
-            elif path.match(+_p.tev_color_previous):
-                c = self.tev_color_previous
-                self.gl_block[f'tev_color_previous'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
-            elif path.match(+_p.tev_colors[...]):
-                index = path[1].key
-                c = self.tev_colors[index]
-                self.gl_block[f'tev_color{index}'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
-            elif path.match(+_p.kcolors[...]):
-                index = path[1].key
-                c = self.kcolors[index]
-                self.gl_block[f'kcolor{index}'] = numpy.array([c.r,c.g,c.b,c.a],numpy.float32)/0xFF
         super().handle_event(event, path)
-
-    def update_use_variables(self):
-        self.use_normal = False
-        self.use_binormal = False
-        self.use_tangent = False
-        self.use_color = False
-        self.use_texcoord = [False]*8
-        self.use_material_color = [False]*2
-        self.use_ambient_color = [False]*2
-        self.use_texture_matrix = [False]*10
-        self.use_texture = [False]*8
-        self.use_indirect_matrix = [False]*3
-
-        for i,channel in enumerate(self.enabled_channels):
-            if channel.color_mode.material_source == gx.SRC_REG:
-                self.use_material_color[i] = True
-            elif channel.color_mode.material_source == gx.SRC_VTX:
-                self.use_color = True
-            else:
-                raise ValueError('invalid material source')
-
-            if channel.alpha_mode.material_source == gx.SRC_REG:
-                self.use_material_color[i] = True
-            elif channel.alpha_mode.material_source == gx.SRC_VTX:
-                self.use_color = True
-            else:
-                raise ValueError('inavlid material source')
-
-            if channel.color_mode.light_enable:
-                if channel.color_mode.ambient_source == gx.SRC_REG:
-                    self.use_ambient_color[i] = True
-                elif channel.color_mode.ambient_source == gx.SRC_VTX:
-                    self.use_color = True
-                else:
-                    raise ValueError('invalid ambient source')
-
-            #if channel.alpha_mode.light_enable:
-            #    if channel.alpha_mode.ambient_source == gx.SRC_REG:
-            #        self.use_ambient_color[i] = True
-            #    elif channel.alpha_mode.ambient_source == gx.SRC_VTX:
-            #        self.use_color = True
-            #    else:
-            #        raise ValueError('invalid ambient source')
-
-        for generator in self.enabled_texcoord_generators:
-            if generator.function in {gx.TG_MTX2x4,gx.TG_MTX3x4}:
-                if generator.source == gx.TG_NRM:
-                    self.use_normal = True
-                elif generator.source == gx.TG_BINRM:
-                    self.use_binormal = True
-                elif generator.source == gx.TG_TANGENT:
-                    self.use_tangent = True
-                elif generator.source in gx.TG_TEX:
-                    self.use_texcoord[generator.source.index] = True
-
-                if generator.matrix != gx.IDENTITY:
-                    self.use_texture_matrix[generator.matrix.index] = True
-
-        for stage in self.enabled_tev_stages:
-            if stage.texture != gx.TEXMAP_NULL:
-                self.use_texture[stage.texture.index] = True
-            if stage.indirect_matrix in gx.ITM:
-                self.use_indirect_matrix[stage.indirect_matrix.index] = True
-
-        for stage in self.enabled_indirect_stages:
-            self.use_texture[stage.texture.index] = True
 
     def gl_program(self, transformation_type):
         if transformation_type in self.gl_program_table:
@@ -412,7 +322,6 @@ class Material(views.View):
         for program in self.gl_program_table.values():
             self.gl_delete_resource(program)
         self.gl_program_table.clear()
-        self.update_use_variables()
 
     @property
     def gl_cull_mode(self):

@@ -167,22 +167,50 @@ def create_shader_string(material, transformation_type):
     else:
         raise ValueError('invalid matrix type')
 
+    use_normal = False
+    use_binormal = False
+    use_tangent = False
+    use_color = False
+    use_texcoord = [False]*8
+
+    for i, channel in enumerate(material.enabled_channels):
+        if channel.color_mode.material_source == gx.SRC_VTX:
+            use_color = True
+        if channel.alpha_mode.material_source == gx.SRC_VTX:
+            use_color = True
+        if channel.color_mode.light_enable and channel.color_mode.ambient_source == gx.SRC_VTX:
+            use_color = True
+        if channel.alpha_mode.light_enable and channel.alpha_mode.ambient_source == gx.SRC_VTX:
+            use_color = True
+
+    for generator in material.enabled_texcoord_generators:
+        if generator.function not in {gx.TG_MTX2x4,gx.TG_MTX3x4}:
+            continue
+        if generator.source == gx.TG_NRM:
+            use_normal = True
+        elif generator.source == gx.TG_BINRM:
+            use_binormal = True
+        elif generator.source == gx.TG_TANGENT:
+            use_tangent = True
+        elif generator.source in gx.TG_TEX:
+            use_texcoord[generator.source.index] = True
+
     stream.write('layout(location={}) in vec4 position;\n'.format(POSITION_ATTRIBUTE_LOCATION))
 
-    if material.use_normal:
+    if use_normal:
         stream.write('layout(location={}) in vec3 normal;\n'.format(NORMAL_ATTRIBUTE_LOCATION))
 
-    if material.use_binormal:
+    if use_binormal:
         stream.write('layout(location={}) in vec3 binormal;\n'.format(BINORMAL_ATTRIBUTE_LOCATION))
 
-    if material.use_tangent:
+    if use_tangent:
         stream.write('layout(location={}) in vec3 tangent;\n'.format(TANGENT_ATTRIBUTE_LOCATION))
 
-    if material.use_color:
+    if use_color:
         stream.write('layout(location={}) in vec4 color;\n'.format(COLOR_ATTRIBUTE_LOCATION))
 
     for i in range(8):
-        if not material.use_texcoord[i]: continue
+        if not use_texcoord[i]: continue
         stream.write('layout(location={}) in vec2 texcoord{};\n'.format(TEXCOORD_ATTRIBUTE_LOCATIONS[i],i))
 
     for i,channel in enumerate(material.enabled_channels):
