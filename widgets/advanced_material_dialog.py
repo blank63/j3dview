@@ -278,7 +278,7 @@ class MaterialAdaptor(ModelAdaptor):
         self.add_item(PropertyItem('Rotation', path + _p.rotation), texture_matrix)
         self.add_item(PropertyItem('Translation S', path + _p.translation_s), texture_matrix)
         self.add_item(PropertyItem('Translation T', path + _p.translation_t), texture_matrix)
-        #TODO projection matrix
+        self.add_item(PropertyItem('Projection Matrix', path + _p.projection_matrix), texture_matrix)
 
     def update_channel_list(self):
         for i in range(self.channel_list.child_count):
@@ -313,10 +313,6 @@ class ComboBoxDelegate(QtWidgets.QStyledItemDelegate):
         editor = QtWidgets.QComboBox(parent)
         for user_data in self.get_item_data():
             editor.addItem(self.displayText(user_data, option.locale), user_data)
-        #if QtWidgets.qApp.mouseButtons() & QtCore.Qt.LeftButton and option.rect.contains(parent.mapFromGlobal(QtGui.QCursor.pos())):
-        #    self.setEditorData(editor, index)
-        #    editor.setGeometry(option.rect)
-        #    editor.showPopup()
         editor.activated.connect(self.on_editor_activated)
         return editor
 
@@ -431,6 +427,30 @@ class DoubleSpinBoxDelegate(QtWidgets.QStyledItemDelegate):
         self.commitData.emit(self.sender())
 
 
+class MatrixDelegate(QtWidgets.QStyledItemDelegate):
+
+    def displayText(self, value, locale):
+        text = '\n'.join(
+            ', '.join(str(v) for v in c)
+            for c in value
+        )
+        return super().displayText(text, locale)
+
+    def sizeHint(self, option, index):
+        option = QtWidgets.QStyleOptionViewItem(option)
+        self.initStyleOption(option, index)
+        return option.fontMetrics.size(0, option.text)
+
+    def paint(self, painter, option, index):
+        option = QtWidgets.QStyleOptionViewItem(option)
+        self.initStyleOption(option, index)
+        painter.drawText(option.rect, 0, option.text)
+
+    def createEditor(self, parent, option, index):
+        #TODO implement editing
+        return None
+
+
 class CountDelegate(ComboBoxDelegate):
 
     def __init__(self, max_count):
@@ -465,6 +485,13 @@ class DelegateDelegate(QtWidgets.QStyledItemDelegate):
         self.delegate_table[path] = delegate
         delegate.commitData.connect(self.commitData.emit)
         delegate.closeEditor.connect(self.closeEditor.emit)
+
+    def sizeHint(self, option, index):
+        path = index.data(PathRole)
+        if path in self.delegate_table:
+            return self.delegate_table[path].sizeHint(option, index)
+        else:
+            return super().sizeHint(option, index)
 
     def paint(self, painter, option, index):
         path = index.data(PathRole)
@@ -558,6 +585,7 @@ class AdvancedMaterialDialog(QtWidgets.QDialog):
         self.add_delegate(path + _p.rotation, DoubleSpinBoxDelegate(min=-180, max=180))
         self.add_delegate(path + _p.translation_s, float_delegate)
         self.add_delegate(path + _p.translation_t, float_delegate)
+        self.add_delegate(path + _p.projection_matrix, MatrixDelegate())
 
     def setMaterial(self, material):
         self.tree_view.setModel(MaterialAdaptor(material))
