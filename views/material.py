@@ -121,6 +121,13 @@ class TevStage(views.View):
     unknown1 = views.Attribute()
 
 
+class SwapTable(views.View):
+    r = views.Attribute()
+    g = views.Attribute()
+    b = views.Attribute()
+    a = views.Attribute()
+
+
 class AlphaTest(views.View):
     function0 = views.Attribute()
     reference0 = views.Attribute()
@@ -256,6 +263,9 @@ class ShaderInfo:
         for i in range(16):
             yield from ShaderInfo._tev_stage_triggers(+_p.tev_stages[i])
 
+        for i in range(4):
+            yield from ShaderInfo._swap_table_triggers(+_p.swap_tables[i])
+
         yield +_p.depth_test_early
 
         yield +_p.alpha_test.function0
@@ -314,6 +324,13 @@ class ShaderInfo:
         yield path + _p.use_original_lod
         yield path + _p.bump_alpha
 
+    @staticmethod
+    def _swap_table_triggers(path):
+        yield path + _p.r
+        yield path + _p.g
+        yield path + _p.b
+        yield path + _p.a
+
 
 class Material(views.View):
 
@@ -345,7 +362,7 @@ class Material(views.View):
     tev_colors = views.ViewAttribute(views.ListView)
     tev_color_previous = views.Attribute()
     kcolors = views.ViewAttribute(views.ListView)
-    swap_tables = views.ReadOnlyAttribute()
+    swap_tables = views.ViewAttribute(views.ViewListView, SwapTable)
 
     indirect_stage_count = views.ReadOnlyAttribute()
     indirect_stages = views.ReadOnlyAttribute()

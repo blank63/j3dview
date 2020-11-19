@@ -244,6 +244,11 @@ class MaterialAdaptor(ModelAdaptor):
         for i in range(16):
             self.add_tev_stage(f'TEV Stage {i}', +_p.tev_stages[i], self.tev_stage_list)
 
+        swap_table_list = GroupItem(['Swap Tables', ''])
+        self.add_item(swap_table_list)
+        for i in range(4):
+            self.add_swap_table(f'Swap Table {i}', +_p.swap_tables[i], swap_table_list)
+
         self.update_channel_list()
         self.update_texcoord_generator_list()
         self.update_tev_stage_list()
@@ -331,6 +336,14 @@ class MaterialAdaptor(ModelAdaptor):
 
         self.add_item(PropertyItem('Unknown 0', path + _p.unknown0), tev_stage)
         self.add_item(PropertyItem('Unknown 1', path + _p.unknown1), tev_stage)
+
+    def add_swap_table(self, label, path, parent):
+        swap_table = GroupItem([label, ''])
+        self.add_item(swap_table, parent)
+        self.add_item(PropertyItem('R', path + _p.r), swap_table)
+        self.add_item(PropertyItem('G', path + _p.g), swap_table)
+        self.add_item(PropertyItem('B', path + _p.b), swap_table)
+        self.add_item(PropertyItem('A', path + _p.a), swap_table)
 
     def update_channel_list(self):
         for i in range(self.channel_list.child_count):
@@ -616,6 +629,9 @@ class AdvancedMaterialDialog(QtWidgets.QDialog):
         for i in range(16):
             self.add_tev_stage_delegates(+_p.tev_stages[i])
 
+        for i in range(4):
+            self.add_swap_table_delegates(+_p.swap_tables[i])
+
     def add_delegate(self, path, delegate):
         self.delegate.add_delegate(path, delegate)
 
@@ -695,6 +711,13 @@ class AdvancedMaterialDialog(QtWidgets.QDialog):
 
         self.add_delegate(path + _p.unknown0, SpinBoxDelegate(min=0, max=255))
         self.add_delegate(path + _p.unknown1, SpinBoxDelegate(min=0, max=255))
+
+    def add_swap_table_delegates(self, path):
+        delegate = EnumDelegate(gx.ColorComponent)
+        self.add_delegate(path + _p.r, delegate)
+        self.add_delegate(path + _p.g, delegate)
+        self.add_delegate(path + _p.b, delegate)
+        self.add_delegate(path + _p.a, delegate)
 
     def setMaterial(self, material):
         self.tree_view.setModel(MaterialAdaptor(material))
