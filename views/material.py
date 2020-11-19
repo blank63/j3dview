@@ -1,4 +1,3 @@
-from math import cos,sin,radians
 import numpy
 from OpenGL.GL import *
 import gl
@@ -64,6 +63,12 @@ class Channel(views.View):
     ambient_color = views.Attribute()
 
 
+class TexCoordGenerator(views.View):
+    function = views.Attribute()
+    source = views.Attribute()
+    matrix = views.Attribute()
+
+
 class TextureMatrix(views.View):
     shape = views.Attribute()
     matrix_type = views.Attribute()
@@ -81,10 +86,39 @@ class TextureMatrix(views.View):
         return self.viewed_object.create_matrix()
 
 
-class TexCoordGenerator(views.View):
+class TevMode(views.View):
+    a = views.Attribute()
+    b = views.Attribute()
+    c = views.Attribute()
+    d = views.Attribute()
     function = views.Attribute()
-    source = views.Attribute()
-    matrix = views.Attribute()
+    bias = views.Attribute()
+    scale = views.Attribute()
+    clamp = views.Attribute()
+    output = views.Attribute()
+
+
+class TevStage(views.View):
+    texcoord = views.Attribute()
+    texture = views.Attribute()
+    color = views.Attribute()
+    color_mode = views.ViewAttribute(TevMode)
+    alpha_mode = views.ViewAttribute(TevMode)
+    constant_color = views.Attribute()
+    constant_alpha = views.Attribute()
+    color_swap_table = views.Attribute()
+    texture_swap_table = views.Attribute()
+    indirect_stage = views.Attribute()
+    indirect_format = views.Attribute()
+    indirect_bias_components = views.Attribute()
+    indirect_matrix = views.Attribute()
+    wrap_s = views.Attribute()
+    wrap_t = views.Attribute()
+    add_previous_texcoord = views.Attribute()
+    use_original_lod = views.Attribute()
+    bump_alpha = views.Attribute()
+    unknown0 = views.Attribute()
+    unknown1 = views.Attribute()
 
 
 class AlphaTest(views.View):
@@ -164,64 +198,134 @@ class IndirectMatrixBlockProperty:
         block[self.field_name] = value
 
 
-BLOCK_PROPERTIES = []
-for i in range(2):
-    BLOCK_PROPERTIES.append(ColorBlockProperty(+_p.channels[i].material_color, f'material_color{i}'))
-    BLOCK_PROPERTIES.append(ColorBlockProperty(+_p.channels[i].ambient_color, f'ambient_color{i}'))
-for i in range(3):
-    BLOCK_PROPERTIES.append(ColorBlockProperty(+_p.tev_colors[i], f'tev_color{i}'))
-BLOCK_PROPERTIES.append(ColorBlockProperty(+_p.tev_color_previous, 'tev_color_previous'))
-for i in range(4):
-    BLOCK_PROPERTIES.append(ColorBlockProperty(+_p.kcolors[i], f'kcolor{i}'))
-for i in range(10):
-    BLOCK_PROPERTIES.append(TextureMatrixBlockProperty(+_p.texture_matrices[i], f'texture_matrix{i}'))
-for i in range(3):
-    BLOCK_PROPERTIES.append(IndirectMatrixBlockProperty(+_p.indirect_matrices[i], f'indmatrix{i}'))
+class BlockInfo:
+
+    def __init__(self):
+        self.properties = tuple(self._properties())
+
+        self.block_type = gl.uniform_block('MaterialBlock', (
+            (block_property.field_name, block_property.field_type)
+            for block_property in self.properties
+        ))
+
+        self.trigger_table = {
+            trigger : block_property
+            for block_property in self.properties
+            for trigger in block_property.triggers
+        }
+
+    @staticmethod
+    def _properties():
+        for i in range(2):
+            yield ColorBlockProperty(+_p.channels[i].material_color, f'material_color{i}')
+            yield ColorBlockProperty(+_p.channels[i].ambient_color, f'ambient_color{i}')
+
+        yield ColorBlockProperty(+_p.tev_color_previous, 'tev_color_previous')
+        for i in range(3):
+            yield ColorBlockProperty(+_p.tev_colors[i], f'tev_color{i}')
+
+        for i in range(4):
+            yield ColorBlockProperty(+_p.kcolors[i], f'kcolor{i}')
+
+        for i in range(10):
+            yield TextureMatrixBlockProperty(+_p.texture_matrices[i], f'texture_matrix{i}')
+
+        for i in range(3):
+            yield IndirectMatrixBlockProperty(+_p.indirect_matrices[i], f'indmatrix{i}')
 
 
-MaterialBlock = gl.uniform_block('MaterialBlock', (
-    (block_property.field_name, block_property.field_type)
-    for block_property in BLOCK_PROPERTIES
-))
+class ShaderInfo:
 
+    def __init__(self):
+        self.triggers = frozenset(self._triggers())
 
-BLOCK_TRIGGER_TABLE = {
-    trigger : block_property
-    for block_property in BLOCK_PROPERTIES
-    for trigger in block_property.triggers
-}
+    @staticmethod
+    def _triggers():
+        yield +_p.channel_count
+        for i in range(2):
+            yield from ShaderInfo._channel_triggers(+_p.channels[i])
 
+        yield +_p.texcoord_generator_count
+        for i in range(8):
+            yield from ShaderInfo._texcoord_generator_triggers(+_p.texcoord_generators[i])
+        
+        for i in range(10):
+            yield +_p.texture_matrices[i].matrix_type
 
-SHADER_TRIGGERS = set()
-SHADER_TRIGGERS.add(+_p.channel_count)
-for i in range(2):
-    SHADER_TRIGGERS.add(+_p.channels[i].color_mode.material_source)
-    SHADER_TRIGGERS.add(+_p.channels[i].color_mode.ambient_source)
-    SHADER_TRIGGERS.add(+_p.channels[i].color_mode.light_enable)
-SHADER_TRIGGERS.add(+_p.texcoord_generator_count)
-for i in range(8):
-    SHADER_TRIGGERS.add(+_p.texcoord_generators[i].function)
-    SHADER_TRIGGERS.add(+_p.texcoord_generators[i].source)
-    SHADER_TRIGGERS.add(+_p.texcoord_generators[i].matrix)
-for i in range(10):
-    SHADER_TRIGGERS.add(+_p.texture_matrices[i].matrix_type)
-SHADER_TRIGGERS.add(+_p.depth_test_early)
-SHADER_TRIGGERS.add(+_p.alpha_test.function0)
-SHADER_TRIGGERS.add(+_p.alpha_test.reference0)
-SHADER_TRIGGERS.add(+_p.alpha_test.function1)
-SHADER_TRIGGERS.add(+_p.alpha_test.reference1)
-SHADER_TRIGGERS.add(+_p.alpha_test.operator)
-SHADER_TRIGGERS = frozenset(SHADER_TRIGGERS)
+        yield +_p.tev_stage_count
+        for i in range(16):
+            yield from ShaderInfo._tev_stage_triggers(+_p.tev_stages[i])
+
+        yield +_p.depth_test_early
+
+        yield +_p.alpha_test.function0
+        yield +_p.alpha_test.reference0
+        yield +_p.alpha_test.function1
+        yield +_p.alpha_test.reference1
+        yield +_p.alpha_test.operator
+
+    @staticmethod
+    def _lighting_mode_triggers(path):
+        yield path + _p.material_source
+        yield path + _p.ambient_source
+        yield path + _p.light_enable
+
+    @staticmethod
+    def _channel_triggers(path):
+        yield from ShaderInfo._lighting_mode_triggers(path + _p.color_mode)
+        yield from ShaderInfo._lighting_mode_triggers(path + _p.alpha_mode)
+
+    @staticmethod
+    def _texcoord_generator_triggers(path):
+        yield path + _p.function
+        yield path + _p.source
+        yield path + _p.matrix
+
+    @staticmethod
+    def _tev_mode_triggers(path):
+        yield path + _p.a
+        yield path + _p.b
+        yield path + _p.c
+        yield path + _p.d
+        yield path + _p.function
+        yield path + _p.bias
+        yield path + _p.scale
+        yield path + _p.clamp
+        yield path + _p.output
+
+    @staticmethod
+    def _tev_stage_triggers(path):
+        yield path + _p.texcoord
+        yield path + _p.texture
+        yield path + _p.color
+        yield from ShaderInfo._tev_mode_triggers(path + _p.color_mode)
+        yield from ShaderInfo._tev_mode_triggers(path + _p.alpha_mode)
+        yield path + _p.constant_color
+        yield path + _p.constant_alpha
+        yield path + _p.color_swap_table
+        yield path + _p.texture_swap_table
+        yield path + _p.indirect_stage
+        yield path + _p.indirect_format
+        yield path + _p.indirect_bias_components
+        yield path + _p.indirect_matrix
+        yield path + _p.wrap_s
+        yield path + _p.wrap_t
+        yield path + _p.add_previous_texcoord
+        yield path + _p.use_original_lod
+        yield path + _p.bump_alpha
 
 
 class Material(views.View):
 
+    block_info = BlockInfo()
+    shader_info = ShaderInfo()
+
     def __init__(self, viewed_object):
         super().__init__(viewed_object)
-        self.gl_block = self.gl_create_resource(MaterialBlock, GL_DYNAMIC_DRAW)
+        self.gl_block = self.gl_create_resource(self.block_info.block_type, GL_DYNAMIC_DRAW)
         self.gl_program_table = {}
 
-        for block_property in BLOCK_PROPERTIES:
+        for block_property in self.block_info.properties:
             block_property.update_block(self.gl_block, self)
 
     name = views.Attribute()
@@ -236,8 +340,8 @@ class Material(views.View):
     texture_matrices = views.ViewAttribute(views.ViewListView, TextureMatrix)
     texture_indices = views.ViewAttribute(views.ListView)
 
-    tev_stage_count = views.ReadOnlyAttribute()
-    tev_stages = views.ReadOnlyAttribute()
+    tev_stage_count = views.Attribute()
+    tev_stages = views.ViewAttribute(views.ViewListView, TevStage)
     tev_colors = views.ViewAttribute(views.ListView)
     tev_color_previous = views.Attribute()
     kcolors = views.ViewAttribute(views.ListView)
@@ -276,10 +380,10 @@ class Material(views.View):
 
     def handle_event(self, event, path):
         if isinstance(event, views.ValueChangedEvent):
-            if path in BLOCK_TRIGGER_TABLE:
-                block_property = BLOCK_TRIGGER_TABLE[path]
+            if path in self.block_info.trigger_table:
+                block_property = self.block_info.trigger_table[path]
                 block_property.update_block(self.gl_block, self)
-            if path in SHADER_TRIGGERS:
+            if path in self.shader_info.triggers:
                 self.gl_shader_invalidate()
         super().handle_event(event, path)
 

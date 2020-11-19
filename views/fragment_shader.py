@@ -726,8 +726,11 @@ def create_shader_string(material):
     for i in range(3):
         stream.write('vec4 tevreg{} = tev_color{};\n'.format(i,i))
 
-    for i,stage in enumerate(material.enabled_indirect_stages):
-        write_indirect_stage(stream,i,stage)
+    for i,stage in enumerate(material.indirect_stages):
+        if i < material.indirect_stage_count:
+            write_indirect_stage(stream,i,stage)
+        else:
+            stream.write('vec3 indtex{} = vec3(0.0);'.format(i))
 
     for i,stage in enumerate(material.enabled_tev_stages):
         stream.write('\n// TEV stage {}\n'.format(i))

@@ -238,8 +238,15 @@ class MaterialAdaptor(ModelAdaptor):
         for i in range(10):
             self.add_texture_matrix(f'Texture Matrix {i}', +_p.texture_matrices[i], texture_matrix_list)
 
+        self.add_item(PropertyItem('Num. TEV Stages', +_p.tev_stage_count))
+        self.tev_stage_list = GroupItem(['TEV Stages', ''])
+        self.add_item(self.tev_stage_list)
+        for i in range(16):
+            self.add_tev_stage(f'TEV Stage {i}', +_p.tev_stages[i], self.tev_stage_list)
+
         self.update_channel_list()
         self.update_texcoord_generator_list()
+        self.update_tev_stage_list()
 
     def add_lighting_mode(self, label, path, parent):
         lighting_mode = GroupItem([label, ''])
@@ -280,6 +287,51 @@ class MaterialAdaptor(ModelAdaptor):
         self.add_item(PropertyItem('Translation T', path + _p.translation_t), texture_matrix)
         self.add_item(PropertyItem('Projection Matrix', path + _p.projection_matrix), texture_matrix)
 
+    def add_tev_mode(self, label, path, constant_path, parent):
+        tev_mode = GroupItem([label, ''])
+        self.add_item(tev_mode, parent)
+        self.add_item(PropertyItem('Input A', path + _p.a), tev_mode)
+        self.add_item(PropertyItem('Input B', path + _p.b), tev_mode)
+        self.add_item(PropertyItem('Input C', path + _p.c), tev_mode)
+        self.add_item(PropertyItem('Input D', path + _p.d), tev_mode)
+        self.add_item(PropertyItem('Konst.', constant_path), tev_mode)
+        self.add_item(PropertyItem('Function', path + _p.function), tev_mode)
+        self.add_item(PropertyItem('Bias', path + _p.bias), tev_mode)
+        self.add_item(PropertyItem('Scale', path + _p.scale), tev_mode)
+        self.add_item(PropertyItem('Clamp', path + _p.clamp), tev_mode)
+        self.add_item(PropertyItem('Output', path + _p.output), tev_mode)
+
+    def add_tev_stage(self, label, path, parent):
+        tev_stage = GroupItem([label, ''])
+        self.add_item(tev_stage, parent)
+
+        self.add_item(PropertyItem('Tex. Coord.', path + _p.texcoord), tev_stage)
+        self.add_item(PropertyItem('Texture', path + _p.texture), tev_stage)
+        self.add_item(PropertyItem('Color', path + _p.color), tev_stage)
+
+        self.add_tev_mode('Color Combiner', path + _p.color_mode, path + _p.constant_color, tev_stage)
+        self.add_tev_mode('Alpha Combiner', path + _p.alpha_mode, path + _p.constant_alpha, tev_stage)
+
+        swap_mode = GroupItem(['Swap Mode', ''])
+        self.add_item(swap_mode, tev_stage)
+        self.add_item(PropertyItem('Color', path + _p.color_swap_table), swap_mode)
+        self.add_item(PropertyItem('Texture', path + _p.texture_swap_table), swap_mode)
+
+        indirect = GroupItem(['Indirect', ''])
+        self.add_item(indirect, tev_stage)
+        self.add_item(PropertyItem('Stage', path + _p.indirect_stage), indirect)
+        self.add_item(PropertyItem('Format', path + _p.indirect_format), indirect)
+        self.add_item(PropertyItem('Bias Comps.', path + _p.indirect_bias_components), indirect)
+        self.add_item(PropertyItem('Matrix', path + _p.indirect_matrix), indirect)
+        self.add_item(PropertyItem('Wrap S', path + _p.wrap_s), indirect)
+        self.add_item(PropertyItem('Wrap T', path + _p.wrap_t), indirect)
+        self.add_item(PropertyItem('Add Prev.', path + _p.add_previous_texcoord), indirect)
+        self.add_item(PropertyItem('Use Orig. LOD', path + _p.use_original_lod), indirect)
+        self.add_item(PropertyItem('Bump Alpha', path + _p.bump_alpha), indirect)
+
+        self.add_item(PropertyItem('Unknown 0', path + _p.unknown0), tev_stage)
+        self.add_item(PropertyItem('Unknown 1', path + _p.unknown1), tev_stage)
+
     def update_channel_list(self):
         for i in range(self.channel_list.child_count):
             enable = i < self.view.channel_count
@@ -296,12 +348,22 @@ class MaterialAdaptor(ModelAdaptor):
         right = self.sibling(left.row(), self.columnCount(left) - 1, left)
         self.dataChanged.emit(left, right)
 
+    def update_tev_stage_list(self):
+        for i in range(self.tev_stage_list.child_count):
+            enable = i < self.view.tev_stage_count
+            self.tev_stage_list.get_child(i).set_enabled(enable)
+        left = self.get_item_index(self.tev_stage_list)
+        right = self.sibling(left.row(), self.columnCount(left) - 1, left)
+        self.dataChanged.emit(left, right)
+
     def handle_event(self, event, path):
         if isinstance(event, views.ValueChangedEvent):
             if path == +_p.channel_count:
                 self.update_channel_list()
             elif path == +_p.texcoord_generator_count:
                 self.update_texcoord_generator_list()
+            elif path == +_p.tev_stage_count:
+                self.update_tev_stage_list()
 
 
 class ComboBoxDelegate(QtWidgets.QStyledItemDelegate):
@@ -550,6 +612,10 @@ class AdvancedMaterialDialog(QtWidgets.QDialog):
         for i in range(10):
             self.add_texture_matrix_delegates(+_p.texture_matrices[i])
 
+        self.add_delegate(+_p.tev_stage_count, CountDelegate(16))
+        for i in range(16):
+            self.add_tev_stage_delegates(+_p.tev_stages[i])
+
     def add_delegate(self, path, delegate):
         self.delegate.add_delegate(path, delegate)
 
@@ -586,6 +652,49 @@ class AdvancedMaterialDialog(QtWidgets.QDialog):
         self.add_delegate(path + _p.translation_s, float_delegate)
         self.add_delegate(path + _p.translation_t, float_delegate)
         self.add_delegate(path + _p.projection_matrix, MatrixDelegate())
+
+    def add_tev_stage_delegates(self, path):
+        self.add_delegate(path + _p.texcoord, EnumDelegate(gx.TexCoord))
+        self.add_delegate(path + _p.texture, EnumDelegate(gx.Texture))
+        self.add_delegate(path + _p.color, EnumDelegate(gx.Channel))
+
+        self.add_delegate(path + _p.color_mode.a, EnumDelegate(gx.ColorInput))
+        self.add_delegate(path + _p.color_mode.b, EnumDelegate(gx.ColorInput))
+        self.add_delegate(path + _p.color_mode.c, EnumDelegate(gx.ColorInput))
+        self.add_delegate(path + _p.color_mode.d, EnumDelegate(gx.ColorInput))
+        self.add_delegate(path + _p.color_mode.function, EnumDelegate(gx.TevFunction))
+        self.add_delegate(path + _p.color_mode.bias, EnumDelegate(gx.TevBias))
+        self.add_delegate(path + _p.color_mode.scale, EnumDelegate(gx.TevScale))
+        self.add_delegate(path + _p.color_mode.clamp, CheckBoxDelegate())
+        self.add_delegate(path + _p.color_mode.output, EnumDelegate(gx.TevColor))
+        self.add_delegate(path + _p.constant_color, EnumDelegate(gx.ConstantColor))
+
+        self.add_delegate(path + _p.alpha_mode.a, EnumDelegate(gx.AlphaInput))
+        self.add_delegate(path + _p.alpha_mode.b, EnumDelegate(gx.AlphaInput))
+        self.add_delegate(path + _p.alpha_mode.c, EnumDelegate(gx.AlphaInput))
+        self.add_delegate(path + _p.alpha_mode.d, EnumDelegate(gx.AlphaInput))
+        self.add_delegate(path + _p.alpha_mode.function, EnumDelegate(gx.TevFunction))
+        self.add_delegate(path + _p.alpha_mode.bias, EnumDelegate(gx.TevBias))
+        self.add_delegate(path + _p.alpha_mode.scale, EnumDelegate(gx.TevScale))
+        self.add_delegate(path + _p.alpha_mode.clamp, CheckBoxDelegate())
+        self.add_delegate(path + _p.alpha_mode.output, EnumDelegate(gx.TevColor))
+        self.add_delegate(path + _p.constant_alpha, EnumDelegate(gx.ConstantAlpha))
+
+        self.add_delegate(path + _p.color_swap_table, EnumDelegate(gx.SwapTable))
+        self.add_delegate(path + _p.texture_swap_table, EnumDelegate(gx.SwapTable))
+
+        self.add_delegate(path + _p.indirect_stage, EnumDelegate(gx.IndirectStage))
+        self.add_delegate(path + _p.indirect_format, EnumDelegate(gx.IndirectFormat))
+        self.add_delegate(path + _p.indirect_bias_components, EnumDelegate(gx.IndirectBiasComponents))
+        self.add_delegate(path + _p.indirect_matrix, EnumDelegate(gx.IndirectMatrix))
+        self.add_delegate(path + _p.wrap_s, EnumDelegate(gx.IndirectWrap))
+        self.add_delegate(path + _p.wrap_t, EnumDelegate(gx.IndirectWrap))
+        self.add_delegate(path + _p.add_previous_texcoord, CheckBoxDelegate())
+        self.add_delegate(path + _p.use_original_lod, CheckBoxDelegate())
+        self.add_delegate(path + _p.bump_alpha, EnumDelegate(gx.IndirectBumpAlpha))
+
+        self.add_delegate(path + _p.unknown0, SpinBoxDelegate(min=0, max=255))
+        self.add_delegate(path + _p.unknown1, SpinBoxDelegate(min=0, max=255))
 
     def setMaterial(self, material):
         self.tree_view.setModel(MaterialAdaptor(material))
