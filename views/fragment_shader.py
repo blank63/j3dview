@@ -696,7 +696,8 @@ def create_shader_string(material):
         if stage.texture != gx.TEXMAP_NULL:
             use_texture[stage.texture.index] = True
     for stage in material.enabled_indirect_stages:
-        use_texture[stage.texture.index] = True
+        if stage.texture != gx.TEXMAP_NULL:
+            use_texture[stage.texture.index] = True
 
     for i in range(8):
         if not use_texture[i]: continue
@@ -727,10 +728,10 @@ def create_shader_string(material):
         stream.write('vec4 tevreg{} = tev_color{};\n'.format(i,i))
 
     for i,stage in enumerate(material.indirect_stages):
-        if i < material.indirect_stage_count:
-            write_indirect_stage(stream,i,stage)
-        else:
+        if i >= material.indirect_stage_count or stage.texcoord == gx.TEXCOORD_NULL or stage.texture == gx.TEXMAP_NULL:
             stream.write('vec3 indtex{} = vec3(0.0);'.format(i))
+            continue
+        write_indirect_stage(stream,i,stage)
 
     for i,stage in enumerate(material.enabled_tev_stages):
         stream.write('\n// TEV stage {}\n'.format(i))

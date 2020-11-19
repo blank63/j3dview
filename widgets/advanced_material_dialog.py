@@ -249,9 +249,16 @@ class MaterialAdaptor(ModelAdaptor):
         for i in range(4):
             self.add_swap_table(f'Swap Table {i}', +_p.swap_tables[i], swap_table_list)
 
+        self.add_item(PropertyItem('Num. Indirect Stages', +_p.indirect_stage_count))
+        self.indirect_stage_list = GroupItem(['Indirect Stages', ''])
+        self.add_item(self.indirect_stage_list)
+        for i in range(4):
+            self.add_indirect_stage(f'Indirect Stage {i}', +_p.indirect_stages[i], self.indirect_stage_list)
+
         self.update_channel_list()
         self.update_texcoord_generator_list()
         self.update_tev_stage_list()
+        self.update_indirect_stage_list()
 
     def add_lighting_mode(self, label, path, parent):
         lighting_mode = GroupItem([label, ''])
@@ -345,6 +352,14 @@ class MaterialAdaptor(ModelAdaptor):
         self.add_item(PropertyItem('B', path + _p.b), swap_table)
         self.add_item(PropertyItem('A', path + _p.a), swap_table)
 
+    def add_indirect_stage(self, label, path, parent):
+        indirect_stage = GroupItem([label, ''])
+        self.add_item(indirect_stage, parent)
+        self.add_item(PropertyItem('Tex. Coord.', path + _p.texcoord), indirect_stage)
+        self.add_item(PropertyItem('Texture', path + _p.texture), indirect_stage)
+        self.add_item(PropertyItem('Scale S', path + _p.scale_s), indirect_stage)
+        self.add_item(PropertyItem('Scale T', path + _p.scale_t), indirect_stage)
+
     def update_channel_list(self):
         for i in range(self.channel_list.child_count):
             enable = i < self.view.channel_count
@@ -369,6 +384,14 @@ class MaterialAdaptor(ModelAdaptor):
         right = self.sibling(left.row(), self.columnCount(left) - 1, left)
         self.dataChanged.emit(left, right)
 
+    def update_indirect_stage_list(self):
+        for i in range(self.indirect_stage_list.child_count):
+            enable = i < self.view.indirect_stage_count
+            self.indirect_stage_list.get_child(i).set_enabled(enable)
+        left = self.get_item_index(self.indirect_stage_list)
+        right = self.sibling(left.row(), self.columnCount(left) - 1, left)
+        self.dataChanged.emit(left, right)
+
     def handle_event(self, event, path):
         if isinstance(event, views.ValueChangedEvent):
             if path == +_p.channel_count:
@@ -377,6 +400,8 @@ class MaterialAdaptor(ModelAdaptor):
                 self.update_texcoord_generator_list()
             elif path == +_p.tev_stage_count:
                 self.update_tev_stage_list()
+            elif path == +_p.indirect_stage_count:
+                self.update_indirect_stage_list()
 
 
 class ComboBoxDelegate(QtWidgets.QStyledItemDelegate):
@@ -632,6 +657,10 @@ class AdvancedMaterialDialog(QtWidgets.QDialog):
         for i in range(4):
             self.add_swap_table_delegates(+_p.swap_tables[i])
 
+        self.add_delegate(+_p.indirect_stage_count, CountDelegate(4))
+        for i in range(4):
+            self.add_indirect_stage_delegates(+_p.indirect_stages[i])
+
     def add_delegate(self, path, delegate):
         self.delegate.add_delegate(path, delegate)
 
@@ -718,6 +747,12 @@ class AdvancedMaterialDialog(QtWidgets.QDialog):
         self.add_delegate(path + _p.g, delegate)
         self.add_delegate(path + _p.b, delegate)
         self.add_delegate(path + _p.a, delegate)
+
+    def add_indirect_stage_delegates(self, path):
+        self.add_delegate(path + _p.texcoord, EnumDelegate(gx.TexCoord))
+        self.add_delegate(path + _p.texture, EnumDelegate(gx.Texture))
+        self.add_delegate(path + _p.scale_s, EnumDelegate(gx.IndirectScale))
+        self.add_delegate(path + _p.scale_t, EnumDelegate(gx.IndirectScale))
 
     def setMaterial(self, material):
         self.tree_view.setModel(MaterialAdaptor(material))

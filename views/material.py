@@ -128,6 +128,13 @@ class SwapTable(views.View):
     a = views.Attribute()
 
 
+class IndirectStage(views.View):
+    texcoord = views.Attribute()
+    texture = views.Attribute()
+    scale_s = views.Attribute()
+    scale_t = views.Attribute()
+
+
 class AlphaTest(views.View):
     function0 = views.Attribute()
     reference0 = views.Attribute()
@@ -266,6 +273,10 @@ class ShaderInfo:
         for i in range(4):
             yield from ShaderInfo._swap_table_triggers(+_p.swap_tables[i])
 
+        yield +_p.indirect_stage_count
+        for i in range(4):
+            yield from ShaderInfo._indirect_stage_triggers(+_p.indirect_stages[i])
+
         yield +_p.depth_test_early
 
         yield +_p.alpha_test.function0
@@ -331,6 +342,13 @@ class ShaderInfo:
         yield path + _p.b
         yield path + _p.a
 
+    @staticmethod
+    def _indirect_stage_triggers(path):
+        yield path + _p.texcoord
+        yield path + _p.texture
+        yield path + _p.scale_s
+        yield path + _p.scale_t
+
 
 class Material(views.View):
 
@@ -364,8 +382,8 @@ class Material(views.View):
     kcolors = views.ViewAttribute(views.ListView)
     swap_tables = views.ViewAttribute(views.ViewListView, SwapTable)
 
-    indirect_stage_count = views.ReadOnlyAttribute()
-    indirect_stages = views.ReadOnlyAttribute()
+    indirect_stage_count = views.Attribute()
+    indirect_stages = views.ViewAttribute(views.ViewListView, IndirectStage)
     indirect_matrices = views.ReadOnlyAttribute()
 
     alpha_test = views.ViewAttribute(AlphaTest)
