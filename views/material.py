@@ -135,6 +135,11 @@ class IndirectStage(views.View):
     scale_t = views.Attribute()
 
 
+class IndirectMatrix(views.View):
+    significand_matrix = views.Attribute()
+    scale_exponent = views.Attribute()
+
+
 class AlphaTest(views.View):
     function0 = views.Attribute()
     reference0 = views.Attribute()
@@ -203,7 +208,10 @@ class IndirectMatrixBlockProperty:
         self.path = path
         self.field_name = field_name
         self.field_type = gl.mat3x2
-        self.triggers = [+_p]
+        self.triggers = [
+            +_p.significand_matrix,
+            +_p.scale_exponent
+        ]
 
     def update_block(self, block, material):
         matrix = self.path.get_value(material)
@@ -276,6 +284,9 @@ class ShaderInfo:
         yield +_p.indirect_stage_count
         for i in range(4):
             yield from ShaderInfo._indirect_stage_triggers(+_p.indirect_stages[i])
+
+        for i in range(3):
+            yield +_p.indirect_matrices[i].scale_exponent
 
         yield +_p.depth_test_early
 
@@ -384,7 +395,7 @@ class Material(views.View):
 
     indirect_stage_count = views.Attribute()
     indirect_stages = views.ViewAttribute(views.ViewListView, IndirectStage)
-    indirect_matrices = views.ReadOnlyAttribute()
+    indirect_matrices = views.ViewAttribute(views.ViewListView, IndirectMatrix)
 
     alpha_test = views.ViewAttribute(AlphaTest)
     fog = views.ReadOnlyAttribute()

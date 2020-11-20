@@ -255,6 +255,11 @@ class MaterialAdaptor(ModelAdaptor):
         for i in range(4):
             self.add_indirect_stage(f'Indirect Stage {i}', +_p.indirect_stages[i], self.indirect_stage_list)
 
+        indirect_matrix_list = GroupItem(['Indirect Matrices', ''])
+        self.add_item(indirect_matrix_list)
+        for i in range(3):
+            self.add_indirect_matrix(f'Indirect Matrix {i}', +_p.indirect_matrices[i], indirect_matrix_list)
+
         self.update_channel_list()
         self.update_texcoord_generator_list()
         self.update_tev_stage_list()
@@ -359,6 +364,12 @@ class MaterialAdaptor(ModelAdaptor):
         self.add_item(PropertyItem('Texture', path + _p.texture), indirect_stage)
         self.add_item(PropertyItem('Scale S', path + _p.scale_s), indirect_stage)
         self.add_item(PropertyItem('Scale T', path + _p.scale_t), indirect_stage)
+
+    def add_indirect_matrix(self, label, path, parent):
+        indirect_matrix = GroupItem([label, ''])
+        self.add_item(indirect_matrix, parent)
+        self.add_item(PropertyItem('Significand Matrix', path + _p.significand_matrix), indirect_matrix)
+        self.add_item(PropertyItem('Scale Exponent', path + _p.scale_exponent), indirect_matrix)
 
     def update_channel_list(self):
         for i in range(self.channel_list.child_count):
@@ -661,6 +672,9 @@ class AdvancedMaterialDialog(QtWidgets.QDialog):
         for i in range(4):
             self.add_indirect_stage_delegates(+_p.indirect_stages[i])
 
+        for i in range(3):
+            self.add_indirect_matrix_delegates(+_p.indirect_matrices[i])
+
     def add_delegate(self, path, delegate):
         self.delegate.add_delegate(path, delegate)
 
@@ -753,6 +767,10 @@ class AdvancedMaterialDialog(QtWidgets.QDialog):
         self.add_delegate(path + _p.texture, EnumDelegate(gx.Texture))
         self.add_delegate(path + _p.scale_s, EnumDelegate(gx.IndirectScale))
         self.add_delegate(path + _p.scale_t, EnumDelegate(gx.IndirectScale))
+
+    def add_indirect_matrix_delegates(self, path):
+        self.add_delegate(path + _p.significand_matrix, MatrixDelegate())
+        self.add_delegate(path + _p.scale_exponent, SpinBoxDelegate(min=-128, max=128))
 
     def setMaterial(self, material):
         self.tree_view.setModel(MaterialAdaptor(material))
