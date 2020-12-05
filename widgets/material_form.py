@@ -6,11 +6,12 @@ import views
 from views import path_builder as _p
 from widgets.view_form import (
     ViewForm,
-    LineEditAdaptor,
-    ComboBoxAdaptor,
-    SpinBoxAdaptor,
-    CheckBoxAdaptor,
-    ColorButtonAdaptor
+    CheckBoxDelegate,
+    ComboBoxDelegate,
+    EnumDelegate,
+    LineEditDelegate,
+    SpinBoxDelegate,
+    ColorButtonDelegate
 )
 from widgets.advanced_material_dialog import AdvancedMaterialDialog
 
@@ -50,7 +51,6 @@ class MaterialForm(ViewForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
         self.ui = uic.loadUi(io.BytesIO(pkgutil.get_data(__package__, 'MaterialForm.ui')), self)
 
         self.texture_template = QtWidgets.QComboBox()
@@ -64,73 +64,90 @@ class MaterialForm(ViewForm):
         self.texture6.setModel(self.texture_template.model())
         self.texture7.setModel(self.texture_template.model())
 
-        for value in gx.CullMode:
-            self.cull_mode.addItem(value.name, value)
+        self.add_mapping('Name', +_p.name,
+            self.name, LineEditDelegate())
+        self.add_mapping('Unknown 0', +_p.unknown0,
+            self.unknown0, SpinBoxDelegate(0, 255))
+        self.add_mapping('Cull Mode', +_p.cull_mode,
+            self.cull_mode, EnumDelegate(gx.CullMode))
+        self.add_mapping('Dither', +_p.dither,
+            self.dither, CheckBoxDelegate())
 
-        for value in gx.CompareFunction:
-            self.alpha_test_function0.addItem(value.name, value)
-            self.alpha_test_function1.addItem(value.name, value)
-        for value in gx.AlphaOperator:
-            self.alpha_test_operator.addItem(value.name, value)
+        self.add_mapping('Mat. Color 0', +_p.channels[0].material_color,
+            self.material_color0, ColorButtonDelegate())
+        self.add_mapping('Amb. Color 0', +_p.channels[0].ambient_color,
+            self.ambient_color0, ColorButtonDelegate())
+        self.add_mapping('Mat. Color 1', +_p.channels[1].material_color,
+            self.material_color1, ColorButtonDelegate())
+        self.add_mapping('Amb. Color 1', +_p.channels[1].ambient_color,
+            self.ambient_color1, ColorButtonDelegate())
 
-        for value in gx.CompareFunction:
-            self.depth_mode_function.addItem(value.name, value)
-
-        for value in gx.BlendFunction:
-            self.blend_mode_function.addItem(value.name, value)
-        for value in gx.BlendSourceFactor:
-            self.blend_mode_source_factor.addItem(value.name, value)
-        for value in gx.BlendDestinationFactor:
-            self.blend_mode_destination_factor.addItem(value.name, value)
-        for value in gx.LogicalOperation:
-            self.blend_mode_logical_operation.addItem(value.name, value)
-
-        self.add_widget(+_p.name, LineEditAdaptor(self.name), 'Name')
-        self.add_widget(+_p.unknown0, SpinBoxAdaptor(self.unknown0), 'Unknown 0')
-        self.add_widget(+_p.cull_mode, ComboBoxAdaptor(self.cull_mode), 'Cull Mode')
-        self.add_widget(+_p.dither, CheckBoxAdaptor(self.dither), 'Dither')
-
-        self.add_widget(+_p.channels[0].material_color, ColorButtonAdaptor(self.material_color0), 'Mat. Color 0')
-        self.add_widget(+_p.channels[0].ambient_color, ColorButtonAdaptor(self.ambient_color0), 'Amb. Color 0')
-        self.add_widget(+_p.channels[1].material_color, ColorButtonAdaptor(self.material_color1), 'Mat. Color 1')
-        self.add_widget(+_p.channels[1].ambient_color, ColorButtonAdaptor(self.ambient_color1), 'Amb. Color 1')
-
-        self.add_widget(+_p.texture_indices[0], ComboBoxAdaptor(self.texture0), 'Texture 0')
-        self.add_widget(+_p.texture_indices[1], ComboBoxAdaptor(self.texture1), 'Texture 1')
-        self.add_widget(+_p.texture_indices[2], ComboBoxAdaptor(self.texture2), 'Texture 2')
-        self.add_widget(+_p.texture_indices[3], ComboBoxAdaptor(self.texture3), 'Texture 3')
-        self.add_widget(+_p.texture_indices[4], ComboBoxAdaptor(self.texture4), 'Texture 4')
-        self.add_widget(+_p.texture_indices[5], ComboBoxAdaptor(self.texture5), 'Texture 5')
-        self.add_widget(+_p.texture_indices[6], ComboBoxAdaptor(self.texture6), 'Texture 6')
-        self.add_widget(+_p.texture_indices[7], ComboBoxAdaptor(self.texture6), 'Texture 7')
+        self.add_mapping('Texture 0', +_p.texture_indices[0],
+            self.texture0, ComboBoxDelegate())
+        self.add_mapping('Texture 1', +_p.texture_indices[1],
+            self.texture1, ComboBoxDelegate())
+        self.add_mapping('Texture 2', +_p.texture_indices[2],
+            self.texture2, ComboBoxDelegate())
+        self.add_mapping('Texture 3', +_p.texture_indices[3],
+            self.texture3, ComboBoxDelegate())
+        self.add_mapping('Texture 4', +_p.texture_indices[4],
+            self.texture4, ComboBoxDelegate())
+        self.add_mapping('Texture 5', +_p.texture_indices[5],
+            self.texture5, ComboBoxDelegate())
+        self.add_mapping('Texture 6', +_p.texture_indices[6],
+            self.texture6, ComboBoxDelegate())
+        self.add_mapping('Texture 7', +_p.texture_indices[7],
+            self.texture7, ComboBoxDelegate())
 
         #TODO support for S10 TEV colors
-        self.add_widget(+_p.tev_color_previous, ColorButtonAdaptor(self.tev_color_previous), 'TEV Prev')
-        self.add_widget(+_p.tev_colors[0], ColorButtonAdaptor(self.tev_color0), 'TEV Reg. 0')
-        self.add_widget(+_p.tev_colors[1], ColorButtonAdaptor(self.tev_color1), 'TEV Reg. 1')
-        self.add_widget(+_p.tev_colors[2], ColorButtonAdaptor(self.tev_color2), 'TEV Reg. 2')
-        self.add_widget(+_p.kcolors[0], ColorButtonAdaptor(self.kcolor0), 'KColor 0')
-        self.add_widget(+_p.kcolors[1], ColorButtonAdaptor(self.kcolor1), 'KColor 1')
-        self.add_widget(+_p.kcolors[2], ColorButtonAdaptor(self.kcolor2), 'KColor 2')
-        self.add_widget(+_p.kcolors[3], ColorButtonAdaptor(self.kcolor3), 'KColor 3')
+        self.add_mapping('TEV Prev', +_p.tev_color_previous,
+            self.tev_color_previous, ColorButtonDelegate())
+        self.add_mapping('TEV Reg. 0', +_p.tev_colors[0],
+            self.tev_color0, ColorButtonDelegate())
+        self.add_mapping('TEV Reg. 1', +_p.tev_colors[1],
+            self.tev_color1, ColorButtonDelegate())
+        self.add_mapping('TEV Reg. 2', +_p.tev_colors[2],
+            self.tev_color2, ColorButtonDelegate())
+        self.add_mapping('KColor 0', +_p.kcolors[0],
+            self.kcolor0, ColorButtonDelegate())
+        self.add_mapping('KColor 1', +_p.kcolors[1],
+            self.kcolor1, ColorButtonDelegate())
+        self.add_mapping('KColor 2', +_p.kcolors[2],
+            self.kcolor2, ColorButtonDelegate())
+        self.add_mapping('KColor 3', +_p.kcolors[3],
+            self.kcolor3, ColorButtonDelegate())
 
-        self.add_widget(+_p.alpha_test.function0, ComboBoxAdaptor(self.alpha_test_function0), 'Alpha Test Function 0')
-        self.add_widget(+_p.alpha_test.reference0, SpinBoxAdaptor(self.alpha_test_reference0), 'Alpha Test Reference 0')
-        self.add_widget(+_p.alpha_test.function1, ComboBoxAdaptor(self.alpha_test_function1), 'Alpha Test Function 1')
-        self.add_widget(+_p.alpha_test.reference1, SpinBoxAdaptor(self.alpha_test_reference1), 'Alpha Test Reference 1')
-        self.add_widget(+_p.alpha_test.operator, ComboBoxAdaptor(self.alpha_test_operator), 'Alpha Test Operator')
+        self.add_mapping('Function 0', +_p.alpha_test.function0,
+            self.alpha_test_function0, EnumDelegate(gx.CompareFunction))
+        self.add_mapping('Reference 0', +_p.alpha_test.reference0,
+            self.alpha_test_reference0, SpinBoxDelegate(0, 255))
+        self.add_mapping('Function 1', +_p.alpha_test.function1,
+            self.alpha_test_function1, EnumDelegate(gx.CompareFunction))
+        self.add_mapping('Reference 1', +_p.alpha_test.reference1,
+            self.alpha_test_reference1, SpinBoxDelegate(0, 255))
+        self.add_mapping('Operator', +_p.alpha_test.operator,
+            self.alpha_test_operator, EnumDelegate(gx.AlphaOperator))
 
-        self.add_widget(+_p.depth_mode.enable, CheckBoxAdaptor(self.depth_mode_enable), 'Depth Enable')
-        self.add_widget(+_p.depth_test_early, CheckBoxAdaptor(self.depth_mode_test_early), 'Depth Test Early')
-        self.add_widget(+_p.depth_mode.function, ComboBoxAdaptor(self.depth_mode_function), 'Depth Function')
-        self.add_widget(+_p.depth_mode.update_enable, CheckBoxAdaptor(self.depth_mode_update_enable), 'Depth Update Enable')
+        self.add_mapping('Enable', +_p.depth_mode.enable,
+            self.depth_mode_enable, CheckBoxDelegate())
+        self.add_mapping('Test Early', +_p.depth_test_early,
+            self.depth_mode_test_early, CheckBoxDelegate())
+        self.add_mapping('Function', +_p.depth_mode.function,
+            self.depth_mode_function, EnumDelegate(gx.CompareFunction))
+        self.add_mapping('Update Enable', +_p.depth_mode.update_enable,
+            self.depth_mode_update_enable, CheckBoxDelegate())
 
-        self.add_widget(+_p.blend_mode.function, ComboBoxAdaptor(self.blend_mode_function), 'Blend Function')
-        self.add_widget(+_p.blend_mode.source_factor, ComboBoxAdaptor(self.blend_mode_source_factor), 'Blend Src. Factor')
-        self.add_widget(+_p.blend_mode.destination_factor, ComboBoxAdaptor(self.blend_mode_destination_factor), 'Blend Dst. Factor')
-        self.add_widget(+_p.blend_mode.logical_operation, ComboBoxAdaptor(self.blend_mode_logical_operation), 'Blend Logical Op')
+        self.add_mapping('Function', +_p.blend_mode.function,
+            self.blend_mode_function, EnumDelegate(gx.BlendFunction))
+        self.add_mapping('Src. Factor', +_p.blend_mode.source_factor,
+            self.blend_mode_source_factor, EnumDelegate(gx.BlendSourceFactor))
+        self.add_mapping('Dst. Factor', +_p.blend_mode.destination_factor,
+            self.blend_mode_destination_factor, EnumDelegate(gx.BlendDestinationFactor))
+        self.add_mapping('Logic Op.', +_p.blend_mode.logical_operation,
+            self.blend_mode_logical_operation, EnumDelegate(gx.LogicalOperation))
 
         self.advanced_material_dialog = AdvancedMaterialDialog()
+        self.advanced_material_dialog.commitViewValue.connect(self.commitViewValue.emit)
 
     def setTextures(self, textures):
         self.texture_template_handler.setTextures(textures)

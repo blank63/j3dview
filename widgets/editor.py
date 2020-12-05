@@ -1,4 +1,5 @@
 import io
+import time
 import pkgutil
 import os.path
 from PyQt5 import QtCore, QtWidgets, QtGui, uic
@@ -17,12 +18,31 @@ FILE_OPEN_ERRORS = (FileNotFoundError, IsADirectoryError, PermissionError)
 
 class CommitViewValueCommand(QtWidgets.QUndoCommand):
 
-    def __init__(self, message, view, path, old_value, new_value):
+    def __init__(self, message, view, path, new_value):
         super().__init__(message)
         self.view = view
         self.path = path
-        self.old_value = old_value
+        self.old_value = path.get_value(view)
         self.new_value = new_value
+        self.create_time = time.monotonic()
+        if self.new_value == self.old_value:
+            self.setObsolete(True)
+
+    def id(self):
+        return hash(CommitViewValueCommand)
+
+    def mergeWith(self, other):
+        if not isinstance(other, CommitViewValueCommand):
+            return False
+        if not self.view is other.view:
+            return False
+        if self.path != other.path:
+            return False
+        assert self.new_value == other.old_value
+        self.new_value = other.new_value
+        if self.new_value == self.old_value:
+            self.setObsolete(True)
+        return True
 
     def redo(self):
         self.path.set_value(self.view, self.new_value)
@@ -239,25 +259,25 @@ class Editor(QtWidgets.QMainWindow):
             menu.addAction(self.action_texture_replace)
             menu.exec_(self.explorer.mapToGlobal(position))
 
-    @QtCore.pyqtSlot(views.Path, object, object, str)
-    def on_material_form_commitViewValue(self, path, old_value, new_value, label):
+    @QtCore.pyqtSlot(str, views.Path, object)
+    def on_material_form_commitViewValue(self, label, path, value):
         material = self.material_form.view
         material_index = self.model.materials.index(material)
         command = CommitViewValueCommand(
             f"Changed '{label}' of '{material.name}'",
             self.model, +_p.materials[material_index] + path,
-            old_value, new_value
+            value
         )
         self.undo_stack.push(command)
 
-    @QtCore.pyqtSlot(views.Path, object, object, str)
-    def on_texture_form_commitViewValue(self, path, old_value, new_value, label):
+    @QtCore.pyqtSlot(str, views.Path, object)
+    def on_texture_form_commitViewValue(self, label, path, value):
         texture = self.texture_form.view
         texture_index = self.model.textures.index(texture)
         command = CommitViewValueCommand(
             f"Changed '{label}' of '{texture.name}'",
             self.model, +_p.textures[texture_index] + path,
-            old_value, new_value
+            value
         )
         self.undo_stack.push(command)
 

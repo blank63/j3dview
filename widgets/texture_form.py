@@ -5,9 +5,10 @@ import gx
 from views import path_builder as _p
 from widgets.view_form import (
     ViewForm,
-    LineEditAdaptor,
-    ComboBoxAdaptor,
-    SpinBoxAdaptor
+    EnumDelegate,
+    LineEditDelegate,
+    SpinBoxDelegate,
+    DoubleSpinBoxDelegate
 )
 
 
@@ -15,33 +16,33 @@ class TextureForm(ViewForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
         self.ui = uic.loadUi(io.BytesIO(pkgutil.get_data(__package__, 'TextureForm.ui')), self)
 
-        for value in gx.WrapMode:
-            self.wrap_s.addItem(value.name, value)
-            self.wrap_t.addItem(value.name, value)
-
-        for value in gx.FilterMode:
-            self.minification_filter.addItem(value.name, value)
-        self.magnification_filter.addItem(gx.NEAR.name, gx.NEAR)
-        self.magnification_filter.addItem(gx.LINEAR.name, gx.LINEAR)
-
-        self.add_widget(+_p.name, LineEditAdaptor(self.name), 'Name')
-        self.add_widget(+_p.wrap_s, ComboBoxAdaptor(self.wrap_s), 'Wrap S')
-        self.add_widget(+_p.wrap_t, ComboBoxAdaptor(self.wrap_t), 'Wrap T')
-        self.add_widget(+_p.minification_filter, ComboBoxAdaptor(self.minification_filter), 'Min. Filter')
-        self.add_widget(+_p.magnification_filter, ComboBoxAdaptor(self.magnification_filter), 'Mag. Filter')
-        self.add_widget(+_p.minimum_lod, SpinBoxAdaptor(self.minimum_lod), 'Min. LOD')
-        self.add_widget(+_p.maximum_lod, SpinBoxAdaptor(self.maximum_lod), 'max. LOD')
-        self.add_widget(+_p.lod_bias, SpinBoxAdaptor(self.lod_bias), 'LOD Bias')
-        self.add_widget(+_p.unknown0, SpinBoxAdaptor(self.unknown0), 'Unknown 0')
-        self.add_widget(+_p.unknown1, SpinBoxAdaptor(self.unknown1), 'Unknown 1')
-        self.add_widget(+_p.unknown2, SpinBoxAdaptor(self.unknown2), 'Unknown 2')
+        self.add_mapping('Name', +_p.name, 
+            self.name, LineEditDelegate())
+        self.add_mapping('Wrap S', +_p.wrap_s,
+            self.wrap_s, EnumDelegate(gx.WrapMode))
+        self.add_mapping('Wrap T', +_p.wrap_t,
+            self.wrap_t, EnumDelegate(gx.WrapMode))
+        self.add_mapping('Min. Filter', +_p.minification_filter,
+            self.minification_filter, EnumDelegate(gx.FilterMode))
+        self.add_mapping('Mag. Filter', +_p.magnification_filter,
+            self.magnification_filter, EnumDelegate([gx.NEAR, gx.LINEAR]))
+        self.add_mapping('Min. LOD', +_p.minimum_lod,
+            self.minimum_lod, DoubleSpinBoxDelegate(0, 10))
+        self.add_mapping('Max. LOD', +_p.maximum_lod,
+            self.maximum_lod, DoubleSpinBoxDelegate(0, 10))
+        self.add_mapping('LOD Bias', +_p.lod_bias,
+            self.lod_bias, DoubleSpinBoxDelegate(-4, 3.99))
+        self.add_mapping('Unknown 0', +_p.unknown0,
+            self.unknown0, SpinBoxDelegate(0, 255))
+        self.add_mapping('Unknown 1', +_p.unknown1,
+            self.unknown1, SpinBoxDelegate(0, 255))
+        self.add_mapping('Unknown 2', +_p.unknown2,
+            self.unknown2, SpinBoxDelegate(0, 255))
 
     def setTexture(self, texture):
         self.setView(texture)
-
         self.image_format.setText(self.view.image_format.name)
         self.image_size.setText(f'{self.view.width} x {self.view.height}')
         self.image_levels.setText(str(len(self.view.images)))
