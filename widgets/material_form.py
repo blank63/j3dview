@@ -16,6 +16,14 @@ from widgets.view_form import (
 from widgets.advanced_material_dialog import AdvancedMaterialDialog
 
 
+_bool = CheckBoxDelegate
+_int = SpinBoxDelegate
+_enum = EnumDelegate
+_str = LineEditDelegate
+_color = ColorButtonDelegate
+_texture = ComboBoxDelegate
+
+
 class TextureBoxHandler:
 
     def __init__(self, widget):
@@ -64,87 +72,50 @@ class MaterialForm(ViewForm):
         self.texture6.setModel(self.texture_template.model())
         self.texture7.setModel(self.texture_template.model())
 
-        self.add_mapping('Name', +_p.name,
-            self.name, LineEditDelegate())
-        self.add_mapping('Unknown 0', +_p.unknown0,
-            self.unknown0, SpinBoxDelegate(0, 255))
-        self.add_mapping('Cull Mode', +_p.cull_mode,
-            self.cull_mode, EnumDelegate(gx.CullMode))
-        self.add_mapping('Dither', +_p.dither,
-            self.dither, CheckBoxDelegate())
+        self.add_mapping('Name', +_p.name, self.name, _str())
+        self.add_mapping('Unknown 0', +_p.unknown0, self.unknown0, _int(min=0, max=255))
+        self.add_mapping('Cull Mode', +_p.cull_mode, self.cull_mode, _enum(gx.CullMode))
+        self.add_mapping('Dither', +_p.dither, self.dither, _bool())
 
-        self.add_mapping('Mat. Color 0', +_p.channels[0].material_color,
-            self.material_color0, ColorButtonDelegate())
-        self.add_mapping('Amb. Color 0', +_p.channels[0].ambient_color,
-            self.ambient_color0, ColorButtonDelegate())
-        self.add_mapping('Mat. Color 1', +_p.channels[1].material_color,
-            self.material_color1, ColorButtonDelegate())
-        self.add_mapping('Amb. Color 1', +_p.channels[1].ambient_color,
-            self.ambient_color1, ColorButtonDelegate())
+        self.add_mapping('Mat. Color 0', +_p.channels[0].material_color, self.material_color0, _color())
+        self.add_mapping('Amb. Color 0', +_p.channels[0].ambient_color, self.ambient_color0, _color())
+        self.add_mapping('Mat. Color 1', +_p.channels[1].material_color, self.material_color1, _color())
+        self.add_mapping('Amb. Color 1', +_p.channels[1].ambient_color, self.ambient_color1, _color())
 
-        self.add_mapping('Texture 0', +_p.texture_indices[0],
-            self.texture0, ComboBoxDelegate())
-        self.add_mapping('Texture 1', +_p.texture_indices[1],
-            self.texture1, ComboBoxDelegate())
-        self.add_mapping('Texture 2', +_p.texture_indices[2],
-            self.texture2, ComboBoxDelegate())
-        self.add_mapping('Texture 3', +_p.texture_indices[3],
-            self.texture3, ComboBoxDelegate())
-        self.add_mapping('Texture 4', +_p.texture_indices[4],
-            self.texture4, ComboBoxDelegate())
-        self.add_mapping('Texture 5', +_p.texture_indices[5],
-            self.texture5, ComboBoxDelegate())
-        self.add_mapping('Texture 6', +_p.texture_indices[6],
-            self.texture6, ComboBoxDelegate())
-        self.add_mapping('Texture 7', +_p.texture_indices[7],
-            self.texture7, ComboBoxDelegate())
+        self.add_mapping('Texture 0', +_p.texture_indices[0], self.texture0, _texture())
+        self.add_mapping('Texture 1', +_p.texture_indices[1], self.texture1, _texture())
+        self.add_mapping('Texture 2', +_p.texture_indices[2], self.texture2, _texture())
+        self.add_mapping('Texture 3', +_p.texture_indices[3], self.texture3, _texture())
+        self.add_mapping('Texture 4', +_p.texture_indices[4], self.texture4, _texture())
+        self.add_mapping('Texture 5', +_p.texture_indices[5], self.texture5, _texture())
+        self.add_mapping('Texture 6', +_p.texture_indices[6], self.texture6, _texture())
+        self.add_mapping('Texture 7', +_p.texture_indices[7], self.texture7, _texture())
 
         #TODO support for S10 TEV colors
-        self.add_mapping('TEV Prev', +_p.tev_color_previous,
-            self.tev_color_previous, ColorButtonDelegate())
-        self.add_mapping('TEV Reg. 0', +_p.tev_colors[0],
-            self.tev_color0, ColorButtonDelegate())
-        self.add_mapping('TEV Reg. 1', +_p.tev_colors[1],
-            self.tev_color1, ColorButtonDelegate())
-        self.add_mapping('TEV Reg. 2', +_p.tev_colors[2],
-            self.tev_color2, ColorButtonDelegate())
-        self.add_mapping('KColor 0', +_p.kcolors[0],
-            self.kcolor0, ColorButtonDelegate())
-        self.add_mapping('KColor 1', +_p.kcolors[1],
-            self.kcolor1, ColorButtonDelegate())
-        self.add_mapping('KColor 2', +_p.kcolors[2],
-            self.kcolor2, ColorButtonDelegate())
-        self.add_mapping('KColor 3', +_p.kcolors[3],
-            self.kcolor3, ColorButtonDelegate())
+        self.add_mapping('TEV Prev', +_p.tev_color_previous, self.tev_color_previous, _color())
+        self.add_mapping('TEV Reg. 0', +_p.tev_colors[0], self.tev_color0, _color())
+        self.add_mapping('TEV Reg. 1', +_p.tev_colors[1], self.tev_color1, _color())
+        self.add_mapping('TEV Reg. 2', +_p.tev_colors[2], self.tev_color2, _color())
+        self.add_mapping('KColor 0', +_p.kcolors[0], self.kcolor0, _color())
+        self.add_mapping('KColor 1', +_p.kcolors[1], self.kcolor1, _color())
+        self.add_mapping('KColor 2', +_p.kcolors[2], self.kcolor2, _color())
+        self.add_mapping('KColor 3', +_p.kcolors[3], self.kcolor3, _color())
 
-        self.add_mapping('Function 0', +_p.alpha_test.function0,
-            self.alpha_test_function0, EnumDelegate(gx.CompareFunction))
-        self.add_mapping('Reference 0', +_p.alpha_test.reference0,
-            self.alpha_test_reference0, SpinBoxDelegate(0, 255))
-        self.add_mapping('Function 1', +_p.alpha_test.function1,
-            self.alpha_test_function1, EnumDelegate(gx.CompareFunction))
-        self.add_mapping('Reference 1', +_p.alpha_test.reference1,
-            self.alpha_test_reference1, SpinBoxDelegate(0, 255))
-        self.add_mapping('Operator', +_p.alpha_test.operator,
-            self.alpha_test_operator, EnumDelegate(gx.AlphaOperator))
+        self.add_mapping('Function 0', +_p.alpha_test.function0, self.alpha_test_function0, _enum(gx.CompareFunction))
+        self.add_mapping('Reference 0', +_p.alpha_test.reference0, self.alpha_test_reference0, _int(min=0, max=255))
+        self.add_mapping('Function 1', +_p.alpha_test.function1, self.alpha_test_function1, _enum(gx.CompareFunction))
+        self.add_mapping('Reference 1', +_p.alpha_test.reference1, self.alpha_test_reference1, _int(min=0, max=255))
+        self.add_mapping('Operator', +_p.alpha_test.operator, self.alpha_test_operator, _enum(gx.AlphaOperator))
 
-        self.add_mapping('Enable', +_p.depth_mode.enable,
-            self.depth_mode_enable, CheckBoxDelegate())
-        self.add_mapping('Test Early', +_p.depth_test_early,
-            self.depth_mode_test_early, CheckBoxDelegate())
-        self.add_mapping('Function', +_p.depth_mode.function,
-            self.depth_mode_function, EnumDelegate(gx.CompareFunction))
-        self.add_mapping('Update Enable', +_p.depth_mode.update_enable,
-            self.depth_mode_update_enable, CheckBoxDelegate())
+        self.add_mapping('Enable', +_p.depth_mode.enable, self.depth_mode_enable, _bool())
+        self.add_mapping('Test Early', +_p.depth_test_early, self.depth_mode_test_early, _bool())
+        self.add_mapping('Function', +_p.depth_mode.function, self.depth_mode_function, _enum(gx.CompareFunction))
+        self.add_mapping('Update Enable', +_p.depth_mode.update_enable, self.depth_mode_update_enable, _bool())
 
-        self.add_mapping('Function', +_p.blend_mode.function,
-            self.blend_mode_function, EnumDelegate(gx.BlendFunction))
-        self.add_mapping('Src. Factor', +_p.blend_mode.source_factor,
-            self.blend_mode_source_factor, EnumDelegate(gx.BlendSourceFactor))
-        self.add_mapping('Dst. Factor', +_p.blend_mode.destination_factor,
-            self.blend_mode_destination_factor, EnumDelegate(gx.BlendDestinationFactor))
-        self.add_mapping('Logic Op.', +_p.blend_mode.logical_operation,
-            self.blend_mode_logical_operation, EnumDelegate(gx.LogicalOperation))
+        self.add_mapping('Function', +_p.blend_mode.function, self.blend_mode_function, _enum(gx.BlendFunction))
+        self.add_mapping('Src. Factor', +_p.blend_mode.source_factor, self.blend_mode_source_factor, _enum(gx.BlendSourceFactor))
+        self.add_mapping('Dst. Factor', +_p.blend_mode.destination_factor, self.blend_mode_destination_factor, _enum(gx.BlendDestinationFactor))
+        self.add_mapping('Logic Op.', +_p.blend_mode.logical_operation, self.blend_mode_logical_operation, _enum(gx.LogicalOperation))
 
         self.advanced_material_dialog = AdvancedMaterialDialog()
         self.advanced_material_dialog.commitViewValue.connect(self.commitViewValue.emit)

@@ -12,34 +12,29 @@ from widgets.view_form import (
 )
 
 
+_int = SpinBoxDelegate
+_float = DoubleSpinBoxDelegate
+_enum = EnumDelegate
+_str = LineEditDelegate
+
+
 class TextureForm(ViewForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ui = uic.loadUi(io.BytesIO(pkgutil.get_data(__package__, 'TextureForm.ui')), self)
 
-        self.add_mapping('Name', +_p.name, 
-            self.name, LineEditDelegate())
-        self.add_mapping('Wrap S', +_p.wrap_s,
-            self.wrap_s, EnumDelegate(gx.WrapMode))
-        self.add_mapping('Wrap T', +_p.wrap_t,
-            self.wrap_t, EnumDelegate(gx.WrapMode))
-        self.add_mapping('Min. Filter', +_p.minification_filter,
-            self.minification_filter, EnumDelegate(gx.FilterMode))
-        self.add_mapping('Mag. Filter', +_p.magnification_filter,
-            self.magnification_filter, EnumDelegate([gx.NEAR, gx.LINEAR]))
-        self.add_mapping('Min. LOD', +_p.minimum_lod,
-            self.minimum_lod, DoubleSpinBoxDelegate(0, 10))
-        self.add_mapping('Max. LOD', +_p.maximum_lod,
-            self.maximum_lod, DoubleSpinBoxDelegate(0, 10))
-        self.add_mapping('LOD Bias', +_p.lod_bias,
-            self.lod_bias, DoubleSpinBoxDelegate(-4, 3.99))
-        self.add_mapping('Unknown 0', +_p.unknown0,
-            self.unknown0, SpinBoxDelegate(0, 255))
-        self.add_mapping('Unknown 1', +_p.unknown1,
-            self.unknown1, SpinBoxDelegate(0, 255))
-        self.add_mapping('Unknown 2', +_p.unknown2,
-            self.unknown2, SpinBoxDelegate(0, 255))
+        self.add_mapping('Name', +_p.name, self.name, _str())
+        self.add_mapping('Wrap S', +_p.wrap_s, self.wrap_s, _enum(gx.WrapMode))
+        self.add_mapping('Wrap T', +_p.wrap_t, self.wrap_t, _enum(gx.WrapMode))
+        self.add_mapping('Min. Filter', +_p.minification_filter, self.minification_filter, _enum(gx.FilterMode))
+        self.add_mapping('Mag. Filter', +_p.magnification_filter, self.magnification_filter, _enum([gx.NEAR, gx.LINEAR]))
+        self.add_mapping('Min. LOD', +_p.minimum_lod, self.minimum_lod, _float(min=0, max=10))
+        self.add_mapping('Max. LOD', +_p.maximum_lod, self.maximum_lod, _float(min=0, max=10))
+        self.add_mapping('LOD Bias', +_p.lod_bias, self.lod_bias, _float(min=-4, max=3.99))
+        self.add_mapping('Unknown 0', +_p.unknown0, self.unknown0, _int(min=0, max=255))
+        self.add_mapping('Unknown 1', +_p.unknown1, self.unknown1, _int(min=0, max=255))
+        self.add_mapping('Unknown 2', +_p.unknown2, self.unknown2, _int(min=0, max=255))
 
     def setTexture(self, texture):
         self.setView(texture)

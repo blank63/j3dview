@@ -3,9 +3,6 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import views
 
 
-PathRole = QtCore.Qt.UserRole
-
-
 class Item:
 
     def __init__(self):
@@ -61,6 +58,9 @@ class Item:
     def set_data(self, column, value, role):
         return False
 
+    def handle_event(self, event, path):
+        pass
+
 
 class GroupItem(Item):
 
@@ -106,13 +106,11 @@ class PropertyItem(Item):
         assert False
 
     def get_data(self, column, role):
-        if column == 0:
-            if role in {QtCore.Qt.DisplayRole, QtCore.Qt.EditRole}:
-                return self.path.get_value(self.model.view)
-            if role == PathRole:
-                return self.path
+        if column != 0:
             return QtCore.QVariant()
-        assert False
+        if role not in {QtCore.Qt.DisplayRole, QtCore.Qt.EditRole}:
+            return QtCore.QVariant()
+        return self.path.get_value(self.model.view)
 
     def set_data(self, column, value, role):
         if column != 0:
@@ -121,6 +119,9 @@ class PropertyItem(Item):
             return False
         self.model.commitViewValue.emit(self.label, self.path, value)
         return True
+
+    def handle_event(self, event, path):
+        self.model.item_data_changed(self)
 
 
 class ModelAdaptor(QtCore.QAbstractItemModel):
@@ -143,7 +144,7 @@ class ModelAdaptor(QtCore.QAbstractItemModel):
             parent_item = self.root_item
         parent_item.add_child(item)
         for trigger in item.triggers:
-            self.trigger_table[trigger] = item
+            self.trigger_table.setdefault(trigger, []).append(item)
 
     def get_item_index(self, item):
         if item is self.root_item:
@@ -220,10 +221,8 @@ class ModelAdaptor(QtCore.QAbstractItemModel):
         return self.root_item.get_data(section, role)
 
     def handle_event(self, event, path):
-        if isinstance(event, views.ValueChangedEvent):
-            item = self.trigger_table.get(path)
-            if item is not None:
-                self.item_data_changed(item)
+        for item in self.trigger_table.get(path, []):
+            item.handle_event(event, path)
 
 
 class CheckBoxDelegate(QtWidgets.QStyledItemDelegate):
@@ -536,56 +535,26 @@ class ColorButtonDelegate(QtWidgets.QStyledItemDelegate):
 class DelegateDelegate(QtWidgets.QStyledItemDelegate):
     """Delegate that delegates to other delegates."""
 
-    def __init__(self):
-        super().__init__()
-        self.delegate_table = {}
-
-    def add_delegate(self, path, delegate):
-        self.delegate_table[path] = delegate
-        delegate.commitData.connect(self.commitData.emit)
-        delegate.closeEditor.connect(self.closeEditor.emit)
+    def get_delegate(self, item):
+        return super()
 
     def sizeHint(self, option, index):
-        path = index.data(PathRole)
-        if path in self.delegate_table:
-            return self.delegate_table[path].sizeHint(option, index)
-        else:
-            return super().sizeHint(option, index)
+        return self.get_delegate(index).sizeHint(option, index)
 
     def paint(self, painter, option, index):
-        path = index.data(PathRole)
-        if path in self.delegate_table:
-            self.delegate_table[path].paint(painter, option, index)
-        else:
-            super().paint(painter, option, index)
+        self.get_delegate(index).paint(painter, option, index)
 
     def editorEvent(self, event, model, option, index):
-        path = index.data(PathRole)
-        if path in self.delegate_table:
-            return self.delegate_table[path].editorEvent(event, model, option, index)
-        else:
-            return super().editorEvent(event, model, option, index)
+        return self.get_delegate(index).editorEvent(event, model, option, index)
 
     def createEditor(self, parent, option, index):
-        path = index.data(PathRole)
-        if path in self.delegate_table:
-            return self.delegate_table[path].createEditor(parent, option, index)
-        else:
-            return super().createEditor(parent, option, index)
+        return self.get_delegate(index).createEditor(parent, option, index)
 
     def setEditorData(self, editor, index):
-        path = index.data(PathRole)
-        if path in self.delegate_table:
-            self.delegate_table[path].setEditorData(editor, index)
-        else:
-            super().setEditorData(editor, index)
+        self.get_delegate(index).setEditorData(editor, index)
 
     def setModelData(self, editor, model, index):
-        path = index.data(PathRole)
-        if path in self.delegate_table:
-            self.delegate_table[path].setModelData(editor, model, index)
-        else:
-            super().setModelData(editor, model, index)
+        self.get_delegate(index).setModelData(editor, model, index)
 
 
 class ViewForm(QtWidgets.QWidget):
@@ -600,18 +569,32 @@ class ViewForm(QtWidgets.QWidget):
             self.widget = widget
             self.delegate = delegate
 
+    class Delegate(DelegateDelegate):
+
+        def __init__(self):
+            super().__init__()
+            self.delegates = []
+
+        def add_delegate(self, delegate):
+            self.delegates.append(delegate)
+            delegate.commitData.connect(self.commitData.emit)
+            delegate.closeEditor.connect(self.closeEditor.emit)
+
+        def get_delegate(self, index):
+            return self.delegates[index.row()]
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.view = None
         self.mappings = []
         self.mapper = None
-        self.delegate = DelegateDelegate()
+        self.delegate = self.Delegate()
         self.setEnabled(False)
 
     def add_mapping(self, label, path, widget, delegate):
         self.mappings.append(self.Mapping(label, path, widget, delegate))
         delegate.initEditor(widget)
-        self.delegate.add_delegate(path, delegate)
+        self.delegate.add_delegate(delegate)
 
     def setView(self, view):
         self.view = view
