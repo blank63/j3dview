@@ -189,3 +189,22 @@ class Texture(views.View):
         glActiveTexture(GL_TEXTURE0 + texture_unit)
         glBindTexture(GL_TEXTURE_2D, self.gl_texture)
 
+    def gl_delete(self):
+        super().gl_delete()
+        try:
+            del self.gl_sampler
+        except AttributeError:
+            pass
+        try:
+            del self._gl_sampler
+        except AttributeError:
+            pass
+        try:
+            del self.gl_texture
+        except AttributeError:
+            pass
+        try:
+            del self._gl_texture
+        except AttributeError:
+            pass
+

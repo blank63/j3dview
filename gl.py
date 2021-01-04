@@ -308,6 +308,9 @@ class ResourceManagerMixin:
     def gl_create_resource(self, resource_type, *args, **kwargs):
         return self.gl_resource_manager.create(resource_type, *args, **kwargs)
 
+    def gl_manage_resource(self, resource):
+        self.gl_resource_manager.manage(resource)
+
     def gl_delete_resource(self, resource):
         self.gl_resource_manager.delete(resource)
 

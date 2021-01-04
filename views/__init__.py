@@ -136,6 +136,14 @@ class PathBuilder:
 path_builder = PathBuilder()
 
 
+class CreateEvent:
+    pass
+
+
+class DeleteEvent:
+    pass
+
+
 class ValueChangedEvent:
     pass
 
@@ -194,14 +202,17 @@ class View(gl.ResourceManagerMixin):
     def handle_event(self, event, path=Path()):
         self.emit_event(event, path)
 
-    def _create_child_view(self, path, view_type, viewed_object, *args, **kwargs):
-        view = self.gl_create_resource(view_type, viewed_object, *args, **kwargs)
-        view.register_listener(self, path)
-        return view
+    def _attach_child_view(self, child, path):
+        self.gl_manage_resource(child)
+        child.register_listener(self, path)
 
-    def _delete_child_view(self, view):
-        self.gl_delete_resource(view)
-        view.unregister_listener(self)
+    def _reattach_child_view(self, child, path):
+        child.unregister_listener(self)
+        child.register_listener(self, path)
+
+    def _detach_child_view(self, child):
+        self.gl_delete_resource(child)
+        child.unregister_listener(self)
 
 
 class ListView(View):
@@ -224,10 +235,9 @@ class ViewListView(View):
     def __init__(self, viewed_object, item_type):
         super().__init__(viewed_object)
         self._item_type = item_type
-        self._items = [
-            self._create_child_view(Path.for_item(i), item_type, item)
-            for i, item in enumerate(viewed_object)
-        ]
+        self._items = [item_type(item) for item in viewed_object]
+        for i, item in enumerate(self._items):
+            self._attach_child_view(item, Path.for_item(i))
 
     def __len__(self):
         return len(self._items)
@@ -235,14 +245,24 @@ class ViewListView(View):
     def __getitem__(self, key):
         return self._items[key]
 
-    def __setitem__(self, key, value):
-        if value == self._items[key].viewed_object:
-            return
-        self._delete_child_view(self._items[key])
-        path = Path.for_item(key)
-        self.viewed_object[key] = value
-        self._items[key] = self._create_child_view(path, self._item_type, value)
-        self.handle_event(ValueChangedEvent(), path)
+    def __delitem__(self, key):
+        assert isinstance(key, int)
+        assert key >= 0
+        self._detach_child_view(self._items[key])
+        del self._items[key]
+        del self.viewed_object[key]
+        for i in range(key, len(self)):
+            self._reattach_child_view(self._items[i], Path.for_item(i))
+        self.handle_event(DeleteEvent(), Path.for_item(key))
+
+    def insert(self, index, value):
+        assert index >= 0
+        self.viewed_object.insert(index, value.viewed_object)
+        self._items.insert(index, value)
+        self._attach_child_view(value, Path.for_item(index))
+        for i in range(index + 1, len(self)):
+            self._reattach_child_view(self._items[i], Path.for_item(i))
+        self.handle_event(CreateEvent(), Path.for_item(index))
 
     def index(self, value):
         return self._items.index(value)
@@ -295,10 +315,8 @@ class ViewAttribute:
         except AttributeError:
             pass
         viewed_object = getattr(instance.viewed_object, self.name)
-        view = instance._create_child_view(
-            self.path, self.view_type, viewed_object,
-            *self.view_args, **self.view_kwargs
-        )
+        view = self.view_type(viewed_object, *self.view_args, **self.view_kwargs)
+        instance._attach_child_view(view, self.path)
         setattr(instance, self.private_name, view)
         return view
 

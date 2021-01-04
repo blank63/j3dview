@@ -8,7 +8,7 @@ from views import path_builder as _p
 from widgets.view_form import (
     Item,
     GroupItem,
-    ModelAdaptor,
+    ItemModelAdaptor,
     DelegateDelegate,
     CountDelegate,
     EnumDelegate,
@@ -132,7 +132,7 @@ class ListWithCountItem(GroupItem):
         self.update()
 
 
-class MaterialAdaptor(ModelAdaptor):
+class MaterialAdaptor(ItemModelAdaptor):
 
     def __init__(self, material):
         super().__init__(material)

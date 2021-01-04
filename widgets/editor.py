@@ -51,24 +51,6 @@ class CommitViewValueCommand(QtWidgets.QUndoCommand):
         self.path.set_value(self.view, self.old_value)
 
 
-class ReplaceTextureCommand(QtWidgets.QUndoCommand):
-    #TODO: Should something be done about textures that are no longer being
-    # used, but are still in the undo stack?
-
-    def __init__(self, view, index, texture):
-        super().__init__('Replace Texture')
-        self.view = view
-        self.index = index
-        self.old_texture = view.viewed_object.textures[index]
-        self.new_texture = texture
-
-    def redo(self):
-        self.view.replace_texture(self.index, self.new_texture)
-
-    def undo(self):
-        self.view.replace_texture(self.index, self.old_texture)
-
-
 class Editor(QtWidgets.QMainWindow):
 
     def __init__(self, *args, **kwargs):
@@ -90,13 +72,9 @@ class Editor(QtWidgets.QMainWindow):
         self.menu_window.addAction(self.dock_texture_form.toggleViewAction())
 
         self.action_open_model.setShortcut(QtGui.QKeySequence.Open)
-        self.action_open_model.setShortcutContext(QtCore.Qt.ApplicationShortcut)
         self.action_save_model.setShortcut(QtGui.QKeySequence.Save)
-        self.action_save_model.setShortcutContext(QtCore.Qt.ApplicationShortcut)
         self.action_save_model_as.setShortcut(QtGui.QKeySequence.SaveAs)
-        self.action_save_model_as.setShortcutContext(QtCore.Qt.ApplicationShortcut)
         self.action_quit.setShortcut(QtGui.QKeySequence.Quit)
-        self.action_quit.setShortcutContext(QtCore.Qt.ApplicationShortcut)
         self.action_undo.setShortcut(QtGui.QKeySequence.Undo)
         self.action_undo.setShortcutContext(QtCore.Qt.ApplicationShortcut)
         self.action_redo.setShortcut(QtGui.QKeySequence.Redo)
@@ -117,6 +95,7 @@ class Editor(QtWidgets.QMainWindow):
 
         self.view_settings.setViewer(self.viewer)
         self.dock_view_settings.hide()
+        self.explorer.setUndoStack(self.undo_stack)
         self.tabifyDockWidget(self.dock_material_form, self.dock_texture_form)
 
         self.setWindowFilePath('')
@@ -250,15 +229,6 @@ class Editor(QtWidgets.QMainWindow):
         self.texture_form.setTexture(self.model.textures[texture_index])
         self.dock_texture_form.raise_()
 
-    @QtCore.pyqtSlot(QtCore.QPoint)
-    def on_explorer_customContextMenuRequested(self, position):
-        item = self.explorer.itemAt(position)
-        if isinstance(item, widgets.explorer_widget.TextureItem):
-            menu = QtWidgets.QMenu(self)
-            menu.addAction(self.action_texture_export)
-            menu.addAction(self.action_texture_replace)
-            menu.exec_(self.explorer.mapToGlobal(position))
-
     @QtCore.pyqtSlot(str, views.Path, object)
     def on_material_form_commitViewValue(self, label, path, value):
         material = self.material_form.view
@@ -344,36 +314,4 @@ class Editor(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot()
     def on_action_quit_triggered(self):
         QtWidgets.qApp.exit()
-
-    @QtCore.pyqtSlot()
-    def on_action_texture_export_triggered(self):
-        texture = self.model.viewed_object.textures[self.explorer.current_texture_index]
-        file_name, _ = QtWidgets.QFileDialog.getSaveFileName(
-                self,
-                'Export Texture',
-                os.path.join(os.path.dirname(self.windowFilePath()), texture.name + '.bti'),
-                'BTI texture (*.bti);;All files (*)')
-        if not file_name: return
-
-        try:
-            self.exportTexture(file_name, texture)
-        except FILE_OPEN_ERRORS as error:
-            self.warning_file_open_failed(error)
-
-    @QtCore.pyqtSlot()
-    def on_action_texture_replace_triggered(self):
-        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(
-                self,
-                'Open Texture',
-                os.path.dirname(self.windowFilePath()),
-                'BTI texture (*.bti);;All files (*)')
-        if not file_name: return
-
-        try:
-            texture = self.importTexture(file_name)
-        except FILE_OPEN_ERRORS as error:
-            self.warning_file_open_failed(error)
-
-        index = self.explorer.current_texture_index
-        self.undo_stack.push(ReplaceTextureCommand(self.model, index, texture))
 

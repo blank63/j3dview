@@ -95,19 +95,7 @@
       <number>0</number>
      </property>
      <item>
-      <widget class="ExplorerWidget" name="explorer">
-       <property name="contextMenuPolicy">
-        <enum>Qt::CustomContextMenu</enum>
-       </property>
-       <attribute name="headerVisible">
-        <bool>false</bool>
-       </attribute>
-       <column>
-        <property name="text">
-         <string notr="true">1</string>
-        </property>
-       </column>
-      </widget>
+      <widget class="ExplorerWidget" name="explorer" native="true"/>
      </item>
     </layout>
    </widget>
@@ -220,7 +208,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>254</width>
+          <width>68</width>
           <height>96</height>
          </rect>
         </property>
@@ -264,7 +252,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>254</width>
+          <width>68</width>
           <height>97</height>
          </rect>
         </property>
@@ -278,44 +266,44 @@
    <property name="text">
     <string>&amp;Open Model...</string>
    </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
+   </property>
   </action>
   <action name="action_open_animation">
    <property name="text">
     <string>Open Animation...</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
    </property>
   </action>
   <action name="action_save_model">
    <property name="text">
     <string>&amp;Save Model</string>
    </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
+   </property>
   </action>
   <action name="action_save_model_as">
    <property name="text">
     <string>Save Model &amp;As...</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
    </property>
   </action>
   <action name="action_quit">
    <property name="text">
     <string>&amp;Quit</string>
    </property>
-  </action>
-  <action name="action_texture_export">
-   <property name="text">
-    <string>&amp;Export</string>
-   </property>
-  </action>
-  <action name="action_texture_replace">
-   <property name="text">
-    <string>&amp;Replace</string>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
    </property>
   </action>
  </widget>
  <customwidgets>
-  <customwidget>
-   <class>ExplorerWidget</class>
-   <extends>QTreeWidget</extends>
-   <header>widgets.explorer_widget</header>
-  </customwidget>
   <customwidget>
    <class>ViewerWidget</class>
    <extends>QOpenGLWidget</extends>
@@ -344,6 +332,12 @@
    <class>MaterialForm</class>
    <extends>QWidget</extends>
    <header>widgets.material_form</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>ExplorerWidget</class>
+   <extends>QWidget</extends>
+   <header>widgets.explorer_widget</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

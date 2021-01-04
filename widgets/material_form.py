@@ -1,10 +1,12 @@
 import io
 import pkgutil
-from PyQt5 import QtCore, QtWidgets, uic
+from PyQt5 import QtCore, QtGui, uic
 import gx
 import views
 from views import path_builder as _p
 from widgets.view_form import (
+    Item,
+    ItemModelAdaptor,
     ViewForm,
     CheckBoxDelegate,
     ComboBoxDelegate,
@@ -24,35 +26,71 @@ _color = ColorButtonDelegate
 _texture = ComboBoxDelegate
 
 
-class TextureBoxHandler:
+class NoneItem(Item):
 
-    def __init__(self, widget):
-        self.widget = widget
-        self.textures = None
+    @property
+    def column_count(self):
+        return 1
 
-    def setTextures(self, textures):
-        if self.textures is not None:
-            self.textures.unregister_listener(self)
-        self.textures = textures
-        self.widget.clear()
-        self.widget.addItem('None', None)
-        for i, texture in enumerate(textures):
-            self.widget.addItem(texture.name, i)
-        self.textures.register_listener(self)
+    def get_flags(self, column):
+        return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
 
-    def clear(self):
-        if self.textures is not None:
-            self.textures.unregister_listener(self)
-        self.textures = None
-        self.widget.clear()
+    def get_data(self, column, role):
+        if role == QtCore.Qt.DisplayRole:
+            return 'None'
+        if role == QtCore.Qt.UserRole:
+            return None
+        return QtCore.QVariant()
+
+
+class TextureItem(Item):
+
+    def __init__(self, index):
+        super().__init__()
+        self.index = index
+        self.triggers = frozenset((+_p[index].name,))
+
+    @property
+    def column_count(self):
+        return 1
+
+    def get_flags(self, column):
+        return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+
+    def get_data(self, column, role):
+        if role == QtCore.Qt.DisplayRole:
+            return self.model.view[self.index].name
+        if role == QtCore.Qt.UserRole:
+            return self.index
+        return QtCore.QVariant()
 
     def handle_event(self, event, path):
-        if isinstance(event, views.ValueChangedEvent):
-            if path.match(+_p[...]) or path.match(+_p[...].name):
-                index = path[0].key
-                texture = self.textures[index]
-                item = self.widget.findData(index)
-                self.widget.setItemText(item, texture.name)
+        self.model.item_data_changed(self)
+
+
+class TextureListAdaptor(ItemModelAdaptor):
+
+    def __init__(self, textures):
+        super().__init__(textures)
+        self.set_header_labels(['Value'])
+        self.add_item(NoneItem())
+        for i in range(len(textures)):
+            self.add_item(TextureItem(i))
+
+    def handle_event(self, event, path):
+        if path.match(+_p[...]):
+            if isinstance(event, views.CreateEvent):
+                row = self.rowCount()
+                texture_index = len(self.view) - 1
+                self.beginInsertRows(QtCore.QModelIndex(), row, row)
+                self.add_item(TextureItem(texture_index))
+                self.endInsertRows()
+            elif isinstance(event, views.DeleteEvent):
+                row = self.rowCount() - 1
+                self.beginRemoveRows(QtCore.QModelIndex(), row, row)
+                self.take_item(row)
+                self.endRemoveRows()
+        super().handle_event(event, path)
 
 
 class MaterialForm(ViewForm):
@@ -60,17 +98,6 @@ class MaterialForm(ViewForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ui = uic.loadUi(io.BytesIO(pkgutil.get_data(__package__, 'MaterialForm.ui')), self)
-
-        self.texture_template = QtWidgets.QComboBox()
-        self.texture_template_handler = TextureBoxHandler(self.texture_template)
-        self.texture0.setModel(self.texture_template.model())
-        self.texture1.setModel(self.texture_template.model())
-        self.texture2.setModel(self.texture_template.model())
-        self.texture3.setModel(self.texture_template.model())
-        self.texture4.setModel(self.texture_template.model())
-        self.texture5.setModel(self.texture_template.model())
-        self.texture6.setModel(self.texture_template.model())
-        self.texture7.setModel(self.texture_template.model())
 
         self.add_mapping('Name', +_p.name, self.name, _str())
         self.add_mapping('Unknown 0', +_p.unknown0, self.unknown0, _int(min=0, max=255))
@@ -121,7 +148,15 @@ class MaterialForm(ViewForm):
         self.advanced_material_dialog.commitViewValue.connect(self.commitViewValue.emit)
 
     def setTextures(self, textures):
-        self.texture_template_handler.setTextures(textures)
+        adaptor = TextureListAdaptor(textures)
+        self.texture0.setModel(adaptor)
+        self.texture1.setModel(adaptor)
+        self.texture2.setModel(adaptor)
+        self.texture3.setModel(adaptor)
+        self.texture4.setModel(adaptor)
+        self.texture5.setModel(adaptor)
+        self.texture6.setModel(adaptor)
+        self.texture7.setModel(adaptor)
 
     def setMaterial(self, material):
         self.setView(material)
@@ -129,7 +164,15 @@ class MaterialForm(ViewForm):
 
     def clear(self):
         super().clear()
-        self.texture_template_handler.clear()
+        empty_model = QtGui.QStandardItemModel()
+        self.texture0.setModel(empty_model)
+        self.texture1.setModel(empty_model)
+        self.texture2.setModel(empty_model)
+        self.texture3.setModel(empty_model)
+        self.texture4.setModel(empty_model)
+        self.texture5.setModel(empty_model)
+        self.texture6.setModel(empty_model)
+        self.texture7.setModel(empty_model)
         self.advanced_material_dialog.clear()
 
     @QtCore.pyqtSlot(bool)

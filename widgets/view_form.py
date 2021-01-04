@@ -13,18 +13,29 @@ class Item:
         self.triggers = frozenset()
 
     @property
-    def model(self):
-        return self.model_reference()
-
-    @property
     def parent(self):
         return self.parent_reference()
 
-    def set_model(self, model):
-        self.model_reference = weakref.ref(model)
+    @property
+    def model(self):
+        return self.model_reference()
 
     def set_parent(self, parent):
         self.parent_reference = weakref.ref(parent)
+
+    def attach_model(self, model):
+        self.model_reference = weakref.ref(model)
+        for child in self.children:
+            child.attach_model(model)
+        for trigger in self.triggers:
+            self.model.register_trigger(self, trigger)
+
+    def detach_model(self):
+        for trigger in self.triggers:
+            self.model.unregister_trigger(self, trigger)
+        for child in self.children:
+            child.detach_model()
+        self.model_reference = None
 
     def set_enabled(self, value):
         self.enabled = value
@@ -34,6 +45,11 @@ class Item:
     def add_child(self, child):
         child.set_parent(self)
         self.children.append(child)
+
+    def take_child(self, row):
+        child = self.children[row]
+        del self.children[row]
+        return child
 
     def get_child(self, row):
         return self.children[row]
@@ -124,7 +140,7 @@ class PropertyItem(Item):
         self.model.item_data_changed(self)
 
 
-class ModelAdaptor(QtCore.QAbstractItemModel):
+class ItemModelAdaptor(QtCore.QAbstractItemModel):
 
     commitViewValue = QtCore.pyqtSignal(str, views.Path, object)
 
@@ -138,13 +154,24 @@ class ModelAdaptor(QtCore.QAbstractItemModel):
     def set_header_labels(self, labels):
         self.root_item.set_labels(labels)
 
+    def register_trigger(self, item, path):
+        self.trigger_table.setdefault(path, []).append(item)
+
+    def unregister_trigger(self, item, path):
+        self.trigger_table[path].remove(item)
+
     def add_item(self, item, parent_item=None):
-        item.set_model(self)
         if parent_item is None:
             parent_item = self.root_item
         parent_item.add_child(item)
-        for trigger in item.triggers:
-            self.trigger_table.setdefault(trigger, []).append(item)
+        item.attach_model(self)
+
+    def take_item(self, row, parent_item=None):
+        if parent_item is None:
+            parent_item = self.root_item
+        item = parent_item.take_child(row)
+        item.detach_model()
+        return item
 
     def get_item_index(self, item):
         if item is self.root_item:
@@ -598,7 +625,7 @@ class ViewForm(QtWidgets.QWidget):
 
     def setView(self, view):
         self.view = view
-        adaptor = ModelAdaptor(view)
+        adaptor = ItemModelAdaptor(view)
         adaptor.set_header_labels(['Value'])
         for mapping in self.mappings:
             adaptor.add_item(PropertyItem(mapping.label, mapping.path))

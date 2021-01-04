@@ -12,6 +12,10 @@ import views.texture
 import views.vertex_shader
 
 
+class ResourceInUseError(Exception):
+    pass
+
+
 def matrix3x4_array_multiply(a,b):
     c = numpy.empty(a.shape,numpy.float32)
     numpy.einsum('ijk,ikl->ijl',a[:,:,:3],b[:,:,:3],out=c[:,:,:3])
@@ -215,6 +219,27 @@ class Model(views.View):
         self.gl_matrix_table.bind_texture(views.material.MATRIX_TABLE_TEXTURE_UNIT)
         self.gl_draw_node(self.scene_graph)
 
-    def replace_texture(self, index, texture):
-        self.textures[index] = texture
+    def get_materials_using_texture(self, texture_index):
+        materials = []
+        for material in self.materials:
+            if texture_index in material.texture_indices:
+                materials.append(material)
+                continue
+        return materials
+
+    def insert_texture(self, index, texture):
+        self.textures.insert(index, texture)
+        for material in self.materials:
+            for i, ti in enumerate(material.texture_indices):
+                if ti is not None and ti >= index:
+                    material.texture_indices[i] += 1
+
+    def remove_texture(self, index):
+        if self.get_materials_using_texture(index):
+            raise ResourceInUseError('Cannot remove texture in use')
+        for material in self.materials:
+            for i, ti in enumerate(material.texture_indices):
+                if ti is not None and ti > index:
+                    material.texture_indices[i] -= 1
+        del self.textures[index]
 
