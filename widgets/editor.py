@@ -5,7 +5,6 @@ import os.path
 from PyQt5 import QtCore, QtWidgets, QtGui, uic
 import gx
 import gx.bti
-import j3d.model
 import j3d.animation
 import views
 from views import path_builder as _p
@@ -158,9 +157,8 @@ class Editor(QtWidgets.QMainWindow):
     def warning_file_open_failed(self, error):
         self.warning('Could not open file \'{}\': {}'.format(error.filename, error.strerror))
 
-    def loadModel(self, file_name):
-        with open(file_name, 'rb') as stream:
-            model = j3d.model.unpack(stream)
+    def loadModel(self, file_path):
+        model = views.model.Model.load(file_path)
 
         self.undo_stack.clear()
         self.preview.clear()
@@ -170,7 +168,7 @@ class Editor(QtWidgets.QMainWindow):
         self.viewer.makeCurrent()
         if self.model is not None:
             self.model.gl_delete()
-        self.model = views.model.Model(model)
+        self.model = model
         self.model.gl_init()
 
         self.viewer.setModel(self.model)
@@ -181,30 +179,18 @@ class Editor(QtWidgets.QMainWindow):
         self.action_save_model.setEnabled(True)
         self.action_save_model_as.setEnabled(True)
 
-        self.setWindowFilePath(file_name)
+        self.setWindowFilePath(file_path)
 
-    def saveModel(self, file_name):
-        with open(file_name, 'wb') as stream:
-            j3d.model.pack(stream, self.model.viewed_object)
-
+    def saveModel(self, file_path):
+        self.model.save(file_path)
         self.undo_stack.setClean()
-        self.setWindowFilePath(file_name)
+        self.setWindowFilePath(file_path)
 
     def loadAnimation(self, file_name):
         with open(file_name, 'rb') as stream:
             animation = j3d.animation.unpack(stream)
 
         self.viewer.setAnimation(animation)
-
-    def importTexture(self, file_name):
-        with open(file_name, 'rb') as stream:
-            texture = gx.bti.unpack(stream)
-        texture.name = os.path.splitext(os.path.basename(file_name))[0]
-        return texture
-
-    def exportTexture(self, file_name, texture):
-        with open(file_name, 'wb') as stream:
-            gx.bti.pack(stream, texture)
 
     def openFile(self, file_name):
         try:

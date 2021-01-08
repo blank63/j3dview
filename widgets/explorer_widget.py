@@ -1,7 +1,9 @@
 from enum import Enum
+import os
 from PyQt5 import QtCore, QtWidgets
 import views
 from views import path_builder as _p
+import views.texture
 from widgets.view_form import Item, GroupItem, ItemModelAdaptor
 
 
@@ -46,6 +48,11 @@ class ListItem(GroupItem):
     def get_flags(self, column):
         return super().get_flags(column) | QtCore.Qt.ItemIsDropEnabled
 
+    def get_data(self, column, role):
+        if role == PathRole:
+            return self.path
+        return super().get_data(column, role)
+
     def initialize(self):
         for i in range(len(self.view)):
             element = ElementItem(self.path + _p[i])
@@ -82,6 +89,10 @@ class ModelAdaptor(ItemModelAdaptor):
         self.texture_list = ListItem('Textures', +_p.textures)
         self.add_item(self.texture_list)
         self.texture_list.initialize()
+
+    def get_texture_index(self, row):
+        item = self.texture_list.get_child(row)
+        return self.get_item_index(item)
 
     def supportedDropActions(self):
         return QtCore.Qt.MoveAction
@@ -130,9 +141,23 @@ class ModelAdaptor(ItemModelAdaptor):
         super().handle_event(event, path)
 
 
+class InsertTextureCommand(QtWidgets.QUndoCommand):
+
+    def __init__(self, model, index, texture):
+        super().__init__()
+        self.model = model
+        self.index = index
+        self.texture = texture
+        self.setText(f'Insert texture {self.texture.name}')
+
+    def redo(self):
+        self.model.insert_texture(self.index, self.texture)
+
+    def undo(self):
+        self.model.remove_texture(self.index)
+
+
 class RemoveTextureCommand(QtWidgets.QUndoCommand):
-    #TODO: Should something be done about textures that are no longer being
-    # used, but are still in the undo stack?
 
     def __init__(self, model, index):
         super().__init__()
@@ -186,6 +211,12 @@ class ExplorerWidget(QtWidgets.QWidget):
         layout.addWidget(self.tree_view)
         self.setLayout(layout)
 
+        self.action_import = QtWidgets.QAction('Import...')
+        self.action_import.triggered.connect(self.on_action_import_triggered)
+        self.addAction(self.action_import)
+        self.action_export = QtWidgets.QAction('Export...')
+        self.action_export.triggered.connect(self.on_action_export_triggered)
+        self.addAction(self.action_export)
         self.action_remove = QtWidgets.QAction('Remove')
         self.action_remove.triggered.connect(self.on_action_remove_triggered)
         self.addAction(self.action_remove)
@@ -202,6 +233,10 @@ class ExplorerWidget(QtWidgets.QWidget):
         self.adaptor.rowDropped.connect(self.on_rowDropped)
         self.tree_view.selectionModel().currentRowChanged.connect(self.on_currentRowChanged)
 
+    def setCurrentTexture(self, texture_index):
+        index = self.adaptor.get_texture_index(texture_index)
+        self.tree_view.setCurrentIndex(index)
+
     def emit_current_changed(self):
         current = self.tree_view.currentIndex()
         path = current.data(PathRole)
@@ -213,6 +248,50 @@ class ExplorerWidget(QtWidgets.QWidget):
         elif path.match(+_p.textures[...]):
             index = path[-1].key
             self.currentTextureChanged.emit(index)
+
+    def import_texture(self):
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            caption='Import Texture',
+            directory=os.path.dirname(self.model.file_path),
+            filter='BTI texture (*.bti);;All files (*)'
+        )
+        if not file_path:
+            return
+        try:
+            texture = views.texture.Texture.load(file_path)
+        except (FileNotFoundError, IsADirectoryError, PermissionError) as error:
+            message = QtWidgets.QMessageBox()
+            message.setIcon(QtWidgets.QMessageBox.Warning)
+            message.setText(f"Could not open file '{error.filename}'")
+            message.setInformativeText(error.strerror)
+            message.exec_()
+            return
+        # Insert the texture at the end of the texture list
+        index = len(self.model.textures)
+        command = InsertTextureCommand(self.model, index, texture)
+        self.undo_stack.push(command)
+        self.setCurrentTexture(index)
+
+    def export_texture(self, index):
+        texture = self.model.textures[index]
+        directory_path = os.path.dirname(self.model.file_path)
+        file_name = texture.name + '.bti'
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            caption='Export Texture',
+            directory=os.path.join(directory_path, file_name),
+            filter='BTI texture (*.bti);;All files (*)'
+        )
+        if not file_path:
+            return
+        try:
+            texture.save(file_path)
+        except (FileNotFoundError, IsADirectoryError, PermissionError) as error:
+            message = QtWidgets.QMessageBox()
+            message.setIcon(QtWidgets.QMessageBox.Warning)
+            message.setText(f"Could not open file '{error.filename}'")
+            message.setInformativeText(error.strerror)
+            message.exec_()
+            return
 
     def remove_texture(self, index):
         texture = self.model.textures[index]
@@ -235,8 +314,14 @@ class ExplorerWidget(QtWidgets.QWidget):
         path = index.data(PathRole)
         if path is None:
             return
-        if path.match(+_p.textures[...]):
+        if path == +_p.textures:
             menu = QtWidgets.QMenu(self)
+            menu.addAction(self.action_import)
+            menu.exec_(self.mapToGlobal(event.pos()))
+        elif path.match(+_p.textures[...]):
+            menu = QtWidgets.QMenu(self)
+            menu.addAction(self.action_import)
+            menu.addAction(self.action_export)
             menu.addAction(self.action_remove)
             menu.exec_(self.mapToGlobal(event.pos()))
         super().contextMenuEvent(event)
@@ -269,6 +354,25 @@ class ExplorerWidget(QtWidgets.QWidget):
         self.tree_view.setCurrentIndex(index)
 
     @QtCore.pyqtSlot()
+    def on_action_import_triggered(self):
+        index = self.tree_view.currentIndex()
+        path = index.data(PathRole)
+        if path is None:
+            return
+        if path == +_p.textures or path.match(+_p.textures[...]):
+            self.import_texture()
+
+    @QtCore.pyqtSlot()
+    def on_action_export_triggered(self):
+        index = self.tree_view.currentIndex()
+        path = index.data(PathRole)
+        if path is None:
+            return
+        if path.match(+_p.textures[...]):
+            index = path[-1].key
+            self.export_texture(index)
+
+    @QtCore.pyqtSlot()
     def on_action_remove_triggered(self):
         index = self.tree_view.currentIndex()
         path = index.data(PathRole)
@@ -277,5 +381,4 @@ class ExplorerWidget(QtWidgets.QWidget):
         if path.match(+_p.textures[...]):
             index = path[-1].key
             self.remove_texture(index)
-
 

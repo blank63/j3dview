@@ -1,7 +1,9 @@
+import os
 import numpy
 from OpenGL.GL import *
 import gl
 import gx
+import gx.bti
 import views
 
 
@@ -207,4 +209,15 @@ class Texture(views.View):
             del self._gl_texture
         except AttributeError:
             pass
+
+    @staticmethod
+    def load(file_path):
+        with open(file_path, 'rb') as stream:
+            texture = gx.bti.unpack(stream)
+        texture.name = os.path.splitext(os.path.basename(file_path))[0]
+        return Texture(texture)
+
+    def save(self, file_path):
+        with open(file_path, 'wb') as stream:
+            gx.bti.pack(stream, self.viewed_object)
 

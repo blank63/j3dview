@@ -3,7 +3,9 @@ import numpy
 from OpenGL.GL import *
 import gl
 import gx
-import j3d.inf1
+from j3d.inf1 import NodeType
+from j3d.drw1 import MatrixType
+import j3d.model
 import views
 import views.shape
 import views.material
@@ -139,6 +141,10 @@ def gl_convert_color_array(source):
 
 class Model(views.View):
 
+    def __init__(self, viewed_object):
+        super().__init__(viewed_object)
+        self.file_path = None
+
     file_type = views.Attribute()
     scene_graph = views.ReadOnlyAttribute()
     position_array = views.ReadOnlyAttribute()
@@ -172,7 +178,7 @@ class Model(views.View):
 
     def gl_update_joint_matrices(self,node,parent_joint=None,parent_joint_matrix=numpy.eye(3,4,dtype=numpy.float32)):
         for child in node.children:
-            if child.node_type == j3d.inf1.NodeType.JOINT:
+            if child.node_type == NodeType.JOINT:
                 joint = self.gl_joints[child.index]
                 joint_matrix = self.gl_joint_matrices[child.index]
                 joint_matrix[:] = joint.create_matrix(parent_joint,parent_joint_matrix)
@@ -187,9 +193,9 @@ class Model(views.View):
             influence_matrices = matrix3x4_array_multiply(self.gl_joint_matrices,self.inverse_bind_matrices)
 
         for matrix,matrix_definition in zip(self.gl_matrix_table,self.matrix_definitions):
-            if matrix_definition.matrix_type == j3d.drw1.MatrixType.JOINT:
+            if matrix_definition.matrix_type == MatrixType.JOINT:
                 matrix[:] = self.gl_joint_matrices[matrix_definition.index]
-            elif matrix_definition.matrix_type == j3d.drw1.MatrixType.INFLUENCE_GROUP:
+            elif matrix_definition.matrix_type == MatrixType.INFLUENCE_GROUP:
                 influence_group = self.influence_groups[matrix_definition.index]
                 matrix[:] = sum(influence.weight*influence_matrices[influence.index] for influence in influence_group)
             else:
@@ -203,13 +209,13 @@ class Model(views.View):
 
     def gl_draw_node(self, node, parent_material=None):
         for child in node.children:
-            if child.node_type == j3d.inf1.NodeType.SHAPE:
+            if child.node_type == NodeType.SHAPE:
                 if parent_material.unknown0 == 1:
                     self.gl_draw_shape(parent_material, self.shapes[child.index])
                 self.gl_draw_node(child, parent_material)
                 if parent_material.unknown0 == 4:
                     self.gl_draw_shape(parent_material, self.shapes[child.index])
-            elif child.node_type == j3d.inf1.NodeType.MATERIAL:
+            elif child.node_type == NodeType.MATERIAL:
                 self.gl_draw_node(child, self.materials[child.index])
             else:
                 self.gl_draw_node(child, parent_material)
@@ -217,6 +223,19 @@ class Model(views.View):
     def gl_draw(self):
         self.gl_matrix_table.bind_texture(views.material.MATRIX_TABLE_TEXTURE_UNIT)
         self.gl_draw_node(self.scene_graph)
+
+    @staticmethod
+    def load(file_path):
+        with open(file_path, 'rb') as stream:
+            model = j3d.model.unpack(stream)
+        model = Model(model)
+        model.file_path = file_path
+        return model
+
+    def save(self, file_path):
+        self.file_path = file_path
+        with open(file_path, 'wb') as stream:
+            j3d.model.pack(stream, self.viewed_object)
 
     def get_materials_using_texture(self, texture_index):
         """Get materials that use a given texture.
