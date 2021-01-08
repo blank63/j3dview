@@ -146,6 +146,7 @@ class Model(views.View):
         self.file_path = None
 
     file_type = views.Attribute()
+    subversion = views.ReadOnlyAttribute()
     scene_graph = views.ReadOnlyAttribute()
     position_array = views.ReadOnlyAttribute()
     normal_array = views.ReadOnlyAttribute()

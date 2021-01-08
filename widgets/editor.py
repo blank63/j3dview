@@ -95,7 +95,9 @@ class Editor(QtWidgets.QMainWindow):
         self.view_settings.setViewer(self.viewer)
         self.dock_view_settings.hide()
         self.explorer.setUndoStack(self.undo_stack)
+        self.tabifyDockWidget(self.dock_model_form, self.dock_material_form)
         self.tabifyDockWidget(self.dock_material_form, self.dock_texture_form)
+        self.dock_model_form.raise_()
 
         self.setWindowFilePath('')
 
@@ -162,6 +164,7 @@ class Editor(QtWidgets.QMainWindow):
 
         self.undo_stack.clear()
         self.preview.clear()
+        self.model_form.clear()
         self.material_form.clear()
         self.texture_form.clear()
 
@@ -173,6 +176,7 @@ class Editor(QtWidgets.QMainWindow):
 
         self.viewer.setModel(self.model)
         self.explorer.setModel(self.model)
+        self.model_form.setModel(self.model)
         self.material_form.setTextures(self.model.textures)
 
         self.action_open_animation.setEnabled(True)
