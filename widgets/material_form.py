@@ -146,6 +146,7 @@ class MaterialForm(ViewForm):
 
         self.advanced_material_dialog = AdvancedMaterialDialog()
         self.advanced_material_dialog.commitViewValue.connect(self.commitViewValue.emit)
+        self.advanced_material_dialog.finished.connect(self.on_advanced_material_dialog_finished)
 
     def setTextures(self, textures):
         adaptor = TextureListAdaptor(textures)
@@ -160,7 +161,8 @@ class MaterialForm(ViewForm):
 
     def setMaterial(self, material):
         self.setView(material)
-        self.advanced_material_dialog.setMaterial(material)
+        if not self.advanced_material_dialog.isHidden():
+            self.advanced_material_dialog.setMaterial(material)
 
     def clear(self):
         super().clear()
@@ -177,7 +179,12 @@ class MaterialForm(ViewForm):
 
     @QtCore.pyqtSlot(bool)
     def on_advanced_button_clicked(self, checked):
+        self.advanced_material_dialog.setMaterial(self.view)
         self.advanced_material_dialog.show()
         self.advanced_material_dialog.raise_()
         self.advanced_material_dialog.activateWindow()
+
+    @QtCore.pyqtSlot(int)
+    def on_advanced_material_dialog_finished(self, result):
+        self.advanced_material_dialog.clear()
 

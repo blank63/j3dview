@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>246</width>
-    <height>154</height>
+    <height>259</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -88,13 +88,39 @@
        <number>0</number>
       </property>
       <item>
-       <widget class="QPlainTextEdit" name="vertex_array_info"/>
+       <widget class="QPlainTextEdit" name="vertex_array_info">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>100</height>
+         </size>
+        </property>
+        <property name="lineWrapMode">
+         <enum>QPlainTextEdit::NoWrap</enum>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>
    </item>
+   <item row="3" column="0" colspan="2">
+    <widget class="QPushButton" name="scene_graph_button">
+     <property name="text">
+      <string>Scene Graph...</string>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>subversion</tabstop>
+  <tabstop>unknown0</tabstop>
+  <tabstop>vertex_array_info</tabstop>
+  <tabstop>scene_graph_button</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>
