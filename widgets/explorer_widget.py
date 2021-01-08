@@ -20,7 +20,7 @@ class ElementItem(Item):
         return 1
 
     def get_flags(self, column):
-        return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+        return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsDragEnabled
 
     def get_data(self, column, role):
         if role == QtCore.Qt.DisplayRole:
@@ -42,6 +42,9 @@ class ListItem(GroupItem):
     @property
     def view(self):
         return self.path.get_value(self.model.view)
+
+    def get_flags(self, column):
+        return super().get_flags(column) | QtCore.Qt.ItemIsDropEnabled
 
     def initialize(self):
         for i in range(len(self.view)):
@@ -65,8 +68,13 @@ class ListItem(GroupItem):
 
 class ModelAdaptor(ItemModelAdaptor):
 
-    def __init__(self, model):
+    MIME_TYPE = 'application/x-modelview-path'
+
+    rowDropped = QtCore.pyqtSignal(QtCore.QModelIndex, int)
+
+    def __init__(self, model, undo_stack):
         super().__init__(model)
+        self.undo_stack = undo_stack
         self.set_header_labels(['Value'])
         self.material_list = ListItem('Materials', +_p.materials)
         self.add_item(self.material_list)
@@ -74,6 +82,47 @@ class ModelAdaptor(ItemModelAdaptor):
         self.texture_list = ListItem('Textures', +_p.textures)
         self.add_item(self.texture_list)
         self.texture_list.initialize()
+
+    def supportedDropActions(self):
+        return QtCore.Qt.MoveAction
+
+    def mimeTypes(self):
+        return [self.MIME_TYPE]
+
+    def mimeData(self, indexes):
+        assert len(indexes) == 1
+        index, = indexes
+        path = index.data(PathRole)
+        mime_data = QtCore.QMimeData()
+        mime_data.setData(self.MIME_TYPE, str(path).encode())
+        return mime_data
+
+    def canDropMimeData(self, mime_data, action, row, column, parent):
+        if not action == QtCore.Qt.MoveAction:
+            return False
+        if not mime_data.hasFormat(self.MIME_TYPE):
+            return False
+        data = mime_data.data(self.MIME_TYPE).data()
+        path = views.Path.from_string(data.decode())
+        if path.match(+_p.textures[...]):
+            return parent == self.get_item_index(self.texture_list)
+        return False
+
+    def dropMimeData(self, mime_data, action, row, column, parent):
+        if not self.canDropMimeData(mime_data, action, row, column, parent):
+            return False
+        data = mime_data.data(self.MIME_TYPE).data()
+        path = views.Path.from_string(data.decode())
+        from_index = path[-1].key
+        if row < from_index:
+            to_index = row
+        else:
+            # Account for the row being moved out from under where it is moved to
+            to_index = row - 1
+        command = MoveTextureCommand(self.view, from_index, to_index)
+        self.undo_stack.push(command)
+        self.rowDropped.emit(parent, to_index)
+        return True
 
     def handle_event(self, event, path):
         if path.match(+_p.textures[...]):
@@ -85,18 +134,35 @@ class RemoveTextureCommand(QtWidgets.QUndoCommand):
     #TODO: Should something be done about textures that are no longer being
     # used, but are still in the undo stack?
 
-    def __init__(self, model, texture_index):
+    def __init__(self, model, index):
         super().__init__()
         self.model = model
-        self.texture_index = texture_index
-        self.texture = model.textures[texture_index]
+        self.index = index
+        self.texture = model.textures[index]
         self.setText(f'Remove texture {self.texture.name}')
 
     def redo(self):
-        self.model.remove_texture(self.texture_index)
+        self.model.remove_texture(self.index)
 
     def undo(self):
-        self.model.insert_texture(self.texture_index, self.texture)
+        self.model.insert_texture(self.index, self.texture)
+
+
+class MoveTextureCommand(QtWidgets.QUndoCommand):
+
+    def __init__(self, model, from_index, to_index):
+        super().__init__()
+        self.model = model
+        self.from_index = from_index
+        self.to_index = to_index
+        texture = model.textures[from_index]
+        self.setText('Move texture {texture.name}')
+
+    def redo(self):
+        self.model.move_texture(self.from_index, self.to_index)
+
+    def undo(self):
+        self.model.move_texture(self.to_index, self.from_index)
 
 
 class ExplorerWidget(QtWidgets.QWidget):
@@ -107,10 +173,13 @@ class ExplorerWidget(QtWidgets.QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = None
+        self.adaptor = None
         self.undo_stack = None
 
         self.tree_view = QtWidgets.QTreeView()
         self.tree_view.setHeaderHidden(True)
+        self.tree_view.setDragEnabled(True)
+        self.tree_view.setDragDropMode(QtWidgets.QTreeView.InternalMove)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -126,10 +195,11 @@ class ExplorerWidget(QtWidgets.QWidget):
 
     def setModel(self, model):
         self.model = model
-        adaptor = ModelAdaptor(model)
-        self.tree_view.setModel(adaptor)
-        adaptor.rowsInserted.connect(self.on_rowsInserted)
-        adaptor.rowsRemoved.connect(self.on_rowsRemoved)
+        self.adaptor = ModelAdaptor(model, self.undo_stack)
+        self.tree_view.setModel(self.adaptor)
+        self.adaptor.rowsInserted.connect(self.on_rowsInserted)
+        self.adaptor.rowsRemoved.connect(self.on_rowsRemoved)
+        self.adaptor.rowDropped.connect(self.on_rowDropped)
         self.tree_view.selectionModel().currentRowChanged.connect(self.on_currentRowChanged)
 
     def emit_current_changed(self):
@@ -192,6 +262,11 @@ class ExplorerWidget(QtWidgets.QWidget):
         if current.row() < first or current.row() > last:
             return
         self.emit_current_changed()
+
+    @QtCore.pyqtSlot(QtCore.QModelIndex, int)
+    def on_rowDropped(self, parent, row):
+        index = self.adaptor.index(row, 0, parent)
+        self.tree_view.setCurrentIndex(index)
 
     @QtCore.pyqtSlot()
     def on_action_remove_triggered(self):

@@ -1,3 +1,4 @@
+import re
 import weakref
 import gl
 
@@ -76,6 +77,14 @@ class ItemPathFragment:
 
 class Path(tuple):
 
+    ATTRIBUTE_FRAGMENT_PATTERN = r'\.[A-Za-z_][A-Za-z0-9_]*'
+    ITEM_FRAGMENT_PATTERN = r'\[\d+\]'
+    FRAGMENT_PATTERN = '|'.join((
+        f'(?P<attribute>{ATTRIBUTE_FRAGMENT_PATTERN})',
+        f'(?P<item>{ITEM_FRAGMENT_PATTERN})'
+    ))
+    FRAGMENT_PATTERN = re.compile(FRAGMENT_PATTERN)
+
     def __add__(self, other):
         if not isinstance(other, Path):
             return NotImplemented
@@ -106,6 +115,26 @@ class Path(tuple):
     @staticmethod
     def for_item(key):
         return Path((ItemPathFragment(key),))
+
+    @staticmethod
+    def from_string(string):
+        fragments = []
+        position = 0
+        while position < len(string):
+            match = Path.FRAGMENT_PATTERN.match(string, position)
+            if match is None:
+                raise ValueError('Invalid path string')
+            if match['attribute'] is not None:
+                name = match['attribute'].lstrip('.')
+                fragment = AttributePathFragment(name)
+            elif match['item'] is not None:
+                key = int(match['item'].strip('[]'))
+                fragment = ItemPathFragment(key)
+            else:
+                assert False
+            fragments.append(fragment)
+            position = match.end()
+        return Path(fragments)
 
 
 class PathBuilder:
@@ -176,14 +205,14 @@ class View(gl.ResourceManagerMixin):
         registration = ListenerRegistration(listener, path)
         self._listener_registrations.append(registration)
 
-    def unregister_listener(self, listener):
+    def unregister_listener(self, listener, path=Path()):
         i = 0
         while i < len(self._listener_registrations):
             registration = self._listener_registrations[i]
             if not registration.still_active:
                 del self._listener_registrations[i]
                 continue
-            if registration.listener is listener:
+            if registration.listener is listener and registration.path == path:
                 del self._listener_registrations[i]
                 return
             i += 1
@@ -206,13 +235,9 @@ class View(gl.ResourceManagerMixin):
         self.gl_manage_resource(child)
         child.register_listener(self, path)
 
-    def _reattach_child_view(self, child, path):
-        child.unregister_listener(self)
-        child.register_listener(self, path)
-
-    def _detach_child_view(self, child):
+    def _detach_child_view(self, child, path):
         self.gl_delete_resource(child)
-        child.unregister_listener(self)
+        child.unregister_listener(self, path)
 
 
 class ListView(View):
@@ -248,11 +273,13 @@ class ViewListView(View):
     def __delitem__(self, key):
         assert isinstance(key, int)
         assert key >= 0
-        self._detach_child_view(self._items[key])
+        self._detach_child_view(self._items[key], Path.for_item(key))
         del self._items[key]
         del self.viewed_object[key]
         for i in range(key, len(self)):
-            self._reattach_child_view(self._items[i], Path.for_item(i))
+            item = self._items[i]
+            item.unregister_listener(self, Path.for_item(i + 1))
+            item.register_listener(self, Path.for_item(i))
         self.handle_event(DeleteEvent(), Path.for_item(key))
 
     def insert(self, index, value):
@@ -261,7 +288,9 @@ class ViewListView(View):
         self._items.insert(index, value)
         self._attach_child_view(value, Path.for_item(index))
         for i in range(index + 1, len(self)):
-            self._reattach_child_view(self._items[i], Path.for_item(i))
+            item = self._items[i]
+            item.unregister_listener(self, Path.for_item(i - 1))
+            item.register_listener(self, Path.for_item(i))
         self.handle_event(CreateEvent(), Path.for_item(index))
 
     def index(self, value):

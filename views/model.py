@@ -5,7 +5,6 @@ import gl
 import gx
 import j3d.inf1
 import views
-from views import path_builder as _p, ValueChangedEvent
 import views.shape
 import views.material
 import views.texture
@@ -220,6 +219,11 @@ class Model(views.View):
         self.gl_draw_node(self.scene_graph)
 
     def get_materials_using_texture(self, texture_index):
+        """Get materials that use a given texture.
+
+        :param texture_index: Index of the texture in the texture list.
+        :return: List of the materials that use the texture.
+        """
         materials = []
         for material in self.materials:
             if texture_index in material.texture_indices:
@@ -228,6 +232,11 @@ class Model(views.View):
         return materials
 
     def insert_texture(self, index, texture):
+        """Insert texture in the texture list.
+
+        :param index: Index to insert the texture at.
+        :param texture: Texture to insert.
+        """
         self.textures.insert(index, texture)
         for material in self.materials:
             for i, ti in enumerate(material.texture_indices):
@@ -235,11 +244,44 @@ class Model(views.View):
                     material.texture_indices[i] += 1
 
     def remove_texture(self, index):
+        """Remove texture from the texture list.
+
+        :param index: Index of texture to remove.
+        :raise ResourceInUseError: Raised if the texture is being used.
+        """
         if self.get_materials_using_texture(index):
             raise ResourceInUseError('Cannot remove texture in use')
+        # Texture indices are adjusted before the texture is removed to ensure
+        # that the texture indices are never invalid
         for material in self.materials:
             for i, ti in enumerate(material.texture_indices):
                 if ti is not None and ti > index:
                     material.texture_indices[i] -= 1
         del self.textures[index]
+
+    def move_texture(self, from_index, to_index):
+        """Move texture to a new position in the texture list.
+
+        :param from_index: Index of the texture before the move.
+        :param to_index: Index of the texture after the move.
+        """
+        # The move is done by inserting the texture at the new position,
+        # changing texture indices from the old position to the new position,
+        # and then removing the texture from the old position. This ensures that
+        # there will be no invalid texture indices at any point.
+        if from_index < to_index:
+            insert_index = to_index + 1
+            remove_index = from_index
+        else:
+            insert_index = to_index
+            remove_index = from_index + 1
+        texture = self.textures[from_index]
+        self.insert_texture(insert_index, texture)
+        assert self.textures[remove_index] is texture
+        for material in self.materials:
+            for i, ti in enumerate(material.texture_indices):
+                if ti == remove_index:
+                    material.texture_indices[i] = insert_index
+        self.remove_texture(remove_index)
+        assert self.textures[to_index] is texture
 
