@@ -139,6 +139,18 @@ def gl_convert_color_array(source):
     return destination
 
 
+class SceneGraphNode(views.View):
+    node_type = views.ReadOnlyAttribute()
+    index = views.Attribute()
+    # We have to use a lambda as SceneGraphNode does not yet exist
+    children = views.ViewAttribute(views.ViewListView, lambda *args: SceneGraphNode(*args))
+
+
+class SceneGraph(views.View):
+    unknown0 = views.ReadOnlyAttribute()
+    children = views.ViewAttribute(views.ViewListView, SceneGraphNode)
+
+
 class Model(views.View):
 
     def __init__(self, viewed_object):
@@ -147,7 +159,7 @@ class Model(views.View):
 
     file_type = views.Attribute()
     subversion = views.ReadOnlyAttribute()
-    scene_graph = views.ReadOnlyAttribute()
+    scene_graph = views.ViewAttribute(SceneGraph)
     position_array = views.ReadOnlyAttribute()
     normal_array = views.ReadOnlyAttribute()
     color_arrays = views.ReadOnlyAttribute()

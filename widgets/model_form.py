@@ -3,7 +3,7 @@ import pkgutil
 from PyQt5 import QtCore, QtWidgets, uic
 from views import path_builder as _p
 from views.model import NodeType
-from widgets.view_form import Item, ItemModelAdaptor
+from widgets.view_form import Item, ItemModelAdaptor, CommitViewValueCommand
 
 
 class NodeItem(Item):
@@ -13,6 +13,107 @@ class NodeItem(Item):
         self.path = path
 
     @property
+    def node(self):
+        return self.path.get_value(self.model.view)
+
+    @property
+    def column_count(self):
+        return 1
+
+    def get_flags(self, column):
+        return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+
+    @staticmethod
+    def create_node(node_type, path):
+        if node_type == NodeType.JOINT:
+            return JointItem(path)
+        if node_type == NodeType.MATERIAL:
+            return MaterialItem(path)
+        if node_type == NodeType.SHAPE:
+            return ShapeItem(path)
+        assert False
+
+    def initialize(self):
+        for i, node in enumerate(self.node.children):
+            item = self.create_node(node.node_type, self.path + _p.children[i])
+            self.model.add_item(item, self)
+            item.initialize()
+
+
+class JointItem(NodeItem):
+
+    @property
+    def joint(self):
+        return self.model.view.joints[self.node.index]
+
+    def get_data(self, column, role):
+        if role != QtCore.Qt.DisplayRole:
+            return QtCore.QVariant()
+        return f'Joint: {self.joint.name}'
+
+
+class MaterialItem(NodeItem):
+
+    def __init__(self, path):
+        super().__init__(path)
+        self.triggers = frozenset((path + _p.index,))
+
+    @property
+    def material(self):
+        return self.model.view.materials[self.node.index]
+
+    def get_flags(self, column):
+        return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
+
+    def get_data(self, column, role):
+        if role == QtCore.Qt.DisplayRole:
+            return f'Material: {self.material.name}'
+        if role == QtCore.Qt.EditRole:
+            return self.node.index
+        return QtCore.QVariant()
+
+    def set_data(self, column, value, role):
+        if role != QtCore.Qt.EditRole:
+            return False
+        self.model.commit_view_value('Material', self.path + _p.index, value)
+        return True
+
+    def handle_event(self, event, path):
+        self.model.item_data_changed(self)
+
+
+class ShapeItem(NodeItem):
+
+    def get_data(self, column, role):
+        if role != QtCore.Qt.DisplayRole:
+            return QtCore.QVariant()
+        return f'Shape {self.node.index}'
+
+
+class SceneGraphAdaptor(ItemModelAdaptor):
+
+    def __init__(self, model, undo_stack):
+        super().__init__(model)
+        self.undo_stack = undo_stack
+        self.set_header_labels('Node')
+        for i, node in enumerate(model.scene_graph.children):
+            item = NodeItem.create_node(node.node_type, +_p.scene_graph.children[i])
+            self.add_item(item)
+            item.initialize()
+
+    def commit_view_value(self, label, path, value):
+        command = CommitViewValueCommand(f"Changed '{label}'", self.view, path, value)
+        self.undo_stack.push(command)
+
+
+class MaterialListItem(Item):
+
+    def __init__(self, index):
+        super().__init__()
+        self.index = index
+        self.triggers = frozenset((+_p[index].name,))
+
+    @property
     def column_count(self):
         return 1
 
@@ -20,25 +121,78 @@ class NodeItem(Item):
         return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
 
     def get_data(self, column, role):
-        if role != QtCore.Qt.DisplayRole:
-            return QtCore.QVariant()
-        node = self.path.get_value(self.model.view)
-        if node.node_type == NodeType.JOINT:
-            joint = self.model.view.joints[node.index]
-            return f'Joint: {joint.name}'
-        if node.node_type == NodeType.MATERIAL:
-            material = self.model.view.materials[node.index]
-            return f'Material: {material.name}'
-        if node.node_type == NodeType.SHAPE:
-            return f'Shape {node.index}'
-        assert False
+        if role == QtCore.Qt.DisplayRole:
+            return self.model.view[self.index].name
+        if role == QtCore.Qt.UserRole:
+            return self.index
+        return QtCore.QVariant()
 
-    def initialize(self):
-        node = self.path.get_value(self.model.view)
-        for i in range(len(node.children)):
-            item = NodeItem(self.path + _p.children[i])
-            self.model.add_item(item, self)
-            item.initialize()
+    def handle_event(self, event, path):
+        self.model.item_data_changed(self)
+
+
+class MaterialListAdaptor(ItemModelAdaptor):
+
+    def __init__(self, materials):
+        super().__init__(materials)
+        self.set_header_labels(['Value'])
+        for i in range(len(materials)):
+            self.add_item(MaterialListItem(i))
+
+    def handle_event(self, event, path):
+        if path.match(+_p[...]):
+            if isinstance(event, views.CreateEvent):
+                row = self.rowCount()
+                material_index = len(self.view)
+                self.beginInsertRows(QtCore.QModelIndex(), row, row)
+                self.add_item(MaterialListItem(material_index))
+                self.endInsertRows()
+            elif isinstance(event, views.DeleteEvent):
+                row = self.rowCount() - 1
+                self.beginRemoveRows(QtCore.QModelIndex(), row, row)
+                self.take_item(row)
+                self.endRemoveRows()
+        super().handle_event(event, path)
+
+
+class MaterialListDelegate(QtWidgets.QStyledItemDelegate):
+
+    def __init__(self):
+        super().__init__()
+        self.adaptor = None
+
+    def setMaterials(self, materials):
+        self.adaptor = MaterialListAdaptor(materials)
+
+    def clear(self):
+        self.adaptor = None
+
+    def createEditor(self, parent, option, index):
+        editor = QtWidgets.QComboBox(parent)
+        editor.setModel(self.adaptor)
+        editor.activated.connect(self.on_editor_activated)
+        return editor
+
+    def updateEditorGeometry(self, editor, option, index):
+        prefix_size = option.fontMetrics.size(0, 'Material: ')
+        editor.setGeometry(
+            option.rect.x() + prefix_size.width(),
+            option.rect.y(),
+            option.rect.width() - prefix_size.width(),
+            option.rect.height()
+        )
+
+    def setEditorData(self, editor, index):
+        i = editor.findData(index.data(QtCore.Qt.EditRole))
+        assert i != -1
+        editor.setCurrentIndex(i)
+
+    def setModelData(self, editor, model, index):
+        model.setData(index, editor.currentData(), QtCore.Qt.EditRole)
+
+    @QtCore.pyqtSlot(int)
+    def on_editor_activated(self, index):
+        self.commitData.emit(self.sender())
 
 
 class SceneGraphDialog(QtWidgets.QDialog):
@@ -47,9 +201,17 @@ class SceneGraphDialog(QtWidgets.QDialog):
         super().__init__(*args, **kwargs)
         self.setWindowTitle('Scene Graph Dialog')
 
+        self.undo_stack = None
+
         self.tree_view = QtWidgets.QTreeView()
         self.tree_view.setHeaderHidden(True)
         self.tree_view.header().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
+        self.tree_view.setEditTriggers(
+            QtWidgets.QTreeView.CurrentChanged |
+            QtWidgets.QTreeView.SelectedClicked
+        )
+        self.delegate = MaterialListDelegate()
+        self.tree_view.setItemDelegate(self.delegate)
 
         self.button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok)
         self.button_box.accepted.connect(self.accept)
@@ -61,18 +223,18 @@ class SceneGraphDialog(QtWidgets.QDialog):
         self.layout.addWidget(self.button_box)
         self.setLayout(self.layout)
 
+    def setUndoStack(self, undo_stack):
+        self.undo_stack = undo_stack
+
     def setModel(self, model):
-        adaptor = ItemModelAdaptor(model)
-        adaptor.set_header_labels('Node')
-        for i in range(len(model.scene_graph.children)):
-            item = NodeItem(+_p.scene_graph.children[i])
-            adaptor.add_item(item)
-            item.initialize()
+        adaptor = SceneGraphAdaptor(model, self.undo_stack)
+        self.delegate.setMaterials(model.materials)
         self.tree_view.setModel(adaptor)
         self.tree_view.expandAll()
 
     def clear(self):
         self.tree_view.setModel(None)
+        self.delegate.clear()
 
 
 class ModelForm(QtWidgets.QWidget):
@@ -84,6 +246,9 @@ class ModelForm(QtWidgets.QWidget):
         self.scene_graph_dialog = SceneGraphDialog()
         self.scene_graph_dialog.finished.connect(self.on_scene_graph_dialog_finished)
         self.setEnabled(False)
+
+    def setUndoStack(self, undo_stack):
+        self.scene_graph_dialog.setUndoStack(undo_stack)
 
     def setModel(self, model):
         self.model = model
