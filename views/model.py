@@ -156,6 +156,7 @@ class Model(views.View):
     def __init__(self, viewed_object):
         super().__init__(viewed_object)
         self.file_path = None
+        self.init_references()
 
     file_type = views.Attribute()
     subversion = views.ReadOnlyAttribute()
@@ -216,7 +217,7 @@ class Model(views.View):
 
     def gl_draw_shape(self, material, shape):
         if shape.gl_hide: return
-        material.gl_bind(shape, self.textures)
+        material.gl_bind(shape)
         shape.gl_bind()
         shape.gl_draw()
 
@@ -247,8 +248,25 @@ class Model(views.View):
 
     def save(self, file_path):
         self.file_path = file_path
+        self.sync_reference_indices()
         with open(file_path, 'wb') as stream:
             j3d.model.pack(stream, self.viewed_object)
+
+    def init_references(self):
+        for material in self.materials:
+            for i, texture_index in enumerate(material.viewed_object.texture_indices):
+                if texture_index is None:
+                    continue
+                material.textures[i] = self.textures[texture_index]
+
+    def sync_reference_indices(self):
+        for material in self.materials:
+            for i, texture in enumerate(material.textures):
+                if texture is None:
+                    texture_index = None
+                else:
+                    texture_index = self.textures.index(texture)
+                material.viewed_object.texture_indices[i] = texture_index
 
     def get_materials_using_texture(self, texture_index):
         """Get materials that use a given texture.
@@ -256,64 +274,11 @@ class Model(views.View):
         :param texture_index: Index of the texture in the texture list.
         :return: List of the materials that use the texture.
         """
+        texture = self.textures[texture_index]
         materials = []
         for material in self.materials:
-            if texture_index in material.texture_indices:
+            if texture in material.textures:
                 materials.append(material)
                 continue
         return materials
-
-    def insert_texture(self, index, texture):
-        """Insert texture in the texture list.
-
-        :param index: Index to insert the texture at.
-        :param texture: Texture to insert.
-        """
-        self.textures.insert(index, texture)
-        for material in self.materials:
-            for i, ti in enumerate(material.texture_indices):
-                if ti is not None and ti >= index:
-                    material.texture_indices[i] += 1
-
-    def remove_texture(self, index):
-        """Remove texture from the texture list.
-
-        :param index: Index of texture to remove.
-        :raise ResourceInUseError: Raised if the texture is being used.
-        """
-        if self.get_materials_using_texture(index):
-            raise ResourceInUseError('Cannot remove texture in use')
-        # Texture indices are adjusted before the texture is removed to ensure
-        # that the texture indices are never invalid
-        for material in self.materials:
-            for i, ti in enumerate(material.texture_indices):
-                if ti is not None and ti > index:
-                    material.texture_indices[i] -= 1
-        del self.textures[index]
-
-    def move_texture(self, from_index, to_index):
-        """Move texture to a new position in the texture list.
-
-        :param from_index: Index of the texture before the move.
-        :param to_index: Index of the texture after the move.
-        """
-        # The move is done by inserting the texture at the new position,
-        # changing texture indices from the old position to the new position,
-        # and then removing the texture from the old position. This ensures that
-        # there will be no invalid texture indices at any point.
-        if from_index < to_index:
-            insert_index = to_index + 1
-            remove_index = from_index
-        else:
-            insert_index = to_index
-            remove_index = from_index + 1
-        texture = self.textures[from_index]
-        self.insert_texture(insert_index, texture)
-        assert self.textures[remove_index] is texture
-        for material in self.materials:
-            for i, ti in enumerate(material.texture_indices):
-                if ti == remove_index:
-                    material.texture_indices[i] = insert_index
-        self.remove_texture(remove_index)
-        assert self.textures[to_index] is texture
 

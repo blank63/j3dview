@@ -215,7 +215,7 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QComboBox" name="texture0"/>
+       <widget class="ItemModelBox" name="texture0"/>
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label_texture1">
@@ -228,7 +228,7 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QComboBox" name="texture1"/>
+       <widget class="ItemModelBox" name="texture1"/>
       </item>
       <item row="2" column="0">
        <widget class="QLabel" name="label_texture2">
@@ -241,7 +241,7 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QComboBox" name="texture2"/>
+       <widget class="ItemModelBox" name="texture2"/>
       </item>
       <item row="3" column="0">
        <widget class="QLabel" name="label_texture3">
@@ -254,7 +254,7 @@
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="QComboBox" name="texture3"/>
+       <widget class="ItemModelBox" name="texture3"/>
       </item>
       <item row="4" column="0">
        <widget class="QLabel" name="label_texture4">
@@ -267,7 +267,7 @@
        </widget>
       </item>
       <item row="4" column="1">
-       <widget class="QComboBox" name="texture4"/>
+       <widget class="ItemModelBox" name="texture4"/>
       </item>
       <item row="5" column="0">
        <widget class="QLabel" name="label_texture5">
@@ -280,7 +280,7 @@
        </widget>
       </item>
       <item row="5" column="1">
-       <widget class="QComboBox" name="texture5"/>
+       <widget class="ItemModelBox" name="texture5"/>
       </item>
       <item row="6" column="0">
        <widget class="QLabel" name="label_texture6">
@@ -293,7 +293,7 @@
        </widget>
       </item>
       <item row="6" column="1">
-       <widget class="QComboBox" name="texture6"/>
+       <widget class="ItemModelBox" name="texture6"/>
       </item>
       <item row="7" column="0">
        <widget class="QLabel" name="label_texture7">
@@ -306,7 +306,7 @@
        </widget>
       </item>
       <item row="7" column="1">
-       <widget class="QComboBox" name="texture7"/>
+       <widget class="ItemModelBox" name="texture7"/>
       </item>
      </layout>
     </widget>
@@ -732,6 +732,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ItemModelBox</class>
+   <extends>QComboBox</extends>
+   <header>widgets.view_form</header>
+  </customwidget>
+ </customwidgets>
  <tabstops>
   <tabstop>name</tabstop>
   <tabstop>unknown0</tabstop>

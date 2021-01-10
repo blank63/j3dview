@@ -130,8 +130,11 @@ class ModelAdaptor(ItemModelAdaptor):
         else:
             # Account for the row being moved out from under where it is moved to
             to_index = row - 1
-        command = MoveTextureCommand(self.view, from_index, to_index)
-        self.undo_stack.push(command)
+        texture = self.view.textures[from_index]
+        self.undo_stack.beginMacro(f"Move texture '{texture.name}'")
+        self.undo_stack.push(RemoveTextureCommand(self.view, from_index))
+        self.undo_stack.push(InsertTextureCommand(self.view, to_index, texture))
+        self.undo_stack.endMacro()
         self.rowDropped.emit(parent, to_index)
         return True
 
@@ -148,13 +151,13 @@ class InsertTextureCommand(QtWidgets.QUndoCommand):
         self.model = model
         self.index = index
         self.texture = texture
-        self.setText(f'Insert texture {self.texture.name}')
+        self.setText(f"Insert texture '{self.texture.name}'")
 
     def redo(self):
-        self.model.insert_texture(self.index, self.texture)
+        self.model.textures.insert(self.index, self.texture)
 
     def undo(self):
-        self.model.remove_texture(self.index)
+        del self.model.textures[self.index]
 
 
 class RemoveTextureCommand(QtWidgets.QUndoCommand):
@@ -164,30 +167,13 @@ class RemoveTextureCommand(QtWidgets.QUndoCommand):
         self.model = model
         self.index = index
         self.texture = model.textures[index]
-        self.setText(f'Remove texture {self.texture.name}')
+        self.setText(f"Remove texture '{self.texture.name}'")
 
     def redo(self):
-        self.model.remove_texture(self.index)
+        del self.model.textures[self.index]
 
     def undo(self):
-        self.model.insert_texture(self.index, self.texture)
-
-
-class MoveTextureCommand(QtWidgets.QUndoCommand):
-
-    def __init__(self, model, from_index, to_index):
-        super().__init__()
-        self.model = model
-        self.from_index = from_index
-        self.to_index = to_index
-        texture = model.textures[from_index]
-        self.setText('Move texture {texture.name}')
-
-    def redo(self):
-        self.model.move_texture(self.from_index, self.to_index)
-
-    def undo(self):
-        self.model.move_texture(self.to_index, self.from_index)
+        self.model.textures.insert(self.index, self.texture)
 
 
 class ExplorerWidget(QtWidgets.QWidget):

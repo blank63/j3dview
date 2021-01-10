@@ -1,3 +1,4 @@
+import weakref
 import numpy
 from OpenGL.GL import *
 import gl
@@ -361,6 +362,29 @@ class ShaderInfo:
         yield path + _p.scale_t
 
 
+class TextureReferenceList:
+
+    def __init__(self, parent):
+        self.parent_reference = weakref.ref(parent)
+        self._items = [None]*8
+
+    @property
+    def parent(self):
+        return self.parent_reference()
+
+    def __getitem__(self, index):
+        return self._items[index]
+
+    def __setitem__(self, index, item):
+        path = +_p.textures[index]
+        if self._items[index] is not None:
+            self._items[index].unregister_listener(self.parent, path)
+        self._items[index] = item
+        if item is not None:
+            item.register_listener(self.parent, path)
+        self.parent.handle_event(views.ValueChangedEvent(), path)
+
+
 class Material(views.View):
 
     block_info = BlockInfo()
@@ -368,6 +392,8 @@ class Material(views.View):
 
     def __init__(self, viewed_object):
         super().__init__(viewed_object)
+        self.textures = TextureReferenceList(self)
+
         self.gl_block = self.gl_create_resource(self.block_info.block_type, GL_DYNAMIC_DRAW)
         self.gl_program_table = {}
 
@@ -384,7 +410,6 @@ class Material(views.View):
     texcoord_generator_count = views.Attribute()
     texcoord_generators = views.ViewAttribute(views.ViewListView, TexCoordGenerator)
     texture_matrices = views.ViewAttribute(views.ViewListView, TextureMatrix)
-    texture_indices = views.ViewAttribute(views.ListView)
 
     tev_stage_count = views.Attribute()
     tev_stages = views.ViewAttribute(views.ViewListView, TevStage)
@@ -579,12 +604,13 @@ class Material(views.View):
             return GL_SET
         raise ValueError('Invalid logical operation: {}'.format(self.blend_mode.logical_operation))
 
-    def gl_bind(self, shape, textures):
+    def gl_bind(self, shape):
         self.gl_block.bind(MATERIAL_BLOCK_BINDING_POINT)
 
-        for i, texture_index in enumerate(self.texture_indices):
-            if texture_index is None: continue
-            textures[texture_index].gl_bind(TEXTURE_UNITS[i])
+        for i, texture in enumerate(self.textures):
+            if texture is None:
+                continue
+            texture.gl_bind(TEXTURE_UNITS[i])
 
         if self.cull_mode != gx.CULL_NONE:
             glEnable(GL_CULL_FACE)

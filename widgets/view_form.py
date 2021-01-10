@@ -252,6 +252,42 @@ class ItemModelAdaptor(QtCore.QAbstractItemModel):
             item.handle_event(event, path)
 
 
+class ItemModelBox(QtWidgets.QComboBox):
+
+    EMPTY_MODEL = QtGui.QStandardItemModel()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._current_data = None
+        self.model().rowsInserted.connect(self.on_rowsInserted)
+
+    def setCurrentData(self, data):
+        index = self.findData(data)
+        assert index != -1
+        self.setCurrentIndex(index)
+        self._current_data = data
+
+    def setModel(self, model):
+        super().setModel(model)
+        model.rowsInserted.connect(self.on_rowsInserted)
+
+    def clear(self):
+        self._current_data = None
+        self.model().rowsInserted.disconnect(self.on_rowsInserted)
+        super().setModel(self.EMPTY_MODEL)
+
+    @QtCore.pyqtSlot(QtCore.QModelIndex, int, int)
+    def on_rowsInserted(self, parent, first, last):
+        # When a row is moved in the model by removing and then inserting it, the
+        # current index might need to be updated
+        if self._current_data == self.currentData():
+            return
+        index = self.findData(self._current_data)
+        if index == -1:
+            return
+        self.setCurrentIndex(index)
+
+
 class CheckBoxDelegate(QtWidgets.QStyledItemDelegate):
 
     def initStyleOption(self, option, index):
@@ -365,6 +401,30 @@ class EnumDelegate(ComboBoxDelegate):
 
     def displayText(self, value, locale):
         return super().displayText(value.name, locale)
+
+
+class ItemModelBoxDelegate(QtWidgets.QStyledItemDelegate):
+
+    def initEditor(self, editor):
+        editor.activated.connect(self.on_editor_activated)
+
+    def createEditor(self, parent, option, index):
+        editor = ItemModelBox(parent)
+        self.initEditor(editor)
+        return editor
+
+    def clearEditor(self, editor):
+        editor.clear()
+
+    def setEditorData(self, editor, index):
+        editor.setCurrentData(index.data(QtCore.Qt.EditRole))
+
+    def setModelData(self, editor, model, index):
+        model.setData(index, editor.currentData(), QtCore.Qt.EditRole)
+
+    @QtCore.pyqtSlot(int)
+    def on_editor_activated(self, index):
+        self.commitData.emit(self.sender())
 
 
 class LineEditDelegate(QtWidgets.QStyledItemDelegate):

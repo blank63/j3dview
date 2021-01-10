@@ -9,7 +9,7 @@ from widgets.view_form import (
     ItemModelAdaptor,
     ViewForm,
     CheckBoxDelegate,
-    ComboBoxDelegate,
+    ItemModelBoxDelegate,
     EnumDelegate,
     LineEditDelegate,
     SpinBoxDelegate,
@@ -23,7 +23,7 @@ _int = SpinBoxDelegate
 _enum = EnumDelegate
 _str = LineEditDelegate
 _color = ColorButtonDelegate
-_texture = ComboBoxDelegate
+_texture = ItemModelBoxDelegate
 
 
 class NoneItem(Item):
@@ -51,6 +51,10 @@ class TextureItem(Item):
         self.triggers = frozenset((+_p[index].name,))
 
     @property
+    def texture(self):
+        return self.model.view[self.index]
+
+    @property
     def column_count(self):
         return 1
 
@@ -59,9 +63,9 @@ class TextureItem(Item):
 
     def get_data(self, column, role):
         if role == QtCore.Qt.DisplayRole:
-            return self.model.view[self.index].name
+            return self.texture.name
         if role == QtCore.Qt.UserRole:
-            return self.index
+            return self.texture
         return QtCore.QVariant()
 
     def handle_event(self, event, path):
@@ -79,16 +83,15 @@ class TextureListAdaptor(ItemModelAdaptor):
 
     def handle_event(self, event, path):
         if path.match(+_p[...]):
+            row = path[-1].key + 1
             if isinstance(event, views.CreateEvent):
-                row = self.rowCount()
                 texture_index = len(self.view) - 1
                 self.beginInsertRows(QtCore.QModelIndex(), row, row)
                 self.add_item(TextureItem(texture_index))
                 self.endInsertRows()
             elif isinstance(event, views.DeleteEvent):
-                row = self.rowCount() - 1
                 self.beginRemoveRows(QtCore.QModelIndex(), row, row)
-                self.take_item(row)
+                self.take_item(self.rowCount() - 1)
                 self.endRemoveRows()
         super().handle_event(event, path)
 
@@ -109,14 +112,14 @@ class MaterialForm(ViewForm):
         self.add_mapping('Mat. Color 1', +_p.channels[1].material_color, self.material_color1, _color())
         self.add_mapping('Amb. Color 1', +_p.channels[1].ambient_color, self.ambient_color1, _color())
 
-        self.add_mapping('Texture 0', +_p.texture_indices[0], self.texture0, _texture())
-        self.add_mapping('Texture 1', +_p.texture_indices[1], self.texture1, _texture())
-        self.add_mapping('Texture 2', +_p.texture_indices[2], self.texture2, _texture())
-        self.add_mapping('Texture 3', +_p.texture_indices[3], self.texture3, _texture())
-        self.add_mapping('Texture 4', +_p.texture_indices[4], self.texture4, _texture())
-        self.add_mapping('Texture 5', +_p.texture_indices[5], self.texture5, _texture())
-        self.add_mapping('Texture 6', +_p.texture_indices[6], self.texture6, _texture())
-        self.add_mapping('Texture 7', +_p.texture_indices[7], self.texture7, _texture())
+        self.add_mapping('Texture 0', +_p.textures[0], self.texture0, _texture())
+        self.add_mapping('Texture 1', +_p.textures[1], self.texture1, _texture())
+        self.add_mapping('Texture 2', +_p.textures[2], self.texture2, _texture())
+        self.add_mapping('Texture 3', +_p.textures[3], self.texture3, _texture())
+        self.add_mapping('Texture 4', +_p.textures[4], self.texture4, _texture())
+        self.add_mapping('Texture 5', +_p.textures[5], self.texture5, _texture())
+        self.add_mapping('Texture 6', +_p.textures[6], self.texture6, _texture())
+        self.add_mapping('Texture 7', +_p.textures[7], self.texture7, _texture())
 
         #TODO support for S10 TEV colors
         self.add_mapping('TEV Prev', +_p.tev_color_previous, self.tev_color_previous, _color())
