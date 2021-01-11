@@ -56,11 +56,11 @@ class MaterialItem(NodeItem):
 
     def __init__(self, path):
         super().__init__(path)
-        self.triggers = frozenset((path + _p.index,))
+        self.triggers = frozenset((path + _p.material, path + _p.material.name))
 
     @property
     def material(self):
-        return self.model.view.materials[self.node.index]
+        return self.node.material
 
     def get_flags(self, column):
         return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
@@ -69,13 +69,13 @@ class MaterialItem(NodeItem):
         if role == QtCore.Qt.DisplayRole:
             return f'Material: {self.material.name}'
         if role == QtCore.Qt.EditRole:
-            return self.node.index
+            return self.material
         return QtCore.QVariant()
 
     def set_data(self, column, value, role):
         if role != QtCore.Qt.EditRole:
             return False
-        self.model.commit_view_value('Material', self.path + _p.index, value)
+        self.model.commit_view_value('Material', self.path + _p.material, value)
         return True
 
     def handle_event(self, event, path):
@@ -124,7 +124,7 @@ class MaterialListItem(Item):
         if role == QtCore.Qt.DisplayRole:
             return self.model.view[self.index].name
         if role == QtCore.Qt.UserRole:
-            return self.index
+            return self.model.view[self.index]
         return QtCore.QVariant()
 
     def handle_event(self, event, path):
@@ -141,16 +141,15 @@ class MaterialListAdaptor(ItemModelAdaptor):
 
     def handle_event(self, event, path):
         if path.match(+_p[...]):
+            row = path[-1].key
             if isinstance(event, views.CreateEvent):
-                row = self.rowCount()
                 material_index = len(self.view)
                 self.beginInsertRows(QtCore.QModelIndex(), row, row)
                 self.add_item(MaterialListItem(material_index))
                 self.endInsertRows()
             elif isinstance(event, views.DeleteEvent):
-                row = self.rowCount() - 1
                 self.beginRemoveRows(QtCore.QModelIndex(), row, row)
-                self.take_item(row)
+                self.take_item(self.rowCount() - 1)
                 self.endRemoveRows()
         super().handle_event(event, path)
 
@@ -175,10 +174,12 @@ class MaterialListDelegate(QtWidgets.QStyledItemDelegate):
 
     def updateEditorGeometry(self, editor, option, index):
         prefix_size = option.fontMetrics.size(0, 'Material: ')
+        available_width = option.rect.width() - prefix_size.width()
+        width = min(available_width, editor.sizeHint().width())
         editor.setGeometry(
             option.rect.x() + prefix_size.width(),
             option.rect.y(),
-            option.rect.width() - prefix_size.width(),
+            width,
             option.rect.height()
         )
 

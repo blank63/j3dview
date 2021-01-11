@@ -13,10 +13,6 @@ import views.texture
 import views.vertex_shader
 
 
-class ResourceInUseError(Exception):
-    pass
-
-
 def matrix3x4_array_multiply(a,b):
     c = numpy.empty(a.shape,numpy.float32)
     numpy.einsum('ijk,ikl->ijl',a[:,:,:3],b[:,:,:3],out=c[:,:,:3])
@@ -139,16 +135,73 @@ def gl_convert_color_array(source):
     return destination
 
 
+class ViewReference:
+
+    def __init__(self):
+        self.path = None
+        self.private_name = None
+
+    def __set_name__(self, owner, name):
+        self.path = views.Path.for_attribute(name)
+        self.private_name = '_' + name
+
+    def __get__(self, instance, owner=None):
+        return getattr(instance, self.private_name)
+
+    def __set__(self, instance, value):
+        current_value = getattr(instance, self.private_name, None)
+        if current_value is not None:
+            current_value.unregister_listener(instance, self.path)
+        setattr(instance, self.private_name, value)
+        if value is not None:
+            value.register_listener(instance, self.path)
+        instance.handle_event(views.ValueChangedEvent(), self.path)
+
+
 class SceneGraphNode(views.View):
+
+    @staticmethod
+    def create_node(viewed_object):
+        if viewed_object.node_type == NodeType.JOINT:
+            return JointNode(viewed_object)
+        if viewed_object.node_type == NodeType.MATERIAL:
+            return MaterialNode(viewed_object)
+        if viewed_object.node_type == NodeType.SHAPE:
+            return ShapeNode(viewed_object)
+        assert False
+
+    def all_descendants(self):
+        for child in self.children:
+            yield child
+            yield from child.all_descendants()
+
+
+class JointNode(SceneGraphNode):
     node_type = views.ReadOnlyAttribute()
-    index = views.Attribute()
-    # We have to use a lambda as SceneGraphNode does not yet exist
-    children = views.ViewAttribute(views.ViewListView, lambda *args: SceneGraphNode(*args))
+    index = views.ReadOnlyAttribute()
+    children = views.ViewAttribute(views.ViewListView, SceneGraphNode.create_node)
+
+
+class MaterialNode(SceneGraphNode):
+    node_type = views.ReadOnlyAttribute()
+    material = ViewReference()
+    children = views.ViewAttribute(views.ViewListView, SceneGraphNode.create_node)
+
+
+class ShapeNode(SceneGraphNode):
+    node_type = views.ReadOnlyAttribute()
+    index = views.ReadOnlyAttribute()
+    children = views.ViewAttribute(views.ViewListView, SceneGraphNode.create_node)
 
 
 class SceneGraph(views.View):
     unknown0 = views.ReadOnlyAttribute()
-    children = views.ViewAttribute(views.ViewListView, SceneGraphNode)
+    children = views.ViewAttribute(views.ViewListView, SceneGraphNode.create_node)
+
+    def all_nodes(self):
+        for child in self.children:
+            yield child
+            yield from child.all_descendants()
 
 
 class Model(views.View):
@@ -230,7 +283,7 @@ class Model(views.View):
                 if parent_material.unknown0 == 4:
                     self.gl_draw_shape(parent_material, self.shapes[child.index])
             elif child.node_type == NodeType.MATERIAL:
-                self.gl_draw_node(child, self.materials[child.index])
+                self.gl_draw_node(child, child.material)
             else:
                 self.gl_draw_node(child, parent_material)
 
@@ -253,18 +306,36 @@ class Model(views.View):
             j3d.model.pack(stream, self.viewed_object)
 
     def init_references(self):
+        """Initialize references.
+
+        Initialize references into the material and texture lists.
+        """
+        for node in self.scene_graph.all_nodes():
+            if node.node_type == NodeType.MATERIAL:
+                node.material = self.materials[node.viewed_object.index]
+
         for material in self.materials:
             for i, texture_index in enumerate(material.viewed_object.texture_indices):
-                if texture_index is None:
-                    continue
-                material.textures[i] = self.textures[texture_index]
+                texture = None
+                if texture_index is not None:
+                    texture = self.textures[texture_index]
+                material.textures[i] = texture
 
     def sync_reference_indices(self):
+        """Synchronize reference indices.
+
+        Indices used to reference into the material and texture lists are not
+        automatically kept in sync. This method needs to be manually called to
+        synchronize the reference indices.
+        """
+        for node in self.scene_graph.all_nodes():
+            if node.node_type == NodeType.MATERIAL:
+                node.viewed_object.index = self.materials.index(node.material)
+
         for material in self.materials:
             for i, texture in enumerate(material.textures):
-                if texture is None:
-                    texture_index = None
-                else:
+                texture_index = None
+                if texture is not None:
                     texture_index = self.textures.index(texture)
                 material.viewed_object.texture_indices[i] = texture_index
 
