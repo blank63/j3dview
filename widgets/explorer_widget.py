@@ -3,6 +3,7 @@ import os
 from PyQt5 import QtCore, QtWidgets
 import views
 from views import path_builder as _p
+import views.material
 import views.texture
 from widgets.view_form import Item, GroupItem, ItemModelAdaptor
 
@@ -89,6 +90,10 @@ class ModelAdaptor(ItemModelAdaptor):
         self.texture_list = ListItem('Textures', +_p.textures)
         self.add_item(self.texture_list)
         self.texture_list.initialize()
+
+    def get_material_index(self, row):
+        item = self.material_list.get_child(row)
+        return self.get_item_index(item)
 
     def get_texture_index(self, row):
         item = self.texture_list.get_child(row)
@@ -234,6 +239,10 @@ class ExplorerWidget(QtWidgets.QWidget):
         self.adaptor.rowDropped.connect(self.on_rowDropped)
         self.tree_view.selectionModel().currentRowChanged.connect(self.on_currentRowChanged)
 
+    def setCurrentMaterial(self, material_index):
+        index = self.adaptor.get_material_index(material_index)
+        self.tree_view.setCurrentIndex(index)
+
     def setCurrentTexture(self, texture_index):
         index = self.adaptor.get_texture_index(texture_index)
         self.tree_view.setCurrentIndex(index)
@@ -249,6 +258,60 @@ class ExplorerWidget(QtWidgets.QWidget):
         elif path.match(+_p.textures[...]):
             index = path[-1].key
             self.currentTextureChanged.emit(index)
+
+    def import_materials(self):
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            caption='Import Materials',
+            directory=os.path.dirname(self.model.file_path),
+            filter='BMT material archive (*.bmt);;All files (*)'
+        )
+        if not file_path:
+            return
+        try:
+            material_archive = views.material.MaterialArchive.load(file_path)
+        except (FileNotFoundError, IsADirectoryError, PermissionError) as error:
+            message = QtWidgets.QMessageBox()
+            message.setIcon(QtWidgets.QMessageBox.Warning)
+            message.setText(f"Could not open file '{error.filename}'")
+            message.setInformativeText(error.strerror)
+            message.exec_()
+            return
+        insert_index = len(self.model.materials)
+        self.undo_stack.beginMacro('Import materials')
+        for texture in material_archive.textures:
+            self.append_texture(texture)
+        for material in material_archive.materials:
+            self.append_material(material)
+        self.undo_stack.endMacro()
+        self.setCurrentMaterial(insert_index)
+
+    def export_material(self, index):
+        material = self.model.materials[index]
+        material_archive = views.material.MaterialArchive([material])
+        directory_path = os.path.dirname(self.model.file_path)
+        file_name = material.name + '.bmt'
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            caption='Export Material',
+            directory=os.path.join(directory_path, file_name),
+            filter='BMT material archive (*.bmt);;All files (*)'
+        )
+        if not file_path:
+            return
+        try:
+            material_archive.save(file_path)
+        except (FileNotFoundError, IsADirectoryError, PermissionError) as error:
+            message = QtWidgets.QMessageBox()
+            message.setIcon(QtWidgets.QMessageBox.Warning)
+            message.setText(f"Could not open file '{error.filename}'")
+            message.setInformativeText(error.strerror)
+            message.exec_()
+            return
+
+    def append_material(self, material):
+        index = len(self.model.materials)
+        command = InsertItemCommand(self.model.materials, index, material)
+        command.setText(f"Insert material '{material.name}'")
+        self.undo_stack.push(command)
 
     def remove_material(self, index):
         material = self.model.materials[index]
@@ -281,12 +344,8 @@ class ExplorerWidget(QtWidgets.QWidget):
             message.setInformativeText(error.strerror)
             message.exec_()
             return
-        # Insert the texture at the end of the texture list
-        index = len(self.model.textures)
-        command = InsertItemCommand(self.model.textures, index, texture)
-        command.setText(f"Insert texture '{texture.name}'")
-        self.undo_stack.push(command)
-        self.setCurrentTexture(index)
+        self.append_texture(texture)
+        self.setCurrentTexture(len(self.model.textures) - 1)
 
     def export_texture(self, index):
         texture = self.model.textures[index]
@@ -308,6 +367,12 @@ class ExplorerWidget(QtWidgets.QWidget):
             message.setInformativeText(error.strerror)
             message.exec_()
             return
+
+    def append_texture(self, texture):
+        index = len(self.model.textures)
+        command = InsertItemCommand(self.model.textures, index, texture)
+        command.setText(f"Insert texture '{texture.name}'")
+        self.undo_stack.push(command)
 
     def remove_texture(self, index):
         texture = self.model.textures[index]
@@ -331,15 +396,11 @@ class ExplorerWidget(QtWidgets.QWidget):
         path = index.data(PathRole)
         if path is None:
             return
-        if path.match(+_p.materials[...]):
-            menu = QtWidgets.QMenu(self)
-            menu.addAction(self.action_remove)
-            menu.exec_(self.mapToGlobal(event.pos()))
-        elif path == +_p.textures:
+        if path in {+_p.materials, +_p.textures}:
             menu = QtWidgets.QMenu(self)
             menu.addAction(self.action_import)
             menu.exec_(self.mapToGlobal(event.pos()))
-        elif path.match(+_p.textures[...]):
+        elif path.match(+_p.materials[...]) or path.match(+_p.textures[...]):
             menu = QtWidgets.QMenu(self)
             menu.addAction(self.action_import)
             menu.addAction(self.action_export)
@@ -380,7 +441,9 @@ class ExplorerWidget(QtWidgets.QWidget):
         path = index.data(PathRole)
         if path is None:
             return
-        if path == +_p.textures or path.match(+_p.textures[...]):
+        if path == +_p.materials or path.match(+_p.materials[...]):
+            self.import_materials()
+        elif path == +_p.textures or path.match(+_p.textures[...]):
             self.import_texture()
 
     @QtCore.pyqtSlot()
@@ -389,7 +452,10 @@ class ExplorerWidget(QtWidgets.QWidget):
         path = index.data(PathRole)
         if path is None:
             return
-        if path.match(+_p.textures[...]):
+        if path.match(+_p.materials[...]):
+            index = path[-1].key
+            self.export_material(index)
+        elif path.match(+_p.textures[...]):
             index = path[-1].key
             self.export_texture(index)
 

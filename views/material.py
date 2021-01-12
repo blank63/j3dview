@@ -1,10 +1,13 @@
+from collections import OrderedDict
 import weakref
 import numpy
 from OpenGL.GL import *
 import gl
 import gx
+import j3d.material_archive
 import views
 from views import path_builder as _p
+import views.texture
 import views.vertex_shader
 import views.fragment_shader
 
@@ -674,4 +677,63 @@ class Material(views.View):
         except AttributeError:
             pass
         self.gl_program_table.clear()
+
+
+class MaterialArchive:
+
+    def __init__(self, materials, textures=None):
+        if textures is None:
+            # Remove duplicates but keep the order
+            textures = list(OrderedDict.fromkeys(
+                texture
+                for material in materials
+                for texture in material.textures
+                if texture is not None
+            ))
+        self.materials = materials
+        self.textures = textures
+
+    @staticmethod
+    def load(file_path):
+        with open(file_path, 'rb') as stream:
+            material_archive = j3d.material_archive.unpack(stream)
+        materials = list(map(Material, material_archive.materials))
+        textures = list(map(views.texture.Texture, material_archive.textures))
+        material_archive = MaterialArchive(materials, textures)
+        material_archive.init_references()
+        return material_archive
+
+    def save(self, file_path):
+        self.sync_reference_indices()
+        materials = [material.viewed_object for material in self.materials]
+        textures = [texture.viewed_object for texture in self.textures]
+        material_archive = j3d.material_archive.MaterialArchive(materials, textures)
+        with open(file_path, 'wb') as stream:
+            j3d.material_archive.pack(stream, material_archive)
+
+    def init_references(self):
+        """Initialize references.
+
+        Initialize references into the texture list.
+        """
+        for material in self.materials:
+            for i, texture_index in enumerate(material.viewed_object.texture_indices):
+                texture = None
+                if texture_index is not None:
+                    texture = self.textures[texture_index]
+                material.textures[i] = texture
+
+    def sync_reference_indices(self):
+        """Synchronize reference indices.
+
+        Indices used to reference into the texture list are not automatically
+        kept in sync. This method needs to be manually called to synchronize the
+        reference indices.
+        """
+        for material in self.materials:
+            for i, texture in enumerate(material.textures):
+                texture_index = None
+                if texture is not None:
+                    texture_index = self.textures.index(texture)
+                material.viewed_object.texture_indices[i] = texture_index
 
