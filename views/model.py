@@ -339,6 +339,19 @@ class Model(views.View):
                     texture_index = self.textures.index(texture)
                 material.viewed_object.texture_indices[i] = texture_index
 
+    def get_nodes_using_material(self, material_index):
+        """Get scene graph nodes that use a given material.
+
+        :param material_index: Index of the material in the material list.
+        :return: List of the scene graph nodes that use the material.
+        """
+        material = self.materials[material_index]
+        nodes = []
+        for node in self.scene_graph.all_nodes():
+            if node.node_type == NodeType.MATERIAL and node.material == material:
+                nodes.append(node)
+        return nodes
+
     def get_materials_using_texture(self, texture_index):
         """Get materials that use a given texture.
 

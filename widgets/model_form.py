@@ -1,9 +1,10 @@
 import io
 import pkgutil
 from PyQt5 import QtCore, QtWidgets, uic
+import views
 from views import path_builder as _p
 from views.model import NodeType
-from widgets.view_form import Item, ItemModelAdaptor, CommitViewValueCommand
+from widgets.view_form import Item, ItemModelAdaptor, ItemModelBox, CommitViewValueCommand
 
 
 class NodeItem(Item):
@@ -143,7 +144,7 @@ class MaterialListAdaptor(ItemModelAdaptor):
         if path.match(+_p[...]):
             row = path[-1].key
             if isinstance(event, views.CreateEvent):
-                material_index = len(self.view)
+                material_index = len(self.view) - 1
                 self.beginInsertRows(QtCore.QModelIndex(), row, row)
                 self.add_item(MaterialListItem(material_index))
                 self.endInsertRows()
@@ -167,7 +168,7 @@ class MaterialListDelegate(QtWidgets.QStyledItemDelegate):
         self.adaptor = None
 
     def createEditor(self, parent, option, index):
-        editor = QtWidgets.QComboBox(parent)
+        editor = ItemModelBox(parent)
         editor.setModel(self.adaptor)
         editor.activated.connect(self.on_editor_activated)
         return editor
@@ -184,9 +185,7 @@ class MaterialListDelegate(QtWidgets.QStyledItemDelegate):
         )
 
     def setEditorData(self, editor, index):
-        i = editor.findData(index.data(QtCore.Qt.EditRole))
-        assert i != -1
-        editor.setCurrentIndex(i)
+        editor.setCurrentData(index.data(QtCore.Qt.EditRole))
 
     def setModelData(self, editor, model, index):
         model.setData(index, editor.currentData(), QtCore.Qt.EditRole)

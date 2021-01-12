@@ -94,6 +94,20 @@ class ModelAdaptor(ItemModelAdaptor):
         item = self.texture_list.get_child(row)
         return self.get_item_index(item)
 
+    def move_material(self, from_index, to_index):
+        material = self.view.materials[from_index]
+        self.undo_stack.beginMacro(f"Move material '{material.name}'")
+        self.undo_stack.push(RemoveItemCommand(self.view.materials, from_index))
+        self.undo_stack.push(InsertItemCommand(self.view.materials, to_index, material))
+        self.undo_stack.endMacro()
+
+    def move_texture(self, from_index, to_index):
+        texture = self.view.textures[from_index]
+        self.undo_stack.beginMacro(f"Move texture '{texture.name}'")
+        self.undo_stack.push(RemoveItemCommand(self.view.textures, from_index))
+        self.undo_stack.push(InsertItemCommand(self.view.textures, to_index, texture))
+        self.undo_stack.endMacro()
+
     def supportedDropActions(self):
         return QtCore.Qt.MoveAction
 
@@ -115,6 +129,8 @@ class ModelAdaptor(ItemModelAdaptor):
             return False
         data = mime_data.data(self.MIME_TYPE).data()
         path = views.Path.from_string(data.decode())
+        if path.match(+_p.materials[...]):
+            return parent == self.get_item_index(self.material_list)
         if path.match(+_p.textures[...]):
             return parent == self.get_item_index(self.texture_list)
         return False
@@ -130,50 +146,49 @@ class ModelAdaptor(ItemModelAdaptor):
         else:
             # Account for the row being moved out from under where it is moved to
             to_index = row - 1
-        texture = self.view.textures[from_index]
-        self.undo_stack.beginMacro(f"Move texture '{texture.name}'")
-        self.undo_stack.push(RemoveTextureCommand(self.view, from_index))
-        self.undo_stack.push(InsertTextureCommand(self.view, to_index, texture))
-        self.undo_stack.endMacro()
+        if path.match(+_p.materials[...]):
+            self.move_material(from_index, to_index)
+        elif path.match(+_p.textures[...]):
+            self.move_texture(from_index, to_index)
         self.rowDropped.emit(parent, to_index)
         return True
 
     def handle_event(self, event, path):
-        if path.match(+_p.textures[...]):
+        if path.match(+_p.materials[...]):
+            self.material_list.handle_event(event, path)
+        elif path.match(+_p.textures[...]):
             self.texture_list.handle_event(event, path)
         super().handle_event(event, path)
 
 
-class InsertTextureCommand(QtWidgets.QUndoCommand):
+class InsertItemCommand(QtWidgets.QUndoCommand):
 
-    def __init__(self, model, index, texture):
+    def __init__(self, view, index, item):
         super().__init__()
-        self.model = model
+        self.view = view
         self.index = index
-        self.texture = texture
-        self.setText(f"Insert texture '{self.texture.name}'")
+        self.item = item
 
     def redo(self):
-        self.model.textures.insert(self.index, self.texture)
+        self.view.insert(self.index, self.item)
 
     def undo(self):
-        del self.model.textures[self.index]
+        del self.view[self.index]
 
 
-class RemoveTextureCommand(QtWidgets.QUndoCommand):
+class RemoveItemCommand(QtWidgets.QUndoCommand):
 
-    def __init__(self, model, index):
+    def __init__(self, view, index):
         super().__init__()
-        self.model = model
+        self.view = view
         self.index = index
-        self.texture = model.textures[index]
-        self.setText(f"Remove texture '{self.texture.name}'")
+        self.item = view[index]
 
     def redo(self):
-        del self.model.textures[self.index]
+        del self.view[self.index]
 
     def undo(self):
-        self.model.textures.insert(self.index, self.texture)
+        self.view.insert(self.index, self.item)
 
 
 class ExplorerWidget(QtWidgets.QWidget):
@@ -235,6 +250,20 @@ class ExplorerWidget(QtWidgets.QWidget):
             index = path[-1].key
             self.currentTextureChanged.emit(index)
 
+    def remove_material(self, index):
+        material = self.model.materials[index]
+        nodes = self.model.get_nodes_using_material(index)
+        if nodes:
+            message = QtWidgets.QMessageBox()
+            message.setIcon(QtWidgets.QMessageBox.Warning)
+            message.setText(f'Material {material.name} is being used and cannot be removed.')
+            message.setInformativeText(f'Used by {len(nodes)} scene graph node(s).')
+            message.exec_()
+            return
+        command = RemoveItemCommand(self.model.materials, index)
+        command.setText(f"Remove material '{material.name}'")
+        self.undo_stack.push(command)
+
     def import_texture(self):
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
             caption='Import Texture',
@@ -254,7 +283,8 @@ class ExplorerWidget(QtWidgets.QWidget):
             return
         # Insert the texture at the end of the texture list
         index = len(self.model.textures)
-        command = InsertTextureCommand(self.model, index, texture)
+        command = InsertItemCommand(self.model.textures, index, texture)
+        command.setText(f"Insert texture '{texture.name}'")
         self.undo_stack.push(command)
         self.setCurrentTexture(index)
 
@@ -292,7 +322,8 @@ class ExplorerWidget(QtWidgets.QWidget):
             )
             message.exec_()
             return
-        command = RemoveTextureCommand(self.model, index)
+        command = RemoveItemCommand(self.model.textures, index)
+        command.setText(f"Remove texture '{texture.name}'")
         self.undo_stack.push(command)
 
     def contextMenuEvent(self, event):
@@ -300,7 +331,11 @@ class ExplorerWidget(QtWidgets.QWidget):
         path = index.data(PathRole)
         if path is None:
             return
-        if path == +_p.textures:
+        if path.match(+_p.materials[...]):
+            menu = QtWidgets.QMenu(self)
+            menu.addAction(self.action_remove)
+            menu.exec_(self.mapToGlobal(event.pos()))
+        elif path == +_p.textures:
             menu = QtWidgets.QMenu(self)
             menu.addAction(self.action_import)
             menu.exec_(self.mapToGlobal(event.pos()))
@@ -364,7 +399,10 @@ class ExplorerWidget(QtWidgets.QWidget):
         path = index.data(PathRole)
         if path is None:
             return
-        if path.match(+_p.textures[...]):
+        if path.match(+_p.materials[...]):
+            index = path[-1].key
+            self.remove_material(index)
+        elif path.match(+_p.textures[...]):
             index = path[-1].key
             self.remove_texture(index)
 

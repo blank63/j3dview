@@ -18,6 +18,17 @@ MATRIX_TABLE_TEXTURE_UNIT = 0
 TEXTURE_UNITS = [1,2,3,4,5,6,7,8]
 
 
+class LazyProperty:
+
+    def __init__(self, fget):
+        self.fget = fget
+
+    def __get__(self, instance, owner=None):
+        value = self.fget(instance)
+        setattr(instance, self.fget.__name__, value)
+        return value
+
+
 class UseLightAttribute:
 
     def __init__(self, index):
@@ -393,12 +404,7 @@ class Material(views.View):
     def __init__(self, viewed_object):
         super().__init__(viewed_object)
         self.textures = TextureReferenceList(self)
-
-        self.gl_block = self.gl_create_resource(self.block_info.block_type, GL_DYNAMIC_DRAW)
         self.gl_program_table = {}
-
-        for block_property in self.block_info.properties:
-            block_property.update_block(self.gl_block, self)
 
     name = views.Attribute()
     unknown0 = views.Attribute()
@@ -457,6 +463,13 @@ class Material(views.View):
             if path in self.shader_info.triggers:
                 self.gl_shader_invalidate()
         super().handle_event(event, path)
+
+    @LazyProperty
+    def gl_block(self):
+        block = self.gl_create_resource(self.block_info.block_type, GL_DYNAMIC_DRAW)
+        for block_property in self.block_info.properties:
+            block_property.update_block(block, self)
+        return block
 
     def gl_program(self, transformation_type):
         if transformation_type in self.gl_program_table:
@@ -653,4 +666,12 @@ class Material(views.View):
 
         if shape.transformation_type == 0:
             glUniform1i(program.matrix_index_location, shape.batches[0].matrix_table[0])
+
+    def gl_delete(self):
+        super().gl_delete()
+        try:
+            del self.gl_block
+        except AttributeError:
+            pass
+        self.gl_program_table.clear()
 
