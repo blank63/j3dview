@@ -141,14 +141,15 @@ class MaterialListAdaptor(ItemModelAdaptor):
             self.add_item(MaterialListItem(i))
 
     def handle_event(self, event, path):
-        if path.match(+_p[...]):
-            row = path[-1].key
-            if isinstance(event, views.CreateEvent):
+        if path.match(+_p):
+            if isinstance(event, views.ItemInsertEvent):
+                row = event.index
                 material_index = len(self.view) - 1
                 self.beginInsertRows(QtCore.QModelIndex(), row, row)
                 self.add_item(MaterialListItem(material_index))
                 self.endInsertRows()
-            elif isinstance(event, views.DeleteEvent):
+            elif isinstance(event, views.ItemRemoveEvent):
+                row = event.index
                 self.beginRemoveRows(QtCore.QModelIndex(), row, row)
                 self.take_item(self.rowCount() - 1)
                 self.endRemoveRows()

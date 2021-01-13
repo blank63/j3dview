@@ -151,7 +151,7 @@ class ViewReference:
     def __set__(self, instance, value):
         current_value = getattr(instance, self.private_name, None)
         if current_value is not None:
-            current_value.unregister_listener(instance, self.path)
+            current_value.unregister_listener(instance)
         setattr(instance, self.private_name, value)
         if value is not None:
             value.register_listener(instance, self.path)

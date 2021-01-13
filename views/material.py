@@ -392,7 +392,7 @@ class TextureReferenceList:
     def __setitem__(self, index, item):
         path = +_p.textures[index]
         if self._items[index] is not None:
-            self._items[index].unregister_listener(self.parent, path)
+            self._items[index].unregister_listener(self.parent)
         self._items[index] = item
         if item is not None:
             item.register_listener(self.parent, path)

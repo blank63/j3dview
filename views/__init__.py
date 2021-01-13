@@ -165,16 +165,20 @@ class PathBuilder:
 path_builder = PathBuilder()
 
 
-class CreateEvent:
-    pass
-
-
-class DeleteEvent:
-    pass
-
-
 class ValueChangedEvent:
     pass
+
+
+class ItemInsertEvent:
+
+    def __init__(self, index):
+        self.index = index
+
+
+class ItemRemoveEvent:
+
+    def __init__(self, index):
+        self.index = index
 
 
 class ListenerRegistration:
@@ -205,14 +209,14 @@ class View(gl.ResourceManagerMixin):
         registration = ListenerRegistration(listener, path)
         self._listener_registrations.append(registration)
 
-    def unregister_listener(self, listener, path=Path()):
+    def unregister_listener(self, listener):
         i = 0
         while i < len(self._listener_registrations):
             registration = self._listener_registrations[i]
             if not registration.still_active:
                 del self._listener_registrations[i]
                 continue
-            if registration.listener is listener and registration.path == path:
+            if registration.listener is listener:
                 del self._listener_registrations[i]
                 return
             i += 1
@@ -235,9 +239,9 @@ class View(gl.ResourceManagerMixin):
         self.gl_manage_resource(child)
         child.register_listener(self, path)
 
-    def _detach_child_view(self, child, path):
+    def _detach_child_view(self, child):
         self.gl_delete_resource(child)
-        child.unregister_listener(self, path)
+        child.unregister_listener(self)
 
 
 class ListView(View):
@@ -273,14 +277,14 @@ class ViewListView(View):
     def __delitem__(self, key):
         assert isinstance(key, int)
         assert key >= 0
-        self._detach_child_view(self._items[key], Path.for_item(key))
+        self._detach_child_view(self._items[key])
         del self._items[key]
         del self.viewed_object[key]
         for i in range(key, len(self)):
             item = self._items[i]
-            item.unregister_listener(self, Path.for_item(i + 1))
+            item.unregister_listener(self)
             item.register_listener(self, Path.for_item(i))
-        self.handle_event(DeleteEvent(), Path.for_item(key))
+        self.handle_event(ItemRemoveEvent(key))
 
     def insert(self, index, value):
         assert index >= 0
@@ -289,9 +293,9 @@ class ViewListView(View):
         self._attach_child_view(value, Path.for_item(index))
         for i in range(index + 1, len(self)):
             item = self._items[i]
-            item.unregister_listener(self, Path.for_item(i - 1))
+            item.unregister_listener(self)
             item.register_listener(self, Path.for_item(i))
-        self.handle_event(CreateEvent(), Path.for_item(index))
+        self.handle_event(ItemInsertEvent(index))
 
     def index(self, value):
         return self._items.index(value)

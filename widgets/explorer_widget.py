@@ -41,6 +41,7 @@ class ListItem(GroupItem):
     def __init__(self, label, path):
         super().__init__([label])
         self.path = path
+        self.triggers = frozenset((path,))
 
     @property
     def view(self):
@@ -61,14 +62,15 @@ class ListItem(GroupItem):
 
     def handle_event(self, event, path):
         index = self.model.get_item_index(self)
-        row = path[-1].key
-        if isinstance(event, views.CreateEvent):
+        if isinstance(event, views.ItemInsertEvent):
+            row = event.index
             self.model.beginInsertRows(index, row, row)
             element_index = len(self.view) - 1
             element = ElementItem(self.path  + _p[element_index])
             self.model.add_item(element, self)
             self.model.endInsertRows()
-        elif isinstance(event, views.DeleteEvent):
+        elif isinstance(event, views.ItemRemoveEvent):
+            row = event.index
             self.model.beginRemoveRows(index, row, row)
             self.model.take_item(self.child_count - 1, self)
             self.model.endRemoveRows()
@@ -157,13 +159,6 @@ class ModelAdaptor(ItemModelAdaptor):
             self.move_texture(from_index, to_index)
         self.rowDropped.emit(parent, to_index)
         return True
-
-    def handle_event(self, event, path):
-        if path.match(+_p.materials[...]):
-            self.material_list.handle_event(event, path)
-        elif path.match(+_p.textures[...]):
-            self.texture_list.handle_event(event, path)
-        super().handle_event(event, path)
 
 
 class InsertItemCommand(QtWidgets.QUndoCommand):
