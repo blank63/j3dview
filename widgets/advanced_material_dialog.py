@@ -3,8 +3,7 @@ import io
 import pkgutil
 from PyQt5 import QtCore, QtWidgets, uic
 import gx
-import views
-from views import path_builder as _p
+from modelview.path import Path, PATH_BUILDER as _p
 from widgets.view_form import (
     Item,
     GroupItem,
@@ -168,14 +167,8 @@ class MaterialAdaptor(ItemModelAdaptor):
         self._property('Diff. Function', path + _p.diffuse_function, _enum(gx.DiffuseFunction), base)
         self._property('Attn. Function', path + _p.attenuation_function, _enum(gx.AttenuationFunction), base)
         self._property('Light Enable', path + _p.light_enable, _bool(), base)
-        self._property('Use Light 0', path + _p.use_light0, _bool(), base)
-        self._property('Use Light 1', path + _p.use_light1, _bool(), base)
-        self._property('Use Light 2', path + _p.use_light2, _bool(), base)
-        self._property('Use Light 3', path + _p.use_light3, _bool(), base)
-        self._property('Use Light 4', path + _p.use_light4, _bool(), base)
-        self._property('Use Light 5', path + _p.use_light5, _bool(), base)
-        self._property('Use Light 6', path + _p.use_light6, _bool(), base)
-        self._property('Use Light 7', path + _p.use_light7, _bool(), base)
+        for i in range(8):
+            self._property(f'Use Light {i}', path + _p.use_light[i], _bool(), base)
 
     def add_channel_list(self):
         self._property('Num. Channels', +_p.channel_count, _count(2))
@@ -348,7 +341,7 @@ class Delegate(DelegateDelegate):
 
 class AdvancedMaterialDialog(QtWidgets.QDialog):
 
-    commitViewValue = QtCore.pyqtSignal(str, views.Path, object)
+    commitViewValue = QtCore.pyqtSignal(str, Path, object)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

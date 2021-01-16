@@ -1,9 +1,9 @@
 import io
 import pkgutil
 from PyQt5 import QtCore, QtWidgets, uic
-import views
-from views import path_builder as _p
-from views.model import NodeType
+from modelview.path import PATH_BUILDER as _p
+from modelview.object_model import ItemInsertEvent, ItemRemoveEvent
+from models.model import NodeType
 from widgets.view_form import Item, ItemModelAdaptor, ItemModelBox, CommitViewValueCommand
 
 
@@ -142,13 +142,13 @@ class MaterialListAdaptor(ItemModelAdaptor):
 
     def handle_event(self, event, path):
         if path.match(+_p):
-            if isinstance(event, views.ItemInsertEvent):
+            if isinstance(event, ItemInsertEvent):
                 row = event.index
                 material_index = len(self.view) - 1
                 self.beginInsertRows(QtCore.QModelIndex(), row, row)
                 self.add_item(MaterialListItem(material_index))
                 self.endInsertRows()
-            elif isinstance(event, views.ItemRemoveEvent):
+            elif isinstance(event, ItemRemoveEvent):
                 row = event.index
                 self.beginRemoveRows(QtCore.QModelIndex(), row, row)
                 self.take_item(self.rowCount() - 1)

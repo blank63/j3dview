@@ -2,8 +2,8 @@ import io
 import pkgutil
 from PyQt5 import QtCore, QtGui, uic
 import gx
-import views
-from views import path_builder as _p
+from modelview.path import PATH_BUILDER as _p
+from modelview.object_model import ItemInsertEvent, ItemRemoveEvent
 from widgets.view_form import (
     Item,
     ItemModelAdaptor,
@@ -83,13 +83,13 @@ class TextureListAdaptor(ItemModelAdaptor):
 
     def handle_event(self, event, path):
         if path.match(+_p):
-            if isinstance(event, views.ItemInsertEvent):
+            if isinstance(event, ItemInsertEvent):
                 row = event.index + 1
                 texture_index = len(self.view) - 1
                 self.beginInsertRows(QtCore.QModelIndex(), row, row)
                 self.add_item(TextureItem(texture_index))
                 self.endInsertRows()
-            elif isinstance(event, views.ItemRemoveEvent):
+            elif isinstance(event, ItemRemoveEvent):
                 row = event.index + 1
                 self.beginRemoveRows(QtCore.QModelIndex(), row, row)
                 self.take_item(self.rowCount() - 1)

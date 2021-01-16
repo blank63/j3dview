@@ -4,7 +4,12 @@ from OpenGL.GL import *
 import gl
 import gx
 import gx.bti
-import views
+from modelview.wrapper_model import (
+    WrapperModel,
+    #TODO remove Attribute dependency
+    Attribute,
+    wrapper_attribute as _attribute
+)
 
 
 class LazyProperty:
@@ -18,16 +23,16 @@ class LazyProperty:
         return value
 
 
-class SamplerInvalidatingAttribute(views.Attribute):
+class SamplerInvalidatingAttribute(Attribute):
 
     def attribute_changed(self, instance):
         instance.gl_sampler_invalidate()
         super().attribute_changed(instance)
 
 
-class Texture(views.View):
+class Texture(WrapperModel):
 
-    name = views.Attribute()
+    name = _attribute()
     wrap_s = SamplerInvalidatingAttribute()
     wrap_t = SamplerInvalidatingAttribute()
     minification_filter = SamplerInvalidatingAttribute()
@@ -35,11 +40,11 @@ class Texture(views.View):
     minimum_lod = SamplerInvalidatingAttribute()
     maximum_lod = SamplerInvalidatingAttribute()
     lod_bias = SamplerInvalidatingAttribute()
-    unknown0 = views.Attribute()
-    unknown1 = views.Attribute()
-    unknown2 = views.Attribute()
-    palette = views.ReadOnlyAttribute()
-    images = views.ReadOnlyAttribute()
+    unknown0 = _attribute()
+    unknown1 = _attribute()
+    unknown2 = _attribute()
+    palette = _attribute()
+    images = _attribute()
     
     @property
     def width(self):

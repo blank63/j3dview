@@ -1,6 +1,6 @@
 import weakref
 from PyQt5 import QtCore, QtGui, QtWidgets
-import views
+from modelview.path import Path
 
 
 class Item:
@@ -142,7 +142,7 @@ class PropertyItem(Item):
 
 class ItemModelAdaptor(QtCore.QAbstractItemModel):
 
-    commitViewValue = QtCore.pyqtSignal(str, views.Path, object)
+    commitViewValue = QtCore.pyqtSignal(str, Path, object)
 
     def __init__(self, view):
         super().__init__()
@@ -680,7 +680,7 @@ class CommitViewValueCommand(QtWidgets.QUndoCommand):
 
 class ViewForm(QtWidgets.QWidget):
 
-    commitViewValue = QtCore.pyqtSignal(str, views.Path, object)
+    commitViewValue = QtCore.pyqtSignal(str, Path, object)
 
     class Mapping:
 

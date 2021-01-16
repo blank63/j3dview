@@ -6,11 +6,16 @@ import gx
 from j3d.inf1 import NodeType
 from j3d.drw1 import MatrixType
 import j3d.model
-import views
-import views.shape
-import views.material
-import views.texture
-import views.vertex_shader
+from modelview.object_model import ReferenceAttribute, ReferenceList
+from modelview.wrapper_model import (
+    WrapperModel,
+    wrapper_attribute as _attribute,
+    wrapper_list as _list
+)
+import models.shape
+import models.material
+import models.texture
+import models.vertex_shader
 
 
 def matrix3x4_array_multiply(a,b):
@@ -45,11 +50,11 @@ class GLMatrixIndexArray:
             numpy.take(matrix_table,source,0,destination[vertex_index:vertex_index + length])
             vertex_index += length
 
-        glEnableVertexAttribArray(views.vertex_shader.MATRIX_INDEX_ATTRIBUTE_LOCATION)
+        glEnableVertexAttribArray(models.vertex_shader.MATRIX_INDEX_ATTRIBUTE_LOCATION)
         vertex_type = vertex_array.dtype
         stride = vertex_type.itemsize
         offset = vertex_type.fields[gx.VA_PTNMTXIDX.name][1]
-        glVertexAttribIPointer(views.vertex_shader.MATRIX_INDEX_ATTRIBUTE_LOCATION,1,GL_UNSIGNED_INT,stride,GLvoidp(offset))
+        glVertexAttribIPointer(models.vertex_shader.MATRIX_INDEX_ATTRIBUTE_LOCATION,1,GL_UNSIGNED_INT,stride,GLvoidp(offset))
 
 
 class GLDirectArray:
@@ -72,7 +77,7 @@ class GLArray(numpy.ndarray):
     def load(self,shape,vertex_array):
         index_array = numpy.concatenate([primitive.vertices[self.attribute.name] for primitive in shape.primitives])
         numpy.take(self,index_array,0,vertex_array[self.attribute.name])
-        location = views.vertex_shader.ATTRIBUTE_LOCATION_TABLE[self.attribute]
+        location = models.vertex_shader.ATTRIBUTE_LOCATION_TABLE[self.attribute]
         glEnableVertexAttribArray(location)
         vertex_type = vertex_array.dtype
         stride = vertex_type.itemsize
@@ -135,30 +140,7 @@ def gl_convert_color_array(source):
     return destination
 
 
-class ViewReference:
-
-    def __init__(self):
-        self.path = None
-        self.private_name = None
-
-    def __set_name__(self, owner, name):
-        self.path = views.Path.for_attribute(name)
-        self.private_name = '_' + name
-
-    def __get__(self, instance, owner=None):
-        return getattr(instance, self.private_name)
-
-    def __set__(self, instance, value):
-        current_value = getattr(instance, self.private_name, None)
-        if current_value is not None:
-            current_value.unregister_listener(instance)
-        setattr(instance, self.private_name, value)
-        if value is not None:
-            value.register_listener(instance, self.path)
-        instance.handle_event(views.ValueChangedEvent(), self.path)
-
-
-class SceneGraphNode(views.View):
+class SceneGraphNode(WrapperModel):
 
     @staticmethod
     def create_node(viewed_object):
@@ -177,26 +159,26 @@ class SceneGraphNode(views.View):
 
 
 class JointNode(SceneGraphNode):
-    node_type = views.ReadOnlyAttribute()
-    index = views.ReadOnlyAttribute()
-    children = views.ViewAttribute(views.ViewListView, SceneGraphNode.create_node)
+    node_type = _attribute()
+    index = _attribute()
+    children = _attribute(_list(SceneGraphNode.create_node))
 
 
 class MaterialNode(SceneGraphNode):
-    node_type = views.ReadOnlyAttribute()
-    material = ViewReference()
-    children = views.ViewAttribute(views.ViewListView, SceneGraphNode.create_node)
+    node_type = _attribute()
+    material = ReferenceAttribute()
+    children = _attribute(_list(SceneGraphNode.create_node))
 
 
 class ShapeNode(SceneGraphNode):
-    node_type = views.ReadOnlyAttribute()
-    index = views.ReadOnlyAttribute()
-    children = views.ViewAttribute(views.ViewListView, SceneGraphNode.create_node)
+    node_type = _attribute()
+    index = _attribute()
+    children = _attribute(_list(SceneGraphNode.create_node))
 
 
-class SceneGraph(views.View):
-    unknown0 = views.ReadOnlyAttribute()
-    children = views.ViewAttribute(views.ViewListView, SceneGraphNode.create_node)
+class SceneGraph(WrapperModel):
+    unknown0 = _attribute()
+    children = _attribute(_list(SceneGraphNode.create_node))
 
     def all_nodes(self):
         for child in self.children:
@@ -204,27 +186,27 @@ class SceneGraph(views.View):
             yield from child.all_descendants()
 
 
-class Model(views.View):
+class Model(WrapperModel):
 
-    def __init__(self, viewed_object):
-        super().__init__(viewed_object)
+    def __init__(self, wrapped_object):
+        super().__init__(wrapped_object)
         self.file_path = None
         self.init_references()
 
-    file_type = views.Attribute()
-    subversion = views.ReadOnlyAttribute()
-    scene_graph = views.ViewAttribute(SceneGraph)
-    position_array = views.ReadOnlyAttribute()
-    normal_array = views.ReadOnlyAttribute()
-    color_arrays = views.ReadOnlyAttribute()
-    texcoord_arrays = views.ReadOnlyAttribute()
-    influence_groups = views.ReadOnlyAttribute()
-    inverse_bind_matrices = views.ReadOnlyAttribute()
-    matrix_definitions = views.ReadOnlyAttribute()
-    joints = views.ReadOnlyAttribute()
-    shapes = views.ViewAttribute(views.ViewListView, views.shape.Shape)
-    materials = views.ViewAttribute(views.ViewListView, views.material.Material)
-    textures = views.ViewAttribute(views.ViewListView, views.texture.Texture)
+    file_type = _attribute()
+    subversion = _attribute()
+    scene_graph = _attribute(SceneGraph)
+    position_array = _attribute()
+    normal_array = _attribute()
+    color_arrays = _attribute()
+    texcoord_arrays = _attribute()
+    influence_groups = _attribute()
+    inverse_bind_matrices = _attribute()
+    matrix_definitions = _attribute()
+    joints = _attribute()
+    shapes = _attribute(_list(models.shape.Shape))
+    materials = _attribute(_list(models.material.Material))
+    textures = _attribute(_list(models.texture.Texture))
 
     def gl_init(self):
         array_table = {}
@@ -288,7 +270,7 @@ class Model(views.View):
                 self.gl_draw_node(child, parent_material)
 
     def gl_draw(self):
-        self.gl_matrix_table.bind_texture(views.material.MATRIX_TABLE_TEXTURE_UNIT)
+        self.gl_matrix_table.bind_texture(models.material.MATRIX_TABLE_TEXTURE_UNIT)
         self.gl_draw_node(self.scene_graph)
 
     @staticmethod
@@ -303,7 +285,7 @@ class Model(views.View):
         self.file_path = file_path
         self.sync_reference_indices()
         with open(file_path, 'wb') as stream:
-            j3d.model.pack(stream, self.viewed_object)
+            j3d.model.pack(stream, self.wrapped_object)
 
     def init_references(self):
         """Initialize references.
@@ -312,14 +294,13 @@ class Model(views.View):
         """
         for node in self.scene_graph.all_nodes():
             if node.node_type == NodeType.MATERIAL:
-                node.material = self.materials[node.viewed_object.index]
+                node.material = self.materials[node.wrapped_object.index]
 
         for material in self.materials:
-            for i, texture_index in enumerate(material.viewed_object.texture_indices):
-                texture = None
-                if texture_index is not None:
-                    texture = self.textures[texture_index]
-                material.textures[i] = texture
+            material.textures = ReferenceList(
+                self.textures[texture_index] if texture_index is not None else None
+                for texture_index in material.wrapped_object.texture_indices
+            )
 
     def sync_reference_indices(self):
         """Synchronize reference indices.
@@ -330,14 +311,14 @@ class Model(views.View):
         """
         for node in self.scene_graph.all_nodes():
             if node.node_type == NodeType.MATERIAL:
-                node.viewed_object.index = self.materials.index(node.material)
+                node.wrapped_object.index = self.materials.index(node.material)
 
         for material in self.materials:
             for i, texture in enumerate(material.textures):
                 texture_index = None
                 if texture is not None:
                     texture_index = self.textures.index(texture)
-                material.viewed_object.texture_indices[i] = texture_index
+                material.wrapped_object.texture_indices[i] = texture_index
 
     def get_nodes_using_material(self, material_index):
         """Get scene graph nodes that use a given material.

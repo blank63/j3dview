@@ -1,10 +1,10 @@
 from enum import Enum
 import os
 from PyQt5 import QtCore, QtWidgets
-import views
-from views import path_builder as _p
-import views.material
-import views.texture
+from modelview.path import Path, PATH_BUILDER as _p
+from modelview.object_model import ItemInsertEvent, ItemRemoveEvent
+import models.material
+import models.texture
 from widgets.view_form import Item, GroupItem, ItemModelAdaptor
 
 
@@ -62,14 +62,14 @@ class ListItem(GroupItem):
 
     def handle_event(self, event, path):
         index = self.model.get_item_index(self)
-        if isinstance(event, views.ItemInsertEvent):
+        if isinstance(event, ItemInsertEvent):
             row = event.index
             self.model.beginInsertRows(index, row, row)
             element_index = len(self.view) - 1
             element = ElementItem(self.path  + _p[element_index])
             self.model.add_item(element, self)
             self.model.endInsertRows()
-        elif isinstance(event, views.ItemRemoveEvent):
+        elif isinstance(event, ItemRemoveEvent):
             row = event.index
             self.model.beginRemoveRows(index, row, row)
             self.model.take_item(self.child_count - 1, self)
@@ -135,7 +135,7 @@ class ModelAdaptor(ItemModelAdaptor):
         if not mime_data.hasFormat(self.MIME_TYPE):
             return False
         data = mime_data.data(self.MIME_TYPE).data()
-        path = views.Path.from_string(data.decode())
+        path = Path.from_string(data.decode())
         if path.match(+_p.materials[...]):
             return parent == self.get_item_index(self.material_list)
         if path.match(+_p.textures[...]):
@@ -146,7 +146,7 @@ class ModelAdaptor(ItemModelAdaptor):
         if not self.canDropMimeData(mime_data, action, row, column, parent):
             return False
         data = mime_data.data(self.MIME_TYPE).data()
-        path = views.Path.from_string(data.decode())
+        path = Path.from_string(data.decode())
         from_index = path[-1].key
         if row < from_index:
             to_index = row
@@ -263,7 +263,7 @@ class ExplorerWidget(QtWidgets.QWidget):
         if not file_path:
             return
         try:
-            material_archive = views.material.MaterialArchive.load(file_path)
+            material_archive = models.material.MaterialArchive.load(file_path)
         except (FileNotFoundError, IsADirectoryError, PermissionError) as error:
             message = QtWidgets.QMessageBox()
             message.setIcon(QtWidgets.QMessageBox.Warning)
@@ -282,7 +282,7 @@ class ExplorerWidget(QtWidgets.QWidget):
 
     def export_material(self, index):
         material = self.model.materials[index]
-        material_archive = views.material.MaterialArchive([material])
+        material_archive = models.material.MaterialArchive([material])
         directory_path = os.path.dirname(self.model.file_path)
         file_name = material.name + '.bmt'
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -331,7 +331,7 @@ class ExplorerWidget(QtWidgets.QWidget):
         if not file_path:
             return
         try:
-            texture = views.texture.Texture.load(file_path)
+            texture = models.texture.Texture.load(file_path)
         except (FileNotFoundError, IsADirectoryError, PermissionError) as error:
             message = QtWidgets.QMessageBox()
             message.setIcon(QtWidgets.QMessageBox.Warning)

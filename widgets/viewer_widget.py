@@ -4,8 +4,8 @@ import numpy
 from OpenGL.GL import *
 from PyQt5 import QtCore, QtWidgets
 import gl
-from views.material import MATRIX_BLOCK_BINDING_POINT
-from views.vertex_shader import MatrixBlock
+from models.material import MATRIX_BLOCK_BINDING_POINT
+from models.vertex_shader import MatrixBlock
 
 import logging
 logger = logging.getLogger(__name__)

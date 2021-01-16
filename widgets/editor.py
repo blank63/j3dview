@@ -3,9 +3,8 @@ import pkgutil
 import os.path
 from PyQt5 import QtCore, QtWidgets, QtGui, uic
 import j3d.animation
-import views
-from views import path_builder as _p
-import views.model
+from modelview.path import Path, PATH_BUILDER as _p
+import models.model
 from widgets.view_form import CommitViewValueCommand
 
 
@@ -123,7 +122,7 @@ class Editor(QtWidgets.QMainWindow):
         self.warning('Could not open file \'{}\': {}'.format(error.filename, error.strerror))
 
     def loadModel(self, file_path):
-        model = views.model.Model.load(file_path)
+        model = models.model.Model.load(file_path)
 
         self.undo_stack.clear()
         self.preview.clear()
@@ -182,7 +181,7 @@ class Editor(QtWidgets.QMainWindow):
         self.texture_form.setTexture(self.model.textures[texture_index])
         self.dock_texture_form.raise_()
 
-    @QtCore.pyqtSlot(str, views.Path, object)
+    @QtCore.pyqtSlot(str, Path, object)
     def on_material_form_commitViewValue(self, label, path, value):
         material = self.material_form.view
         material_index = self.model.materials.index(material)
@@ -193,7 +192,7 @@ class Editor(QtWidgets.QMainWindow):
         )
         self.undo_stack.push(command)
 
-    @QtCore.pyqtSlot(str, views.Path, object)
+    @QtCore.pyqtSlot(str, Path, object)
     def on_texture_form_commitViewValue(self, label, path, value):
         texture = self.texture_form.view
         texture_index = self.model.textures.index(texture)

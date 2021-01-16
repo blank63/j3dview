@@ -1,17 +1,26 @@
 from collections import OrderedDict
-import weakref
+import logging
 import numpy
 from OpenGL.GL import *
 import gl
 import gx
 import j3d.material_archive
-import views
-from views import path_builder as _p
-import views.texture
-import views.vertex_shader
-import views.fragment_shader
+from modelview.path import PATH_BUILDER as _p
+from modelview.object_model import (
+    ValueChangedEvent,
+    ReferenceAttribute,
+    ReferenceList
+)
+from modelview.wrapper_model import (
+    WrapperModel,
+    wrapper_attribute as _attribute,
+    wrapper_list as _list
+)
+import models.texture
+import models.vertex_shader
+import models.fragment_shader
 
-import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,148 +41,134 @@ class LazyProperty:
         return value
 
 
-class UseLightAttribute:
+class UseLightProxy(WrapperModel):
 
-    def __init__(self, index):
-        self.index = index
+    def __getitem__(self, index):
+        return bool(self.wrapped_object.light_mask & (1 << index))
 
-    def __set_name__(self, owner, name):
-        self.name = name
-        self.path = views.Path.for_attribute(name)
-
-    def __get__(self, instance, owner=None):
-        return bool(instance.viewed_object.light_mask & (1 << self.index))
-
-    def __set__(self, instance, value):
-        current_value = self.__get__(instance)
+    def __setitem__(self, index, value):
+        current_value = self[index]
         if value == current_value:
             return
         if value:
-            instance.viewed_object.light_mask |= (1 << self.index)
+            self.wrapped_object.light_mask |= (1 << index)
         else:
-            instance.viewed_object.light_mask &= ~(1 << self.index)
-        instance.handle_event(views.ValueChangedEvent(), self.path)
+            self.wrapped_object.light_mask &= ~(1 << index)
+        self.handle_event(ValueChangedEvent(), +_p[index])
 
 
-class LightingMode(views.View):
-    material_source = views.Attribute()
-    ambient_source = views.Attribute()
-    diffuse_function = views.Attribute()
-    attenuation_function = views.Attribute()
-    light_enable = views.Attribute()
-    use_light0 = UseLightAttribute(0)
-    use_light1 = UseLightAttribute(1)
-    use_light2 = UseLightAttribute(2)
-    use_light3 = UseLightAttribute(3)
-    use_light4 = UseLightAttribute(4)
-    use_light5 = UseLightAttribute(5)
-    use_light6 = UseLightAttribute(6)
-    use_light7 = UseLightAttribute(7)
+class LightingMode(WrapperModel):
+    material_source = _attribute()
+    ambient_source = _attribute()
+    diffuse_function = _attribute()
+    attenuation_function = _attribute()
+    light_enable = _attribute()
+    use_light = _attribute(UseLightProxy, source_path=+_p)
 
 
-class Channel(views.View):
-    color_mode = views.ViewAttribute(LightingMode)
-    alpha_mode = views.ViewAttribute(LightingMode)
-    material_color = views.Attribute()
-    ambient_color = views.Attribute()
+class Channel(WrapperModel):
+    color_mode = _attribute(LightingMode)
+    alpha_mode = _attribute(LightingMode)
+    material_color = _attribute()
+    ambient_color = _attribute()
 
 
-class TexCoordGenerator(views.View):
-    function = views.Attribute()
-    source = views.Attribute()
-    matrix = views.Attribute()
+class TexCoordGenerator(WrapperModel):
+    function = _attribute()
+    source = _attribute()
+    matrix = _attribute()
 
 
-class TextureMatrix(views.View):
-    shape = views.Attribute()
-    matrix_type = views.Attribute()
-    center_s = views.Attribute()
-    center_t = views.Attribute()
-    unknown0 = views.Attribute()
-    scale_s = views.Attribute()
-    scale_t = views.Attribute()
-    rotation = views.Attribute()
-    translation_s = views.Attribute()
-    translation_t = views.Attribute()
-    projection_matrix = views.Attribute()
+class TextureMatrix(WrapperModel):
+    shape = _attribute()
+    matrix_type = _attribute()
+    center_s = _attribute()
+    center_t = _attribute()
+    unknown0 = _attribute()
+    scale_s = _attribute()
+    scale_t = _attribute()
+    rotation = _attribute()
+    translation_s = _attribute()
+    translation_t = _attribute()
+    projection_matrix = _attribute()
 
     def create_matrix(self):
-        return self.viewed_object.create_matrix()
+        return self.wrapped_object.create_matrix()
 
 
-class TevMode(views.View):
-    a = views.Attribute()
-    b = views.Attribute()
-    c = views.Attribute()
-    d = views.Attribute()
-    function = views.Attribute()
-    bias = views.Attribute()
-    scale = views.Attribute()
-    clamp = views.Attribute()
-    output = views.Attribute()
+class TevMode(WrapperModel):
+    a = _attribute()
+    b = _attribute()
+    c = _attribute()
+    d = _attribute()
+    function = _attribute()
+    bias = _attribute()
+    scale = _attribute()
+    clamp = _attribute()
+    output = _attribute()
 
 
-class TevStage(views.View):
-    texcoord = views.Attribute()
-    texture = views.Attribute()
-    color = views.Attribute()
-    color_mode = views.ViewAttribute(TevMode)
-    alpha_mode = views.ViewAttribute(TevMode)
-    constant_color = views.Attribute()
-    constant_alpha = views.Attribute()
-    color_swap_table = views.Attribute()
-    texture_swap_table = views.Attribute()
-    indirect_stage = views.Attribute()
-    indirect_format = views.Attribute()
-    indirect_bias_components = views.Attribute()
-    indirect_matrix = views.Attribute()
-    wrap_s = views.Attribute()
-    wrap_t = views.Attribute()
-    add_previous_texcoord = views.Attribute()
-    use_original_lod = views.Attribute()
-    bump_alpha = views.Attribute()
-    unknown0 = views.Attribute()
-    unknown1 = views.Attribute()
+class TevStage(WrapperModel):
+    texcoord = _attribute()
+    texture = _attribute()
+    color = _attribute()
+    color_mode = _attribute(TevMode)
+    alpha_mode = _attribute(TevMode)
+    constant_color = _attribute()
+    constant_alpha = _attribute()
+    color_swap_table = _attribute()
+    texture_swap_table = _attribute()
+    indirect_stage = _attribute()
+    indirect_format = _attribute()
+    indirect_bias_components = _attribute()
+    indirect_matrix = _attribute()
+    wrap_s = _attribute()
+    wrap_t = _attribute()
+    add_previous_texcoord = _attribute()
+    use_original_lod = _attribute()
+    bump_alpha = _attribute()
+    unknown0 = _attribute()
+    unknown1 = _attribute()
 
 
-class SwapTable(views.View):
-    r = views.Attribute()
-    g = views.Attribute()
-    b = views.Attribute()
-    a = views.Attribute()
+class SwapTable(WrapperModel):
+    r = _attribute()
+    g = _attribute()
+    b = _attribute()
+    a = _attribute()
 
 
-class IndirectStage(views.View):
-    texcoord = views.Attribute()
-    texture = views.Attribute()
-    scale_s = views.Attribute()
-    scale_t = views.Attribute()
+class IndirectStage(WrapperModel):
+    texcoord = _attribute()
+    texture = _attribute()
+    scale_s = _attribute()
+    scale_t = _attribute()
 
 
-class IndirectMatrix(views.View):
-    significand_matrix = views.Attribute()
-    scale_exponent = views.Attribute()
+class IndirectMatrix(WrapperModel):
+    significand_matrix = _attribute()
+    scale_exponent = _attribute()
 
 
-class AlphaTest(views.View):
-    function0 = views.Attribute()
-    reference0 = views.Attribute()
-    function1 = views.Attribute()
-    reference1 = views.Attribute()
-    operator = views.Attribute()
+class AlphaTest(WrapperModel):
+    function0 = _attribute()
+    reference0 = _attribute()
+    function1 = _attribute()
+    reference1 = _attribute()
+    operator = _attribute()
 
 
-class DepthMode(views.View):
-    enable = views.Attribute()
-    function = views.Attribute()
-    update_enable = views.Attribute()
+class DepthMode(WrapperModel):
+    enable = _attribute()
+    function = _attribute()
+    update_enable = _attribute()
 
 
-class BlendMode(views.View):
-    function = views.Attribute()
-    source_factor = views.Attribute()
-    destination_factor = views.Attribute()
-    logical_operation = views.Attribute()
+class BlendMode(WrapperModel):
+    function = _attribute()
+    source_factor = _attribute()
+    destination_factor = _attribute()
+    logical_operation = _attribute()
 
 
 class ColorBlockProperty:
@@ -376,67 +371,44 @@ class ShaderInfo:
         yield path + _p.scale_t
 
 
-class TextureReferenceList:
-
-    def __init__(self, parent):
-        self.parent_reference = weakref.ref(parent)
-        self._items = [None]*8
-
-    @property
-    def parent(self):
-        return self.parent_reference()
-
-    def __getitem__(self, index):
-        return self._items[index]
-
-    def __setitem__(self, index, item):
-        path = +_p.textures[index]
-        if self._items[index] is not None:
-            self._items[index].unregister_listener(self.parent)
-        self._items[index] = item
-        if item is not None:
-            item.register_listener(self.parent, path)
-        self.parent.handle_event(views.ValueChangedEvent(), path)
-
-
-class Material(views.View):
+class Material(WrapperModel):
 
     block_info = BlockInfo()
     shader_info = ShaderInfo()
 
-    def __init__(self, viewed_object):
-        super().__init__(viewed_object)
-        self.textures = TextureReferenceList(self)
+    def __init__(self, wrapped_object):
+        super().__init__(wrapped_object)
         self.gl_program_table = {}
 
-    name = views.Attribute()
-    unknown0 = views.Attribute()
-    cull_mode = views.Attribute()
+    name = _attribute()
+    unknown0 = _attribute()
+    cull_mode = _attribute()
 
-    channel_count = views.Attribute()
-    channels = views.ViewAttribute(views.ViewListView, Channel)
+    channel_count = _attribute()
+    channels = _attribute(_list(Channel))
 
-    texcoord_generator_count = views.Attribute()
-    texcoord_generators = views.ViewAttribute(views.ViewListView, TexCoordGenerator)
-    texture_matrices = views.ViewAttribute(views.ViewListView, TextureMatrix)
+    texcoord_generator_count = _attribute()
+    texcoord_generators = _attribute(_list(TexCoordGenerator))
+    texture_matrices = _attribute(_list(TextureMatrix))
+    textures = ReferenceAttribute()
 
-    tev_stage_count = views.Attribute()
-    tev_stages = views.ViewAttribute(views.ViewListView, TevStage)
-    tev_colors = views.ViewAttribute(views.ListView)
-    tev_color_previous = views.Attribute()
-    kcolors = views.ViewAttribute(views.ListView)
-    swap_tables = views.ViewAttribute(views.ViewListView, SwapTable)
+    tev_stage_count = _attribute()
+    tev_stages = _attribute(_list(TevStage))
+    tev_colors = _attribute(_list())
+    tev_color_previous = _attribute()
+    kcolors = _attribute(_list())
+    swap_tables = _attribute(_list(SwapTable))
 
-    indirect_stage_count = views.Attribute()
-    indirect_stages = views.ViewAttribute(views.ViewListView, IndirectStage)
-    indirect_matrices = views.ViewAttribute(views.ViewListView, IndirectMatrix)
+    indirect_stage_count = _attribute()
+    indirect_stages = _attribute(_list(IndirectStage))
+    indirect_matrices = _attribute(_list(IndirectMatrix))
 
-    alpha_test = views.ViewAttribute(AlphaTest)
-    fog = views.ReadOnlyAttribute()
-    depth_test_early = views.Attribute()
-    depth_mode = views.ViewAttribute(DepthMode)
-    blend_mode = views.ViewAttribute(BlendMode)
-    dither = views.Attribute()
+    alpha_test = _attribute(AlphaTest)
+    fog = _attribute()
+    depth_test_early = _attribute()
+    depth_mode = _attribute(DepthMode)
+    blend_mode = _attribute(BlendMode)
+    dither = _attribute()
 
     @property
     def enabled_channels(self):
@@ -459,7 +431,7 @@ class Material(views.View):
             yield self.indirect_stages[i]
 
     def handle_event(self, event, path):
-        if isinstance(event, views.ValueChangedEvent):
+        if isinstance(event, ValueChangedEvent):
             if path in self.block_info.trigger_table:
                 block_property = self.block_info.trigger_table[path]
                 block_property.update_block(self.gl_block, self)
@@ -478,8 +450,8 @@ class Material(views.View):
         if transformation_type in self.gl_program_table:
             return self.gl_program_table[transformation_type]
 
-        vertex_shader_string = views.vertex_shader.create_shader_string(self, transformation_type)
-        fragment_shader_string = views.fragment_shader.create_shader_string(self)
+        vertex_shader_string = models.vertex_shader.create_shader_string(self, transformation_type)
+        fragment_shader_string = models.fragment_shader.create_shader_string(self)
         vertex_shader = self.gl_create_resource(gl.Shader, GL_VERTEX_SHADER, vertex_shader_string)
         fragment_shader = self.gl_create_resource(gl.Shader, GL_FRAGMENT_SHADER, fragment_shader_string)
         program = self.gl_create_resource(gl.Program, vertex_shader, fragment_shader)
@@ -698,7 +670,7 @@ class MaterialArchive:
         with open(file_path, 'rb') as stream:
             material_archive = j3d.material_archive.unpack(stream)
         materials = list(map(Material, material_archive.materials))
-        textures = list(map(views.texture.Texture, material_archive.textures))
+        textures = list(map(models.texture.Texture, material_archive.textures))
         material_archive = MaterialArchive(materials, textures)
         material_archive.init_references()
         return material_archive
@@ -717,11 +689,10 @@ class MaterialArchive:
         Initialize references into the texture list.
         """
         for material in self.materials:
-            for i, texture_index in enumerate(material.viewed_object.texture_indices):
-                texture = None
-                if texture_index is not None:
-                    texture = self.textures[texture_index]
-                material.textures[i] = texture
+            material.textures = ReferenceList(
+                self.textures[texture_index] if texture_index is not None else None
+                for texture_index in material.wrapped_object.texture_indices
+            )
 
     def sync_reference_indices(self):
         """Synchronize reference indices.
@@ -735,5 +706,5 @@ class MaterialArchive:
                 texture_index = None
                 if texture is not None:
                     texture_index = self.textures.index(texture)
-                material.viewed_object.texture_indices[i] = texture_index
+                material.wrapped_object.texture_indices[i] = texture_index
 

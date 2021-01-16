@@ -2,7 +2,7 @@ import numpy
 from OpenGL.GL import *
 from PyQt5 import QtCore, QtWidgets
 import gl
-import views
+from modelview.object_model import ValueChangedEvent
 
 
 VERTEX_TYPE = numpy.dtype([('position', numpy.float32, 2), ('texcoord', numpy.float32, 2)])
@@ -145,7 +145,7 @@ class PreviewWidget(gl.ResourceManagerMixin, QtWidgets.QOpenGLWidget):
         self.update()
 
     def handle_event(self, event, path):
-        if isinstance(event, views.ValueChangedEvent):
+        if isinstance(event, ValueChangedEvent):
             self.update_display_rectangle()
             self.update()
 

@@ -1,10 +1,14 @@
+import logging
 import numpy
 from OpenGL.GL import *
 import gl
 import gx
-import views
+from modelview.wrapper_model import (
+    WrapperModel,
+    wrapper_attribute as _attribute
+)
 
-import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -68,11 +72,11 @@ def gl_create_element_array(shape,element_map,element_count):
     return element_array
 
     
-class Shape(views.View):
+class Shape(WrapperModel):
 
-    transformation_type = views.ReadOnlyAttribute()
-    batches = views.ReadOnlyAttribute()
-    attribute_descriptors = views.ReadOnlyAttribute()
+    transformation_type = _attribute()
+    batches = _attribute()
+    attribute_descriptors = _attribute()
 
     @property
     def attributes(self):

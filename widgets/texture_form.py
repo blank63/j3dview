@@ -2,7 +2,7 @@ import io
 import pkgutil
 from PyQt5 import uic
 import gx
-from views import path_builder as _p
+from modelview.path import PATH_BUILDER as _p
 from widgets.view_form import (
     ViewForm,
     EnumDelegate,
