@@ -52,7 +52,7 @@ class BitField:
     def __setitem__(self, key, value):
         if isinstance(key, slice):
             mask = ~(-1 << (key.stop - key.start)) << key.start
-            self.value = (self.value & ~mask) | ((value << key.start) & mask)
+            self.value = (self.value & ~mask) | ((int(value) << key.start) & mask)
         else:
             if value:
                 self.value |= 1 << key
@@ -144,7 +144,7 @@ def convert_texcoord_source(source):
     if source == gx.TG_TANGENT:
         return 4
     if source in gx.TG_TEX:
-        return source + 1
+        return int(source) + 1
     if source in gx.TG_TEXCOORD:
         return 5
     if source in gx.TG_COLOR:
@@ -180,17 +180,22 @@ class Packet:
 
         for generator in material.enabled_texcoord_generators:
             if generator.matrix != gx.IDENTITY:
-                self.use_texture_matrix[generator.matrix.index] = True
+                matrix_index = gx.TEXMTX.index(generator.matrix)
+                self.use_texture_matrix[matrix_index] = True
 
         for stage in material.enabled_tev_stages:
             if stage.texture != gx.TEXMAP_NULL:
-                self.SetTexCoordScale(stage.texcoord.index, textures[material.texture_indices[stage.texture.index]])
-                self.use_texture[stage.texture.index] = True
+                texcoord_index = gx.TEXCOORD.index(stage.texcoord)
+                texture_index = gx.TEXMAP.index(stage.texture)
+                self.SetTexCoordScale(texcoord_index, textures[material.texture_indices[texture_index]])
+                self.use_texture[texture_index] = True
 
         for stage in material.enabled_indirect_stages:
-            self.SetTexCoordScale(stage.texcoord.index, textures[material.texture_indices[stage.texture.index]])
-            self.SetTextureIndirect(stage.texture.index)
-            self.use_texture[stage.texture.index] = True
+            texcoord_index = gx.TEXCOORD.index(stage.texcoord)
+            texture_index = gx.TEXMAP.index(stage.texture)
+            self.SetTexCoordScale(texcoord_index, textures[material.texture_indices[texture_index]])
+            self.SetTextureIndirect(texture_index)
+            self.use_texture[texture_index] = True
 
         self.SetCullMode(material.cull_mode)
 
@@ -376,13 +381,13 @@ class Packet:
             self.texcoordgen0[i][1:2] = 1
         elif generator.function in gx.TG_BUMP:
             self.texcoordgen0[i][4:7] = 1
-            self.texcoordgen0[i][12:15] = generator.source.index
-            self.texcoordgen0[i][15:18] = generator.function.index
+            self.texcoordgen0[i][12:15] = int(generator.source) - int(gx.TG_TEXCOORD0)
+            self.texcoordgen0[i][15:18] = int(generator.function) - int(gx.TG_BUMP0)
         elif generator.function == gx.TG_SRTG:
-            self.texcoordgen0[i][4:7] = generator.source.index + 2
+            self.texcoordgen0[i][4:7] = int(generator.source) - int(gx.TG_COLOR0) + 2
 
         self.texcoordgen1[i][8] = False
-        self.texcoordgen1[i][0:6] = gx.PTTIDENTITY - gx.PTTMTX0
+        self.texcoordgen1[i][0:6] = int(gx.PTTIDENTITY) - int(gx.PTTMTX0)
 
         index, offset = divmod(6 + 6*i, 30)
         self.mtxidx[index][offset : offset + 6] = generator.matrix
@@ -538,7 +543,7 @@ class Packet:
         self.genmode[14:16] = convert_cull_mode(mode)
 
     def SetFog(self, fog):
-        projection = (fog.function >> 3) & 1
+        projection = (int(fog.function) >> 3) & 1
 
         if projection:
             if fog.z_far == fog.z_near or fog.z_end == fog.z_start:
@@ -651,9 +656,10 @@ def pack_texture_subpacket(stream, packet, material, textures):
             stage = material.tev_stages[2*i + j]
             use_texture = stage.texture != gx.TEXMAP_NULL
             texcoord = stage.texcoord if use_texture else gx.TEXCOORD7
+            texcoord_index = gx.TEXCOORD.index(texcoord)
             BPCommand.pack(stream, BPMask(0x03FFFF))
-            BPCommand.pack(stream, packet.su_ssize[texcoord.index])
-            BPCommand.pack(stream, packet.su_tsize[texcoord.index])
+            BPCommand.pack(stream, packet.su_ssize[texcoord_index])
+            BPCommand.pack(stream, packet.su_tsize[texcoord_index])
 
 
 def pack_tev_subpacket(stream, packet, material):
@@ -688,9 +694,10 @@ def pack_tev_subpacket(stream, packet, material):
         BPCommand.pack(stream, packet.ras1_ss[i])
 
     for i, stage in enumerate(material.enabled_indirect_stages):
+        texcoord_index = gx.TEXCOORD.index(stage.texcoord)
         BPCommand.pack(stream, BPMask(0x03FFFF))
-        BPCommand.pack(stream, packet.su_ssize[stage.texcoord.index])
-        BPCommand.pack(stream, packet.su_tsize[stage.texcoord.index])
+        BPCommand.pack(stream, packet.su_ssize[texcoord_index])
+        BPCommand.pack(stream, packet.su_tsize[texcoord_index])
 
     # These commands for the disabled indirect stages might seem a bit odd, but
     # notice that 0x30 + 2*(-1) = 0x2E and 0x31 + 2*(-1) = 0x2F

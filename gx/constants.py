@@ -1,45 +1,34 @@
 import enum
 
 
-class Value(int):
+class Enum(enum.Enum):
 
-    def __new__(cls,value,*args,**kwargs):
-        return super().__new__(cls,value)
-
-    def __init__(self,value,**attributes):
-        self.attributes = attributes
-
-
-class Enum(int,enum.Enum):
-
-    def __init__(self,value):
-        if hasattr(value,'attributes'):
-            for attribute in value.attributes.items():
-                setattr(self,*attribute)
+    def __index__(self):
+        return self.value
 
 
 class Attribute(Enum):
     VA_PTNMTXIDX = 0
-    VA_TEX0MTXIDX = Value(1,index=0)
-    VA_TEX1MTXIDX = Value(2,index=1)
-    VA_TEX2MTXIDX = Value(3,index=2)
-    VA_TEX3MTXIDX = Value(4,index=3)
-    VA_TEX4MTXIDX = Value(5,index=4)
-    VA_TEX5MTXIDX = Value(6,index=5)
-    VA_TEX6MTXIDX = Value(7,index=6)
-    VA_TEX7MTXIDX = Value(8,index=7)
+    VA_TEX0MTXIDX = 1
+    VA_TEX1MTXIDX = 2
+    VA_TEX2MTXIDX = 3
+    VA_TEX3MTXIDX = 4
+    VA_TEX4MTXIDX = 5
+    VA_TEX5MTXIDX = 6
+    VA_TEX6MTXIDX = 7
+    VA_TEX7MTXIDX = 8
     VA_POS = 9
     VA_NRM = 10
-    VA_CLR0 = Value(11,index=0)
-    VA_CLR1 = Value(12,index=1)
-    VA_TEX0 = Value(13,index=0)
-    VA_TEX1 = Value(14,index=1)
-    VA_TEX2 = Value(15,index=2)
-    VA_TEX3 = Value(16,index=3)
-    VA_TEX4 = Value(17,index=4)
-    VA_TEX5 = Value(18,index=5)
-    VA_TEX6 = Value(19,index=6)
-    VA_TEX7 = Value(20,index=7)
+    VA_CLR0 = 11
+    VA_CLR1 = 12
+    VA_TEX0 = 13
+    VA_TEX1 = 14
+    VA_TEX2 = 15
+    VA_TEX3 = 16
+    VA_TEX4 = 17
+    VA_TEX5 = 18
+    VA_TEX6 = 19
+    VA_TEX7 = 20
     POSMTXARRAY = 21
     NRMMTXARRAY = 22
     TEXMTXARRAY = 23
@@ -57,12 +46,21 @@ VA_TEX4MTXIDX = Attribute.VA_TEX4MTXIDX
 VA_TEX5MTXIDX = Attribute.VA_TEX5MTXIDX
 VA_TEX6MTXIDX = Attribute.VA_TEX6MTXIDX
 VA_TEX7MTXIDX = Attribute.VA_TEX7MTXIDX
-VA_TEXMTXIDX = [VA_TEX0MTXIDX,VA_TEX1MTXIDX,VA_TEX2MTXIDX,VA_TEX3MTXIDX,VA_TEX4MTXIDX,VA_TEX5MTXIDX,VA_TEX6MTXIDX,VA_TEX7MTXIDX]
+VA_TEXMTXIDX = [
+    VA_TEX0MTXIDX,
+    VA_TEX1MTXIDX,
+    VA_TEX2MTXIDX,
+    VA_TEX3MTXIDX,
+    VA_TEX4MTXIDX,
+    VA_TEX5MTXIDX,
+    VA_TEX6MTXIDX,
+    VA_TEX7MTXIDX
+]
 VA_POS = Attribute.VA_POS
 VA_NRM = Attribute.VA_NRM
 VA_CLR0 = Attribute.VA_CLR0
 VA_CLR1 = Attribute.VA_CLR1
-VA_CLR = [VA_CLR0,VA_CLR1]
+VA_CLR = [VA_CLR0, VA_CLR1]
 VA_TEX0 = Attribute.VA_TEX0
 VA_TEX1 = Attribute.VA_TEX1
 VA_TEX2 = Attribute.VA_TEX2
@@ -71,7 +69,16 @@ VA_TEX4 = Attribute.VA_TEX4
 VA_TEX5 = Attribute.VA_TEX5
 VA_TEX6 = Attribute.VA_TEX6
 VA_TEX7 = Attribute.VA_TEX7
-VA_TEX = [VA_TEX0,VA_TEX1,VA_TEX2,VA_TEX3,VA_TEX4,VA_TEX5,VA_TEX6,VA_TEX7]
+VA_TEX = [
+    VA_TEX0,
+    VA_TEX1,
+    VA_TEX2,
+    VA_TEX3,
+    VA_TEX4,
+    VA_TEX5,
+    VA_TEX6,
+    VA_TEX7
+]
 POSMTXARRAY = Attribute.POSMTXARRAY
 NRMMTXARRAY = Attribute.NRMMTXARRAY
 TEXMTXARRAY = Attribute.TEXMTXARRAY
@@ -183,12 +190,12 @@ QUADS = PrimitiveType.QUADS
 
 
 class Channel(Enum):
-    COLOR0 = Value(0,index=0)
-    COLOR1 = Value(1,index=1)
-    ALPHA0 = Value(2,index=0)
-    ALPHA1 = Value(3,index=1)
-    COLOR0A0 = Value(4,index=0)
-    COLOR1A1 = Value(5,index=1)
+    COLOR0 = 0
+    COLOR1 = 1
+    ALPHA0 = 2
+    ALPHA1 = 3
+    COLOR0A0 = 4
+    COLOR1A1 = 5
     COLOR_ZERO = 6
     ALPHA_BUMP = 7
     ALPHA_BUMPN = 8
@@ -197,10 +204,10 @@ class Channel(Enum):
 
 COLOR0 = Channel.COLOR0
 COLOR1 = Channel.COLOR1
-COLOR = [COLOR0,COLOR1]
+COLOR = [COLOR0, COLOR1]
 ALPHA0 = Channel.ALPHA0
 ALPHA1 = Channel.ALPHA1
-ALPHA = [ALPHA0,ALPHA1]
+ALPHA = [ALPHA0, ALPHA1]
 COLOR0A0 = Channel.COLOR0A0
 COLOR1A1 = Channel.COLOR1A1
 COLOR_ZERO = Channel.COLOR_ZERO
@@ -219,14 +226,14 @@ SRC_VTX = ChannelSource.SRC_VTX
 
 
 class Light(Enum):
-    LIGHT0 = Value(0x01,index=0)
-    LIGHT1 = Value(0x02,index=0)
-    LIGHT2 = Value(0x04,index=0)
-    LIGHT3 = Value(0x08,index=0)
-    LIGHT4 = Value(0x10,index=0)
-    LIGHT5 = Value(0x20,index=0)
-    LIGHT6 = Value(0x40,index=0)
-    LIGHT7 = Value(0x80,index=0)
+    LIGHT0 = 0x01
+    LIGHT1 = 0x02
+    LIGHT2 = 0x04
+    LIGHT3 = 0x08
+    LIGHT4 = 0x10
+    LIGHT5 = 0x20
+    LIGHT6 = 0x40
+    LIGHT7 = 0x80
     LIGHT_NULL = 0x00
 
 
@@ -238,7 +245,16 @@ LIGHT4 = Light.LIGHT4
 LIGHT5 = Light.LIGHT5
 LIGHT6 = Light.LIGHT6
 LIGHT7 = Light.LIGHT7
-LIGHT = [LIGHT0,LIGHT1,LIGHT2,LIGHT3,LIGHT4,LIGHT5,LIGHT6,LIGHT7]
+LIGHT = [
+    LIGHT0,
+    LIGHT1,
+    LIGHT2,
+    LIGHT3,
+    LIGHT4,
+    LIGHT5,
+    LIGHT6,
+    LIGHT7
+]
 LIGHT_NULL = Light.LIGHT_NULL
 
 
@@ -265,14 +281,14 @@ AF_NONE = AttenuationFunction.AF_NONE
 
 
 class TexCoord(Enum):
-    TEXCOORD0 = Value(0,index=0)
-    TEXCOORD1 = Value(1,index=1)
-    TEXCOORD2 = Value(2,index=2)
-    TEXCOORD3 = Value(3,index=3)
-    TEXCOORD4 = Value(4,index=4)
-    TEXCOORD5 = Value(5,index=5)
-    TEXCOORD6 = Value(6,index=6)
-    TEXCOORD7 = Value(7,index=7)
+    TEXCOORD0 = 0
+    TEXCOORD1 = 1
+    TEXCOORD2 = 2
+    TEXCOORD3 = 3
+    TEXCOORD4 = 4
+    TEXCOORD5 = 5
+    TEXCOORD6 = 6
+    TEXCOORD7 = 7
     TEXCOORD_NULL = 0xFF
 
 
@@ -284,21 +300,30 @@ TEXCOORD4 = TexCoord.TEXCOORD4
 TEXCOORD5 = TexCoord.TEXCOORD5
 TEXCOORD6 = TexCoord.TEXCOORD6
 TEXCOORD7 = TexCoord.TEXCOORD7
-TEXCOORD = [TEXCOORD0,TEXCOORD1,TEXCOORD2,TEXCOORD3,TEXCOORD4,TEXCOORD5,TEXCOORD6,TEXCOORD7]
+TEXCOORD = [
+    TEXCOORD0,
+    TEXCOORD1,
+    TEXCOORD2,
+    TEXCOORD3,
+    TEXCOORD4,
+    TEXCOORD5,
+    TEXCOORD6,
+    TEXCOORD7
+]
 TEXCOORD_NULL = TexCoord.TEXCOORD_NULL
 
 
 class TexCoordFunction(Enum):
     TG_MTX3x4 = 0
     TG_MTX2x4 = 1
-    TG_BUMP0 = Value(2,index=0)
-    TG_BUMP1 = Value(3,index=1)
-    TG_BUMP2 = Value(4,index=2)
-    TG_BUMP3 = Value(5,index=3)
-    TG_BUMP4 = Value(6,index=4)
-    TG_BUMP5 = Value(7,index=5)
-    TG_BUMP6 = Value(8,index=6)
-    TG_BUMP7 = Value(9,index=7)
+    TG_BUMP0 = 2
+    TG_BUMP1 = 3
+    TG_BUMP2 = 4
+    TG_BUMP3 = 5
+    TG_BUMP4 = 6
+    TG_BUMP5 = 7
+    TG_BUMP6 = 8
+    TG_BUMP7 = 9
     TG_SRTG = 10
 
 
@@ -312,7 +337,16 @@ TG_BUMP4 = TexCoordFunction.TG_BUMP4
 TG_BUMP5 = TexCoordFunction.TG_BUMP5
 TG_BUMP6 = TexCoordFunction.TG_BUMP6
 TG_BUMP7 = TexCoordFunction.TG_BUMP7
-TG_BUMP = [TG_BUMP0,TG_BUMP1,TG_BUMP2,TG_BUMP3,TG_BUMP4,TG_BUMP5,TG_BUMP6,TG_BUMP7]
+TG_BUMP = [
+    TG_BUMP0,
+    TG_BUMP1,
+    TG_BUMP2,
+    TG_BUMP3,
+    TG_BUMP4,
+    TG_BUMP5,
+    TG_BUMP6,
+    TG_BUMP7
+]
 TG_SRTG = TexCoordFunction.TG_SRTG
 
 
@@ -321,23 +355,23 @@ class TexCoordSource(Enum):
     TG_NRM = 1
     TG_BINRM = 2
     TG_TANGENT = 3
-    TG_TEX0 = Value(4,index=0)
-    TG_TEX1 = Value(5,index=1)
-    TG_TEX2 = Value(6,index=2)
-    TG_TEX3 = Value(7,index=3)
-    TG_TEX4 = Value(8,index=4)
-    TG_TEX5 = Value(9,index=5)
-    TG_TEX6 = Value(10,index=6)
-    TG_TEX7 = Value(11,index=7)
-    TG_TEXCOORD0 = Value(12,index=0)
-    TG_TEXCOORD1 = Value(13,index=1)
-    TG_TEXCOORD2 = Value(14,index=2)
-    TG_TEXCOORD3 = Value(15,index=3)
-    TG_TEXCOORD4 = Value(16,index=4)
-    TG_TEXCOORD5 = Value(17,index=5)
-    TG_TEXCOORD6 = Value(18,index=6)
-    TG_COLOR0 = Value(19,index=0)
-    TG_COLOR1 = Value(20,index=1)
+    TG_TEX0 = 4
+    TG_TEX1 = 5
+    TG_TEX2 = 6
+    TG_TEX3 = 7
+    TG_TEX4 = 8
+    TG_TEX5 = 9
+    TG_TEX6 = 10
+    TG_TEX7 = 11
+    TG_TEXCOORD0 = 12
+    TG_TEXCOORD1 = 13
+    TG_TEXCOORD2 = 14
+    TG_TEXCOORD3 = 15
+    TG_TEXCOORD4 = 16
+    TG_TEXCOORD5 = 17
+    TG_TEXCOORD6 = 18
+    TG_COLOR0 = 19
+    TG_COLOR1 = 20
 
 
 TG_POS = TexCoordSource.TG_POS
@@ -352,7 +386,16 @@ TG_TEX4 = TexCoordSource.TG_TEX4
 TG_TEX5 = TexCoordSource.TG_TEX5
 TG_TEX6 = TexCoordSource.TG_TEX6
 TG_TEX7 = TexCoordSource.TG_TEX7
-TG_TEX = [TG_TEX0,TG_TEX1,TG_TEX2,TG_TEX3,TG_TEX4,TG_TEX5,TG_TEX6,TG_TEX7]
+TG_TEX = [
+    TG_TEX0,
+    TG_TEX1,
+    TG_TEX2,
+    TG_TEX3,
+    TG_TEX4,
+    TG_TEX5,
+    TG_TEX6,
+    TG_TEX7
+]
 TG_TEXCOORD0 = TexCoordSource.TG_TEXCOORD0
 TG_TEXCOORD1 = TexCoordSource.TG_TEXCOORD1
 TG_TEXCOORD2 = TexCoordSource.TG_TEXCOORD2
@@ -360,23 +403,31 @@ TG_TEXCOORD3 = TexCoordSource.TG_TEXCOORD3
 TG_TEXCOORD4 = TexCoordSource.TG_TEXCOORD4
 TG_TEXCOORD5 = TexCoordSource.TG_TEXCOORD5
 TG_TEXCOORD6 = TexCoordSource.TG_TEXCOORD6
-TG_TEXCOORD = [TG_TEXCOORD0,TG_TEXCOORD1,TG_TEXCOORD2,TG_TEXCOORD3,TG_TEXCOORD4,TG_TEXCOORD5,TG_TEXCOORD6]
+TG_TEXCOORD = [
+    TG_TEXCOORD0,
+    TG_TEXCOORD1,
+    TG_TEXCOORD2,
+    TG_TEXCOORD3,
+    TG_TEXCOORD4,
+    TG_TEXCOORD5,
+    TG_TEXCOORD6
+]
 TG_COLOR0 = TexCoordSource.TG_COLOR0
 TG_COLOR1 = TexCoordSource.TG_COLOR1
-TG_COLOR = [TG_COLOR0,TG_COLOR1]
+TG_COLOR = [TG_COLOR0, TG_COLOR1]
 
 
 class TextureMatrix(Enum):
-    TEXMTX0 = Value(30,index=0)
-    TEXMTX1 = Value(33,index=1)
-    TEXMTX2 = Value(36,index=2)
-    TEXMTX3 = Value(39,index=3)
-    TEXMTX4 = Value(42,index=4)
-    TEXMTX5 = Value(45,index=5)
-    TEXMTX6 = Value(48,index=6)
-    TEXMTX7 = Value(51,index=7)
-    TEXMTX8 = Value(54,index=8)
-    TEXMTX9 = Value(57,index=9)
+    TEXMTX0 = 30
+    TEXMTX1 = 33
+    TEXMTX2 = 36
+    TEXMTX3 = 39
+    TEXMTX4 = 42
+    TEXMTX5 = 45
+    TEXMTX6 = 48
+    TEXMTX7 = 51
+    TEXMTX8 = 54
+    TEXMTX9 = 57
     IDENTITY = 60
 
 
@@ -390,31 +441,42 @@ TEXMTX6 = TextureMatrix.TEXMTX6
 TEXMTX7 = TextureMatrix.TEXMTX7
 TEXMTX8 = TextureMatrix.TEXMTX8
 TEXMTX9 = TextureMatrix.TEXMTX9
-TEXMTX = [TEXMTX0,TEXMTX1,TEXMTX2,TEXMTX3,TEXMTX4,TEXMTX5,TEXMTX6,TEXMTX7,TEXMTX8,TEXMTX9]
+TEXMTX = [
+    TEXMTX0,
+    TEXMTX1,
+    TEXMTX2,
+    TEXMTX3,
+    TEXMTX4,
+    TEXMTX5,
+    TEXMTX6,
+    TEXMTX7,
+    TEXMTX8,
+    TEXMTX9
+]
 IDENTITY = TextureMatrix.IDENTITY
 
 
 class PostTransformMatrix(Enum):
-    PTTMTX0 = Value(64,index=0)
-    PTTMTX1 = Value(67,index=1)
-    PTTMTX2 = Value(70,index=2)
-    PTTMTX3 = Value(73,index=3)
-    PTTMTX4 = Value(76,index=4)
-    PTTMTX5 = Value(79,index=5)
-    PTTMTX6 = Value(82,index=6)
-    PTTMTX7 = Value(85,index=7)
-    PTTMTX8 = Value(88,index=8)
-    PTTMTX9 = Value(91,index=9)
-    PTTMTX10 = Value(94,index=10)
-    PTTMTX11 = Value(97,index=11)
-    PTTMTX12 = Value(100,index=12)
-    PTTMTX13 = Value(103,index=13)
-    PTTMTX14 = Value(106,index=14)
-    PTTMTX15 = Value(109,index=15)
-    PTTMTX16 = Value(112,index=16)
-    PTTMTX17 = Value(115,index=17)
-    PTTMTX18 = Value(118,index=18)
-    PTTMTX19 = Value(121,index=19)
+    PTTMTX0 = 64
+    PTTMTX1 = 67
+    PTTMTX2 = 70
+    PTTMTX3 = 73
+    PTTMTX4 = 76
+    PTTMTX5 = 79
+    PTTMTX6 = 82
+    PTTMTX7 = 85
+    PTTMTX8 = 88
+    PTTMTX9 = 91
+    PTTMTX10 = 94
+    PTTMTX11 = 97
+    PTTMTX12 = 100
+    PTTMTX13 = 103
+    PTTMTX14 = 106
+    PTTMTX15 = 109
+    PTTMTX16 = 112
+    PTTMTX17 = 115
+    PTTMTX18 = 118
+    PTTMTX19 = 121
     PTTIDENTITY = 125
 
 
@@ -438,19 +500,40 @@ PTTMTX16 = PostTransformMatrix.PTTMTX16
 PTTMTX17 = PostTransformMatrix.PTTMTX17
 PTTMTX18 = PostTransformMatrix.PTTMTX18
 PTTMTX19 = PostTransformMatrix.PTTMTX19
-PTTMTX = [PTTMTX0,PTTMTX1,PTTMTX2,PTTMTX3,PTTMTX4,PTTMTX5,PTTMTX6,PTTMTX7,PTTMTX8,PTTMTX9,PTTMTX10,PTTMTX11,PTTMTX12,PTTMTX13,PTTMTX14,PTTMTX15,PTTMTX16,PTTMTX17,PTTMTX18,PTTMTX19]
+PTTMTX = [
+    PTTMTX0,
+    PTTMTX1,
+    PTTMTX2,
+    PTTMTX3,
+    PTTMTX4,
+    PTTMTX5,
+    PTTMTX6,
+    PTTMTX7,
+    PTTMTX8,
+    PTTMTX9,
+    PTTMTX10,
+    PTTMTX11,
+    PTTMTX12,
+    PTTMTX13,
+    PTTMTX14,
+    PTTMTX15,
+    PTTMTX16,
+    PTTMTX17,
+    PTTMTX18,
+    PTTMTX19
+]
 PTTIDENTITY = PostTransformMatrix.PTTIDENTITY
 
 
 class Texture(Enum):
-    TEXMAP0 = Value(0,index=0)
-    TEXMAP1 = Value(1,index=1)
-    TEXMAP2 = Value(2,index=2)
-    TEXMAP3 = Value(3,index=3)
-    TEXMAP4 = Value(4,index=4)
-    TEXMAP5 = Value(5,index=5)
-    TEXMAP6 = Value(6,index=6)
-    TEXMAP7 = Value(7,index=7)
+    TEXMAP0 = 0
+    TEXMAP1 = 1
+    TEXMAP2 = 2
+    TEXMAP3 = 3
+    TEXMAP4 = 4
+    TEXMAP5 = 5
+    TEXMAP6 = 6
+    TEXMAP7 = 7
     TEXMAP_NULL = 0xFF
     #TEXMAP_DISABLE = 0x100
 
@@ -463,7 +546,16 @@ TEXMAP4 = Texture.TEXMAP4
 TEXMAP5 = Texture.TEXMAP5
 TEXMAP6 = Texture.TEXMAP6
 TEXMAP7 = Texture.TEXMAP7
-TEXMAP = [TEXMAP0,TEXMAP1,TEXMAP2,TEXMAP3,TEXMAP4,TEXMAP5,TEXMAP6,TEXMAP7]
+TEXMAP = [
+    TEXMAP0,
+    TEXMAP1,
+    TEXMAP2,
+    TEXMAP3,
+    TEXMAP4,
+    TEXMAP5,
+    TEXMAP6,
+    TEXMAP7
+]
 TEXMAP_NULL = Texture.TEXMAP_NULL
 #TEXMAP_DISABLE = Texture.TEXMAP_DISABLE
 
@@ -535,22 +627,22 @@ LIN_MIP_LIN = FilterMode.LIN_MIP_LIN
 
 
 class TevStage(Enum):
-    TEVSTAGE0 = Value(0,index=0)
-    TEVSTAGE1 = Value(1,index=1)
-    TEVSTAGE2 = Value(2,index=2)
-    TEVSTAGE3 = Value(3,index=3)
-    TEVSTAGE4 = Value(4,index=4)
-    TEVSTAGE5 = Value(5,index=5)
-    TEVSTAGE6 = Value(6,index=6)
-    TEVSTAGE7 = Value(7,index=7)
-    TEVSTAGE8 = Value(8,index=8)
-    TEVSTAGE9 = Value(9,index=9)
-    TEVSTAGE10 = Value(10,index=10)
-    TEVSTAGE11 = Value(11,index=11)
-    TEVSTAGE12 = Value(12,index=12)
-    TEVSTAGE13 = Value(13,index=13)
-    TEVSTAGE14 = Value(14,index=14)
-    TEVSTAGE15 = Value(15,index=15)
+    TEVSTAGE0 = 0
+    TEVSTAGE1 = 1
+    TEVSTAGE2 = 2
+    TEVSTAGE3 = 3
+    TEVSTAGE4 = 4
+    TEVSTAGE5 = 5
+    TEVSTAGE6 = 6
+    TEVSTAGE7 = 7
+    TEVSTAGE8 = 8
+    TEVSTAGE9 = 9
+    TEVSTAGE10 = 10
+    TEVSTAGE11 = 11
+    TEVSTAGE12 = 12
+    TEVSTAGE13 = 13
+    TEVSTAGE14 = 14
+    TEVSTAGE15 = 15
 
 
 TEVSTAGE0 = TevStage.TEVSTAGE0
@@ -569,7 +661,24 @@ TEVSTAGE12 = TevStage.TEVSTAGE12
 TEVSTAGE13 = TevStage.TEVSTAGE13
 TEVSTAGE14 = TevStage.TEVSTAGE14
 TEVSTAGE15 = TevStage.TEVSTAGE15
-TEVSTAGE = [TEVSTAGE0,TEVSTAGE1,TEVSTAGE2,TEVSTAGE3,TEVSTAGE4,TEVSTAGE5,TEVSTAGE6,TEVSTAGE7,TEVSTAGE8,TEVSTAGE9,TEVSTAGE10,TEVSTAGE11,TEVSTAGE12,TEVSTAGE13,TEVSTAGE14,TEVSTAGE15]
+TEVSTAGE = [
+    TEVSTAGE0,
+    TEVSTAGE1,
+    TEVSTAGE2,
+    TEVSTAGE3,
+    TEVSTAGE4,
+    TEVSTAGE5,
+    TEVSTAGE6,
+    TEVSTAGE7,
+    TEVSTAGE8,
+    TEVSTAGE9,
+    TEVSTAGE10,
+    TEVSTAGE11,
+    TEVSTAGE12,
+    TEVSTAGE13,
+    TEVSTAGE14,
+    TEVSTAGE15
+]
 
 
 class ColorInput(Enum):
@@ -687,30 +796,30 @@ CS_DIVIDE_2 = TevScale.CS_DIVIDE_2
 
 class TevColor(Enum):
     TEVPREV = 0
-    TEVREG0 = Value(1,index=0)
-    TEVREG1 = Value(2,index=1)
-    TEVREG2 = Value(3,index=2)
+    TEVREG0 = 1
+    TEVREG1 = 2
+    TEVREG2 = 3
 
 
 TEVPREV = TevColor.TEVPREV
 TEVREG0 = TevColor.TEVREG0
 TEVREG1 = TevColor.TEVREG1
 TEVREG2 = TevColor.TEVREG2
-TEVREG = [TEVREG0,TEVREG1,TEVREG2]
+TEVREG = [TEVREG0, TEVREG1, TEVREG2]
 
 
 class KColor(Enum):
-    KCOLOR0 = Value(0,index=0)
-    KCOLOR1 = Value(1,index=1)
-    KCOLOR2 = Value(2,index=2)
-    KCOLOR3 = Value(3,index=3)
+    KCOLOR0 = 0
+    KCOLOR1 = 1
+    KCOLOR2 = 2
+    KCOLOR3 = 3
 
 
 KCOLOR0 = KColor.KCOLOR0
 KCOLOR1 = KColor.KCOLOR1
 KCOLOR2 = KColor.KCOLOR2
 KCOLOR3 = KColor.KCOLOR3
-KCOLOR = [KCOLOR0,KCOLOR1,KCOLOR2,KCOLOR3]
+KCOLOR = [KCOLOR0, KCOLOR1, KCOLOR2, KCOLOR3]
 
 
 class ConstantColor(Enum):
@@ -828,17 +937,17 @@ TEV_KASEL_K3_A = ConstantAlpha.TEV_KASEL_K3_A
 
 
 class SwapTable(Enum):
-    TEV_SWAP0 = Value(0,index=0)
-    TEV_SWAP1 = Value(1,index=1)
-    TEV_SWAP2 = Value(2,index=2)
-    TEV_SWAP3 = Value(3,index=3)
+    TEV_SWAP0 = 0
+    TEV_SWAP1 = 1
+    TEV_SWAP2 = 2
+    TEV_SWAP3 = 3
 
 
 TEV_SWAP0 = SwapTable.TEV_SWAP0
 TEV_SWAP1 = SwapTable.TEV_SWAP1
 TEV_SWAP2 = SwapTable.TEV_SWAP2
 TEV_SWAP3 = SwapTable.TEV_SWAP3
-TEV_SWAP = [TEV_SWAP0,TEV_SWAP1,TEV_SWAP2,TEV_SWAP3]
+TEV_SWAP = [TEV_SWAP0, TEV_SWAP1, TEV_SWAP2, TEV_SWAP3]
 
 
 class ColorComponent(Enum):
@@ -855,17 +964,17 @@ CH_ALPHA = ColorComponent.CH_ALPHA
 
 
 class IndirectStage(Enum):
-    INDTEXSTAGE0 = Value(0,index=0)
-    INDTEXSTAGE1 = Value(1,index=1)
-    INDTEXSTAGE2 = Value(2,index=2)
-    INDTEXSTAGE3 = Value(3,index=3)
+    INDTEXSTAGE0 = 0
+    INDTEXSTAGE1 = 1
+    INDTEXSTAGE2 = 2
+    INDTEXSTAGE3 = 3
 
 
 INDTEXSTAGE0 = IndirectStage.INDTEXSTAGE0
 INDTEXSTAGE1 = IndirectStage.INDTEXSTAGE1
 INDTEXSTAGE2 = IndirectStage.INDTEXSTAGE2
 INDTEXSTAGE3 = IndirectStage.INDTEXSTAGE3
-INDTEXSTAGE = [INDTEXSTAGE0,INDTEXSTAGE1,INDTEXSTAGE2,INDTEXSTAGE3]
+INDTEXSTAGE = [INDTEXSTAGE0, INDTEXSTAGE1, INDTEXSTAGE2, INDTEXSTAGE3]
 
 
 class IndirectFormat(Enum):
@@ -904,30 +1013,30 @@ ITB_STU = IndirectBiasComponents.ITB_STU
 
 class IndirectMatrix(Enum):
     ITM_OFF = 0
-    ITM_0 = Value(1,index=0)
-    ITM_1 = Value(2,index=1)
-    ITM_2 = Value(3,index=2)
-    ITM_S0 = Value(5,index=0)
-    ITM_S1 = Value(6,index=1)
-    ITM_S2 = Value(7,index=2)
-    ITM_T0 = Value(9,index=0)
-    ITM_T1 = Value(10,index=1)
-    ITM_T2 = Value(11,index=2)
+    ITM_0 = 1
+    ITM_1 = 2
+    ITM_2 = 3
+    ITM_S0 = 5
+    ITM_S1 = 6
+    ITM_S2 = 7
+    ITM_T0 = 9
+    ITM_T1 = 10
+    ITM_T2 = 11
 
 
 ITM_OFF = IndirectMatrix.ITM_OFF
 ITM_0 = IndirectMatrix.ITM_0
 ITM_1 = IndirectMatrix.ITM_1
 ITM_2 = IndirectMatrix.ITM_2
-ITM = [ITM_0,ITM_1,ITM_2]
+ITM = [ITM_0, ITM_1, ITM_2]
 ITM_S0 = IndirectMatrix.ITM_S0
 ITM_S1 = IndirectMatrix.ITM_S1
 ITM_S2 = IndirectMatrix.ITM_S2
-ITM_S = [ITM_S0,ITM_S1,ITM_S2]
+ITM_S = [ITM_S0, ITM_S1, ITM_S2]
 ITM_T0 = IndirectMatrix.ITM_T0
 ITM_T1 = IndirectMatrix.ITM_T1
 ITM_T2 = IndirectMatrix.ITM_T2
-ITM_T = [ITM_T0,ITM_T1,ITM_T2]
+ITM_T = [ITM_T0, ITM_T1, ITM_T2]
 
 
 class IndirectWrap(Enum):
@@ -1092,25 +1201,35 @@ class BlendFactor(Enum):
 
 
 class BlendSourceFactor(Enum):
-    BL_ZERO = BlendFactor.BL_ZERO
-    BL_ONE = BlendFactor.BL_ONE
-    BL_SRCALPHA = BlendFactor.BL_SRCALPHA
-    BL_INVSRCALPHA = BlendFactor.BL_INVSRCALPHA
-    BL_DSTALPHA = BlendFactor.BL_DSTALPHA
-    BL_INVDSTALPHA = BlendFactor.BL_INVDSTALPHA
+    BL_ZERO = BlendFactor.BL_ZERO.value
+    BL_ONE = BlendFactor.BL_ONE.value
+    BL_SRCALPHA = BlendFactor.BL_SRCALPHA.value
+    BL_INVSRCALPHA = BlendFactor.BL_INVSRCALPHA.value
+    BL_DSTALPHA = BlendFactor.BL_DSTALPHA.value
+    BL_INVDSTALPHA = BlendFactor.BL_INVDSTALPHA.value
     BL_DSTCLR = 2
     BL_INVDSTCLR = 3
 
+    def __eq__(self, other):
+        if isinstance(other, BlendFactor):
+            return self.value == other.value
+        return super().__eq__(other)
+
 
 class BlendDestinationFactor(Enum):
-    BL_ZERO = BlendFactor.BL_ZERO
-    BL_ONE = BlendFactor.BL_ONE
-    BL_SRCALPHA = BlendFactor.BL_SRCALPHA
-    BL_INVSRCALPHA = BlendFactor.BL_INVSRCALPHA
-    BL_DSTALPHA = BlendFactor.BL_DSTALPHA
-    BL_INVDSTALPHA = BlendFactor.BL_INVDSTALPHA
+    BL_ZERO = BlendFactor.BL_ZERO.value
+    BL_ONE = BlendFactor.BL_ONE.value
+    BL_SRCALPHA = BlendFactor.BL_SRCALPHA.value
+    BL_INVSRCALPHA = BlendFactor.BL_INVSRCALPHA.value
+    BL_DSTALPHA = BlendFactor.BL_DSTALPHA.value
+    BL_INVDSTALPHA = BlendFactor.BL_INVDSTALPHA.value
     BL_SRCCLR = 2
     BL_INVSRCCLR = 3
+
+    def __eq__(self, other):
+        if isinstance(other, BlendFactor):
+            return self.value == other.value
+        return super().__eq__(other)
 
 
 BL_ZERO = BlendFactor.BL_ZERO

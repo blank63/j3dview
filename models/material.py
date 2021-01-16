@@ -528,7 +528,7 @@ class Material(WrapperModel):
             return GL_ONE_MINUS_SRC_ALPHA
         if self.blend_mode.source_factor == gx.BL_DSTALPHA:
             return GL_DST_ALPHA
-        if self.blend_mode.source_factor == gx.BL_INVSDTALPHA:
+        if self.blend_mode.source_factor == gx.BL_INVDSTALPHA:
             return GL_ONE_MINUS_DST_ALPHA
         if self.blend_mode.source_factor == gx.BL_DSTCLR:
             return GL_DST_COLOR

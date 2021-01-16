@@ -77,7 +77,8 @@ def write_identity_texcoord_generator(stream,generator):
     elif generator.source == gx.TG_TANGENT:
         source = 'tangent'
     elif generator.source in gx.TG_TEX:
-        source = 'vec3(texcoord{}, 1.0)'.format(generator.source.index)
+        source_index = gx.TG_TEX.index(generator.source)
+        source = 'vec3(texcoord{}, 1.0)'.format(source_index)
     else:
         source = 'vec3(1.0)'
 
@@ -94,11 +95,12 @@ def write_matrix_texcoord_generator(stream,generator,texture_matrices):
     elif generator.source == gx.TG_TANGENT:
         source = 'vec4(tangent,1.0)'
     elif generator.source in gx.TG_TEX:
-        source = 'vec4(texcoord{},1.0,1.0)'.format(generator.source.index)
+        source_index = gx.TG_TEX.index(generator.source)
+        source = 'vec4(texcoord{},1.0,1.0)'.format(source_index)
     else:
         raise ValueError('invalid texture coordinate generator source')
 
-    matrix_index = generator.matrix.index
+    matrix_index = gx.TEXMTX.index(generator.matrix)
     matrix = texture_matrices[matrix_index]
 
     #if matrix.shape != generator.function:
@@ -193,7 +195,8 @@ def create_shader_string(material, transformation_type):
         elif generator.source == gx.TG_TANGENT:
             use_tangent = True
         elif generator.source in gx.TG_TEX:
-            use_texcoord[generator.source.index] = True
+            source_index = gx.TG_TEX.index(generator.source)
+            use_texcoord[source_index] = True
 
     stream.write('layout(location={}) in vec4 position;\n'.format(POSITION_ATTRIBUTE_LOCATION))
 

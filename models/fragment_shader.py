@@ -86,12 +86,14 @@ def convert_indirect_texcoord_scale(scale):
 
 
 def write_indirect_stage(stream,index,stage):
-    stream.write('vec3 indtex{} = texture(texmap{},'.format(index,stage.texture.index))
+    texcoord_index = gx.TEXCOORD.index(stage.texcoord)
+    texture_index = gx.TEXMAP.index(stage.texture)
+    stream.write('vec3 indtex{} = texture(texmap{},'.format(index,texture_index))
     if stage.scale_s != gx.ITS_1 or stage.scale_t != gx.ITS_1:
         scale_s = convert_indirect_texcoord_scale(stage.scale_s)
         scale_t = convert_indirect_texcoord_scale(stage.scale_t)
         stream.write('vec2({},{})*'.format(scale_s,scale_t))
-    stream.write('uv{}).abg;\n'.format(stage.texcoord.index))
+    stream.write('uv{}).abg;\n'.format(texcoord_index))
 
 #------------------------------------------------------------------------------
 
@@ -527,53 +529,62 @@ def write_tev_stage(stream,stage,material):
     else:
         raise ValueError('invalid indirect texture format')
 
+    indirect_stage_index = gx.INDTEXSTAGE.index(stage.indirect_stage)
     if stage.bump_alpha != gx.ITBA_OFF:
         stream.write('alphabump = ')
         if stage.color == gx.ALPHA_BUMPN:
             stream.write('(255.0/248.0)*')
-        stream.write('floor({0}*indtex{1}.{2})/{0}'.format(alphabump_scale,stage.indirect_stage.index,convert_bump_alpha(stage.bump_alpha))) #<-?
+        stream.write('floor({0}*indtex{1}.{2})/{0}'.format(alphabump_scale,indirect_stage_index,convert_bump_alpha(stage.bump_alpha))) #<-?
         stream.write(';\n')
+
+    if stage.texcoord != gx.TEXCOORD_NULL:
+        texcoord_index = gx.TEXCOORD.index(stage.texcoord)
+    if stage.texture != gx.TEXMAP_NULL:
+        texture_index = gx.TEXMAP.index(stage.texture)
 
     if stage.indirect_matrix == gx.ITM_OFF:
         stream.write('indtevtrans = vec2(0.0);\n')
     else:
         if stage.indirect_format == gx.ITF_8:
-            stream.write('indtevcrd = 255.0*indtex{};\n'.format(stage.indirect_stage.index))
+            stream.write('indtevcrd = 255.0*indtex{};\n'.format(indirect_stage_index))
         else:
-            stream.write('indtevcrd = mod(255.0*indtex{},{});\n'.format(stage.indirect_stage.index,indirect_scale))
+            stream.write('indtevcrd = mod(255.0*indtex{},{});\n'.format(indirect_stage_index,indirect_scale))
 
         if stage.indirect_bias_components != gx.ITB_NONE:
             stream.write('indtevcrd.{} += {};\n'.format(convert_bias_selection(stage.indirect_bias_components),bias))
 
         if stage.indirect_matrix in gx.ITM:
-            stream.write('indtevtrans = indmatrix{}*indtevcrd;\n'.format(stage.indirect_matrix.index))
+            matrix_index = gx.ITM.index(stage.indirect_matrix)
+            stream.write('indtevtrans = indmatrix{}*indtevcrd;\n'.format(matrix_index))
         elif stage.indirect_matrix in gx.ITM_S:
-            scale = 2**material.indirect_matrices[gx.ITM_S.index(stage.indirect_matrix)].scale_exponent
-            stream.write('indtevtrans = {}*indtevcrd.s*uv{};\n'.format(scale/256,stage.texcoord.index))
+            matrix_index = gx.ITM_S.index(stage.indirect_matrix)
+            scale = 2**material.indirect_matrices[matrix_index].scale_exponent
+            stream.write('indtevtrans = {}*indtevcrd.s*uv{};\n'.format(scale/256,texcoord_index))
         elif stage.indirect_matrix in gx.ITM_T:
-            scale = 2**material.indirect_matrices[gx.ITM_T.index(stage.indirect_matrix)].scale_exponent
-            stream.write('indtevtrans = {}*indtevcrd.t*uv{};\n'.format(scale/256,stage.texcoord.index))
+            matrix_index = gx.ITM_T.index(stage.indirect_matrix)
+            scale = 2**material.indirect_matrices[matrix_index].scale_exponent
+            stream.write('indtevtrans = {}*indtevcrd.t*uv{};\n'.format(scale/256,texcoord_index))
         else:
             raise ValueError('invalid indirect texture matrix')
 
     #TODO: scaling of texcoords to texture size needs some work
 
     if stage.texture != gx.TEXMAP_NULL:
-        stream.write('indtevtrans /= textureSize(texmap{},0);\n'.format(stage.texture.index))
+        stream.write('indtevtrans /= textureSize(texmap{},0);\n'.format(texture_index))
 
     if stage.texcoord == gx.TEXCOORD_NULL or stage.wrap_s == gx.ITW_0:
         stream.write('wrappedcoord.s = 0.0;\n')
     elif stage.wrap_s == gx.ITW_OFF:
-        stream.write('wrappedcoord.s = uv{}.s;\n'.format(stage.texcoord.index))
+        stream.write('wrappedcoord.s = uv{}.s;\n'.format(texcoord_index))
     else:
-        stream.write('wrappedcoord.s = mod(uv{}.s,{});\n'.format(stage.texcoord.index,convert_wrap(stage.wrap_s)))
+        stream.write('wrappedcoord.s = mod(uv{}.s,{});\n'.format(texcoord_index,convert_wrap(stage.wrap_s)))
 
     if stage.texcoord == gx.TEXCOORD_NULL or stage.wrap_t == gx.ITW_0:
         stream.write('wrappedcoord.t = 0.0;\n')
     elif stage.wrap_t == gx.ITW_OFF:
-        stream.write('wrappedcoord.t = uv{}.t;\n'.format(stage.texcoord.index))
+        stream.write('wrappedcoord.t = uv{}.t;\n'.format(texcoord_index))
     else:
-        stream.write('wrappedcoord.t = mod(uv{}.t,{});\n'.format(stage.texcoord.index,convert_wrap(stage.wrap_s)))
+        stream.write('wrappedcoord.t = mod(uv{}.t,{});\n'.format(texcoord_index,convert_wrap(stage.wrap_s)))
 
     if stage.add_previous_texcoord:
         stream.write('tevcoord += wrappedcoord + indtevtrans;\n')
@@ -582,13 +593,15 @@ def write_tev_stage(stream,stage,material):
 
     if stage.texture != gx.TEXMAP_NULL:
         if stage.use_original_lod:
-            lod = 'textureQueryLod(texmap{},uv{})'.format(stage.texture.index,stage.texcoord.index)
-            stream.write('textemp = textureLod(texmap{},tevcoord,{});\n'.format(stage.texture.index,lod))
+            lod = 'textureQueryLod(texmap{},uv{})'.format(texture_index,texcoord_index)
+            stream.write('textemp = textureLod(texmap{},tevcoord,{});\n'.format(texture_index,lod))
         else:
-            stream.write('textemp = texture(texmap{},tevcoord);\n'.format(stage.texture.index))
+            stream.write('textemp = texture(texmap{},tevcoord);\n'.format(texture_index))
 
-    texture = Vector('textemp').swap(material.swap_tables[stage.texture_swap_table.index])
-    color = convert_ras(stage.color).swap(material.swap_tables[stage.color_swap_table.index])
+    texture_swap_table_index = gx.TEV_SWAP.index(stage.texture_swap_table)
+    color_swap_table_index = gx.TEV_SWAP.index(stage.color_swap_table)
+    texture = Vector('textemp').swap(material.swap_tables[texture_swap_table_index])
+    color = convert_ras(stage.color).swap(material.swap_tables[color_swap_table_index])
     konst = convert_kcolorsel(stage.constant_color)
     konst.a = convert_kalphasel(stage.constant_alpha)
 
@@ -694,10 +707,12 @@ def create_shader_string(material):
     use_texture = [False]*8
     for stage in material.enabled_tev_stages:
         if stage.texture != gx.TEXMAP_NULL:
-            use_texture[stage.texture.index] = True
+            texture_index = gx.TEXMAP.index(stage.texture)
+            use_texture[texture_index] = True
     for stage in material.enabled_indirect_stages:
         if stage.texture != gx.TEXMAP_NULL:
-            use_texture[stage.texture.index] = True
+            texture_index = gx.TEXMAP.index(stage.texture)
+            use_texture[texture_index] = True
 
     for i in range(8):
         if not use_texture[i]: continue
