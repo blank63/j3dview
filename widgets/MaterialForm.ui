@@ -736,7 +736,7 @@
   <customwidget>
    <class>ItemModelBox</class>
    <extends>QComboBox</extends>
-   <header>widgets.view_form</header>
+   <header>widgets.modelview</header>
   </customwidget>
  </customwidgets>
  <tabstops>

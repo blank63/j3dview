@@ -1,14 +1,11 @@
 from dataclasses import dataclass
-import io
-import pkgutil
-from PyQt5 import QtCore, QtWidgets, uic
+from PyQt5.QtCore import Qt
+from PyQt5 import QtCore, QtWidgets
 import gx
-from modelview.path import Path, PATH_BUILDER as _p
-from widgets.view_form import (
-    Item,
-    GroupItem,
-    ItemModelAdaptor,
-    DelegateDelegate,
+from modelview.path import PATH_BUILDER as _p
+from widgets.modelview import (
+    TreeView,
+    ItemDelegateDelegate,
     CountDelegate,
     EnumDelegate,
     CheckBoxDelegate,
@@ -16,9 +13,14 @@ from widgets.view_form import (
     DoubleSpinBoxDelegate,
     MatrixDelegate
 )
+from widgets.item_model_adaptor import (
+    Entry,
+    Item,
+    ItemModelAdaptor
+)
 
 
-TypeTagRole = QtCore.Qt.UserRole
+TypeTagRole = Qt.UserRole + 1
 
 
 @dataclass(frozen=True)
@@ -66,77 +68,58 @@ _enum = EnumTag.from_iterable
 _matrix = MatrixTag
 
 
-class PropertyItem(Item):
+class EnablableItem(Item):
 
-    def __init__(self, label, path, type_tag):
-        super().__init__()
-        self.label = label
-        self.path = path
-        self.type_tag = type_tag
-        self.triggers = frozenset((path,))
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.enabled = True
 
-    @property
-    def column_count(self):
-        return 2
+    def set_enabled(self, value):
+        self.enabled = value
+        for child in self.children:
+            child.set_enabled(value)
 
     def get_flags(self, column):
+        if not self.model.isValid():
+            return Qt.NoItemFlags
         if not self.enabled:
-            return QtCore.Qt.NoItemFlags
-        if column == 0:
-            return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
-        if column == 1:
-            return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
-        assert False
-
-    def get_data(self, column, role):
-        if column == 0:
-            if role == QtCore.Qt.DisplayRole:
-                return self.label
-            return QtCore.QVariant()
-        if column == 1:
-            if role in {QtCore.Qt.DisplayRole, QtCore.Qt.EditRole}:
-                return self.path.get_value(self.model.view)
-            if role == TypeTagRole:
-                return self.type_tag
-            return QtCore.QVariant()
-        assert False
-
-    def set_data(self, column, value, role):
-        if column != 1:
-            return False
-        if role != QtCore.Qt.EditRole:
-            return False
-        self.model.commitViewValue.emit(self.label, self.path, value)
-        return True
-
-    def handle_event(self, event, path):
-        self.model.item_data_changed(self)
+            return Qt.NoItemFlags
+        return super().get_flags(column)
 
 
-class ListWithCountItem(GroupItem):
+class ListWithCountItem(EnablableItem):
 
-    def __init__(self, label, count_path):
-        super().__init__([label, ''])
+    def __init__(self, entries=tuple(), *, count_path, **kwargs):
+        super().__init__(entries, **kwargs)
         self.count_path = count_path
-        self.triggers = frozenset((count_path,))
 
-    def update(self):
-        count = self.count_path.get_value(self.model.view)
+    def attach_model(self, model):
+        super().attach_model(model)
+        model.register_trigger(self, self.count_path)
+
+    def detach_model(self):
+        self.model.unregister_trigger(self, self.count_path)
+        super().detach_model()
+
+    def reset(self):
+        if self.model.isValid():
+            count = self.model.get_object_data(self.count_path)
+        else:
+            count = 0
         for i in range(self.child_count):
             enable = i < count
             self.get_child(i).set_enabled(enable)
-        self.model.item_data_changed(self)
+        super().reset()
 
     def handle_event(self, event, path):
-        self.update()
+        self.reset()
+        self.model.item_data_changed(self)
 
 
-class MaterialAdaptor(ItemModelAdaptor):
+class MaterialItem(Item):
 
-    def __init__(self, material):
-        super().__init__(material)
-        self.set_header_labels(['Property', 'Value'])
-
+    def __init__(self):
+        super().__init__(column_count=2)
         self.add_channel_list()
         self.add_texcoord_generator_list()
         self.add_texture_matrix_list()
@@ -146,18 +129,34 @@ class MaterialAdaptor(ItemModelAdaptor):
         self.add_indirect_matrix_list()
 
     def _group(self, label, parent=None):
-        item = GroupItem([label, ''])
-        self.add_item(item, parent)
+        if parent is None:
+            parent = self
+        item = EnablableItem([Entry(data=label), Entry()])
+        parent.add_child(item)
         return item
 
     def _listwc(self, label, count_path, parent=None):
-        item = ListWithCountItem(label, count_path)
-        self.add_item(item, parent)
+        if parent is None:
+            parent = self
+        item = ListWithCountItem(
+            [Entry(data=label), Entry()],
+            count_path=count_path
+        )
+        parent.add_child(item)
         return item
 
     def _property(self, label, path, type_tag, parent=None):
-        item = PropertyItem(label, path, type_tag)
-        self.add_item(item, parent)
+        if parent is None:
+            parent = self
+        label_entry = Entry(data=label)
+        property_entry = Entry(
+            path=path,
+            role_data={TypeTagRole: type_tag},
+            label=label,
+            editable=True
+        )
+        item = EnablableItem([label_entry, property_entry])
+        parent.add_child(item)
         return item
 
     def add_lighting_mode(self, label, path, parent):
@@ -177,7 +176,6 @@ class MaterialAdaptor(ItemModelAdaptor):
             channel = self._group(f'Channel {i}', base)
             self.add_lighting_mode('Color', +_p.channels[i].color_mode, channel)
             self.add_lighting_mode('Alpha', +_p.channels[i].alpha_mode, channel)
-        base.update()
 
     def add_texcoord_generator(self, label, path, parent):
         base = self._group(label, parent)
@@ -190,7 +188,6 @@ class MaterialAdaptor(ItemModelAdaptor):
         base = self._listwc('Tex. Gens.', +_p.texcoord_generator_count)
         for i in range(8):
             self.add_texcoord_generator(f'Tex. Gen. {i}', +_p.texcoord_generators[i], base)
-        base.update()
 
     def add_texture_matrix(self, label, path, parent):
         base = self._group(label, parent)
@@ -266,7 +263,6 @@ class MaterialAdaptor(ItemModelAdaptor):
         base = self._listwc('TEV Stages', +_p.tev_stage_count)
         for i in range(16):
             self.add_tev_stage(f'TEV Stage {i}', +_p.tev_stages[i], base)
-        base.update()
 
     def add_swap_table(self, label, path, parent):
         base = self._group(label, parent)
@@ -292,7 +288,6 @@ class MaterialAdaptor(ItemModelAdaptor):
         base = self._listwc('Indirect Stages', +_p.indirect_stage_count)
         for i in range(4):
             self.add_indirect_stage(f'Indirect Stage {i}', +_p.indirect_stages[i], base)
-        base.update()
 
     def add_indirect_matrix(self, label, path, parent):
         base = self._group(label, parent)
@@ -305,7 +300,7 @@ class MaterialAdaptor(ItemModelAdaptor):
             self.add_indirect_matrix(f'Indirect Matrix {i}', +_p.indirect_matrices[i], base)
 
 
-class Delegate(DelegateDelegate):
+class Delegate(ItemDelegateDelegate):
 
     def __init__(self):
         super().__init__()
@@ -326,14 +321,15 @@ class Delegate(DelegateDelegate):
             return MatrixDelegate()
         assert False
 
-    def get_delegate(self, item):
-        type_tag = item.data(TypeTagRole)
+    def get_delegate(self, index):
+        type_tag = index.data(TypeTagRole)
         if type_tag is None:
-            return super().get_delegate(item)
+            return super().get_delegate(index)
         delegate = self.delegate_table.get(type_tag)
         if delegate is None:
             delegate = self.create_delegate(type_tag)
             delegate.commitData.connect(self.commitData.emit)
+            delegate.editingFinished.connect(self.editingFinished.emit)
             delegate.closeEditor.connect(self.closeEditor.emit)
             self.delegate_table[type_tag] = delegate
         return delegate
@@ -341,20 +337,42 @@ class Delegate(DelegateDelegate):
 
 class AdvancedMaterialDialog(QtWidgets.QDialog):
 
-    commitViewValue = QtCore.pyqtSignal(str, Path, object)
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.ui = uic.loadUi(io.BytesIO(pkgutil.get_data(__package__, 'AdvancedMaterialDialog.ui')), self)
-        self.delegate = Delegate()
-        self.tree_view.setItemDelegate(self.delegate)
+        self.setWindowTitle('Advanced Material Dialog')
+
+        self.material_adaptor = ItemModelAdaptor(root_item=MaterialItem())
+        self.material_adaptor.setHeaderData(0, Qt.Horizontal, 'Property')
+        self.material_adaptor.setHeaderData(1, Qt.Horizontal, 'Value')
+        self.tree_view = TreeView()
+        self.tree_view.setModel(self.material_adaptor)
+        self.tree_view.setItemDelegate(Delegate())
+        self.tree_view.setColumnWidth(0, 200)
+        self.tree_view.setAlternatingRowColors(True)
+        self.tree_view.setEditTriggers(
+            QtWidgets.QTreeView.CurrentChanged |
+            QtWidgets.QTreeView.SelectedClicked
+        )
+
+        self.button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        self.layout = QtWidgets.QVBoxLayout()
+        self.layout.setContentsMargins(4, 4, 4, 4)
+        self.layout.addWidget(self.tree_view)
+        self.layout.addWidget(self.button_box)
+        self.setLayout(self.layout)
+
+    def sizeHint(self):
+        return QtCore.QSize(400, 300)
+
+    def setUndoStack(self, undo_stack):
+        self.material_adaptor.setUndoStack(undo_stack)
 
     def setMaterial(self, material):
-        adaptor = MaterialAdaptor(material)
-        adaptor.commitViewValue.connect(self.commitViewValue.emit)
-        self.tree_view.setModel(adaptor)
-        self.tree_view.setColumnWidth(0, 200)
+        self.material_adaptor.setObjectModel(material)
 
     def clear(self):
-        self.tree_view.setModel(None)
+        self.material_adaptor.setObjectModel(None)
 

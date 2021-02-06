@@ -1,21 +1,26 @@
 import io
 import pkgutil
-from PyQt5 import QtCore, QtGui, uic
+from PyQt5.QtCore import Qt
+from PyQt5 import QtWidgets, uic
 import gx
 from modelview.path import PATH_BUILDER as _p
-from modelview.object_model import ItemInsertEvent, ItemRemoveEvent
-from widgets.view_form import (
-    Item,
-    ItemModelAdaptor,
-    ViewForm,
+from modelview.object_model import ItemInsertEvent, ItemRemoveEvent, ObjectModel
+from widgets.modelview import (
+    DataWidgetMapper,
+    DataDelegateMapper,
     CheckBoxDelegate,
-    ItemModelBoxDelegate,
     EnumDelegate,
+    ItemModelBoxDelegate,
     LineEditDelegate,
     SpinBoxDelegate,
     ColorButtonDelegate
 )
-from widgets.advanced_material_dialog import AdvancedMaterialDialog
+from widgets.item_model_adaptor import (
+    Entry,
+    Item,
+    AbstractListItem,
+    ItemModelAdaptor
+)
 
 
 _bool = CheckBoxDelegate
@@ -26,82 +31,74 @@ _color = ColorButtonDelegate
 _texture = ItemModelBoxDelegate
 
 
-class NoneItem(Item):
-
-    @property
-    def column_count(self):
-        return 1
-
-    def get_flags(self, column):
-        return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
-
-    def get_data(self, column, role):
-        if role == QtCore.Qt.DisplayRole:
-            return 'None'
-        if role == QtCore.Qt.UserRole:
-            return None
-        return QtCore.QVariant()
-
-
-class TextureItem(Item):
-
-    def __init__(self, index):
-        super().__init__()
-        self.index = index
-        self.triggers = frozenset((+_p[index].name,))
-
-    @property
-    def texture(self):
-        return self.model.view[self.index]
-
-    @property
-    def column_count(self):
-        return 1
-
-    def get_flags(self, column):
-        return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
-
-    def get_data(self, column, role):
-        if role == QtCore.Qt.DisplayRole:
-            return self.texture.name
-        if role == QtCore.Qt.UserRole:
-            return self.texture
-        return QtCore.QVariant()
-
-    def handle_event(self, event, path):
-        self.model.item_data_changed(self)
-
-
-class TextureListAdaptor(ItemModelAdaptor):
+class TextureList(ObjectModel):
 
     def __init__(self, textures):
-        super().__init__(textures)
-        self.set_header_labels(['Value'])
-        self.add_item(NoneItem())
-        for i in range(len(textures)):
-            self.add_item(TextureItem(i))
+        super().__init__()
+        self.textures = textures
+        textures.register_listener(self)
+
+    def __len__(self):
+        return len(self.textures) + 1
+
+    def __getitem__(self, index):
+        assert index != 0
+        return self.textures[index - 1]
 
     def handle_event(self, event, path):
-        if path.match(+_p):
-            if isinstance(event, ItemInsertEvent):
-                row = event.index + 1
-                texture_index = len(self.view) - 1
-                self.beginInsertRows(QtCore.QModelIndex(), row, row)
-                self.add_item(TextureItem(texture_index))
-                self.endInsertRows()
-            elif isinstance(event, ItemRemoveEvent):
-                row = event.index + 1
-                self.beginRemoveRows(QtCore.QModelIndex(), row, row)
-                self.take_item(self.rowCount() - 1)
-                self.endRemoveRows()
-        super().handle_event(event, path)
+        if path:
+            index = path[0].key
+            self.emit_event(event, +_p[index + 1] + path[1:])
+            return
+        if isinstance(event, ItemInsertEvent):
+            self.emit_event(ItemInsertEvent(event.index + 1), path)
+            return
+        if isinstance(event, ItemRemoveEvent):
+            self.emit_event(ItemRemoveEvent(event.index + 1), path)
+            return
+        self.emit_event(event, path)
 
 
-class MaterialForm(ViewForm):
+class TextureListItem(AbstractListItem):
+
+    def __init__(self):
+        super().__init__(column_count=1)
+        self.list_path = +_p
+
+    def create_child(self, index):
+        if index == 0:
+            return Item([Entry(
+                data='None',
+                role_data={Qt.UserRole: None}
+            )])
+        return Item([Entry(
+            path=+_p[index].name,
+            role_paths={Qt.UserRole: +_p[index]}
+        )])
+
+
+class MaterialForm(QtWidgets.QWidget):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ui = uic.loadUi(io.BytesIO(pkgutil.get_data(__package__, 'MaterialForm.ui')), self)
+
+        self.texture_list_adaptor = ItemModelAdaptor(root_item=TextureListItem())
+        self.texture0.setModel(self.texture_list_adaptor)
+        self.texture1.setModel(self.texture_list_adaptor)
+        self.texture2.setModel(self.texture_list_adaptor)
+        self.texture3.setModel(self.texture_list_adaptor)
+        self.texture4.setModel(self.texture_list_adaptor)
+        self.texture5.setModel(self.texture_list_adaptor)
+        self.texture6.setModel(self.texture_list_adaptor)
+        self.texture7.setModel(self.texture_list_adaptor)
+
+        self.material = None
+        self.material_adaptor = ItemModelAdaptor(column_count=1)
+        self.mapper = DataWidgetMapper(orientation=Qt.Vertical)
+        self.mapper.setModel(self.material_adaptor)
+        self.mapper_delegate = DataDelegateMapper()
+        self.mapper.setItemDelegate(self.mapper_delegate)
 
         self.add_mapping('Name', +_p.name, self.name, _str())
         self.add_mapping('Unknown 0', +_p.unknown0, self.unknown0, _int(min=0, max=255))
@@ -148,47 +145,30 @@ class MaterialForm(ViewForm):
         self.add_mapping('Dst. Factor', +_p.blend_mode.destination_factor, self.blend_mode_destination_factor, _enum(gx.BlendDestinationFactor))
         self.add_mapping('Logic Op.', +_p.blend_mode.logical_operation, self.blend_mode_logical_operation, _enum(gx.LogicalOperation))
 
-        self.advanced_material_dialog = AdvancedMaterialDialog()
-        self.advanced_material_dialog.commitViewValue.connect(self.commitViewValue.emit)
-        self.advanced_material_dialog.finished.connect(self.on_advanced_material_dialog_finished)
+        self.setEnabled(False)
+
+    def add_mapping(self, label, path, widget, delegate):
+        section = self.material_adaptor.top_level_item_count()
+        item = Item([Entry(path=path, label=label, editable=True)])
+        self.material_adaptor.add_top_level_item(item)
+        self.mapper.addMapping(widget, section)
+        self.mapper_delegate.addMapping(delegate, section)
+        delegate.initEditor(widget)
+
+    def setUndoStack(self, undo_stack):
+        self.material_adaptor.setUndoStack(undo_stack)
 
     def setTextures(self, textures):
-        adaptor = TextureListAdaptor(textures)
-        self.texture0.setModel(adaptor)
-        self.texture1.setModel(adaptor)
-        self.texture2.setModel(adaptor)
-        self.texture3.setModel(adaptor)
-        self.texture4.setModel(adaptor)
-        self.texture5.setModel(adaptor)
-        self.texture6.setModel(adaptor)
-        self.texture7.setModel(adaptor)
+        self.texture_list_adaptor.setObjectModel(TextureList(textures))
 
     def setMaterial(self, material):
-        self.setView(material)
-        if not self.advanced_material_dialog.isHidden():
-            self.advanced_material_dialog.setMaterial(material)
+        self.material = material
+        self.material_adaptor.setObjectModel(material)
+        self.setEnabled(True)
 
     def clear(self):
-        super().clear()
-        empty_model = QtGui.QStandardItemModel()
-        self.texture0.setModel(empty_model)
-        self.texture1.setModel(empty_model)
-        self.texture2.setModel(empty_model)
-        self.texture3.setModel(empty_model)
-        self.texture4.setModel(empty_model)
-        self.texture5.setModel(empty_model)
-        self.texture6.setModel(empty_model)
-        self.texture7.setModel(empty_model)
-        self.advanced_material_dialog.clear()
-
-    @QtCore.pyqtSlot(bool)
-    def on_advanced_button_clicked(self, checked):
-        self.advanced_material_dialog.setMaterial(self.view)
-        self.advanced_material_dialog.show()
-        self.advanced_material_dialog.raise_()
-        self.advanced_material_dialog.activateWindow()
-
-    @QtCore.pyqtSlot(int)
-    def on_advanced_material_dialog_finished(self, result):
-        self.advanced_material_dialog.clear()
+        self.material = None
+        self.material_adaptor.setObjectModel(None)
+        self.texture_list_adaptor.setObjectModel(None)
+        self.setEnabled(False)
 

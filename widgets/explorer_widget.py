@@ -1,79 +1,35 @@
 from enum import Enum
 import os
+from PyQt5.QtCore import Qt
 from PyQt5 import QtCore, QtWidgets
 from modelview.path import Path, PATH_BUILDER as _p
-from modelview.object_model import ItemInsertEvent, ItemRemoveEvent
 import models.material
 import models.texture
-from widgets.view_form import Item, GroupItem, ItemModelAdaptor
+from widgets.modelview import TreeView
+from widgets.item_model_adaptor import (
+    Entry,
+    Item,
+    AbstractListItem,
+    ItemModelAdaptor
+)
 
 
-PathRole = QtCore.Qt.UserRole
+PathRole = Qt.UserRole + 1
 
 
-class ElementItem(Item):
+class ListItem(AbstractListItem):
 
-    def __init__(self, path):
-        super().__init__()
-        self.path = path
-        self.triggers = frozenset((path + _p.name,))
+    def __init__(self, label, list_path):
+        super().__init__([Entry(data=label, drop_enabled=True)])
+        self.list_path = list_path
 
-    @property
-    def column_count(self):
-        return 1
-
-    def get_flags(self, column):
-        return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsDragEnabled
-
-    def get_data(self, column, role):
-        if role == QtCore.Qt.DisplayRole:
-            return self.path.get_value(self.model.view).name
-        if role == PathRole:
-            return self.path
-        return QtCore.QVariant()
-
-    def handle_event(self, event, path):
-        self.model.item_data_changed(self)
-
-
-class ListItem(GroupItem):
-
-    def __init__(self, label, path):
-        super().__init__([label])
-        self.path = path
-        self.triggers = frozenset((path,))
-
-    @property
-    def view(self):
-        return self.path.get_value(self.model.view)
-
-    def get_flags(self, column):
-        return super().get_flags(column) | QtCore.Qt.ItemIsDropEnabled
-
-    def get_data(self, column, role):
-        if role == PathRole:
-            return self.path
-        return super().get_data(column, role)
-
-    def initialize(self):
-        for i in range(len(self.view)):
-            element = ElementItem(self.path + _p[i])
-            self.model.add_item(element, self)
-
-    def handle_event(self, event, path):
-        index = self.model.get_item_index(self)
-        if isinstance(event, ItemInsertEvent):
-            row = event.index
-            self.model.beginInsertRows(index, row, row)
-            element_index = len(self.view) - 1
-            element = ElementItem(self.path  + _p[element_index])
-            self.model.add_item(element, self)
-            self.model.endInsertRows()
-        elif isinstance(event, ItemRemoveEvent):
-            row = event.index
-            self.model.beginRemoveRows(index, row, row)
-            self.model.take_item(self.child_count - 1, self)
-            self.model.endRemoveRows()
+    def create_child(self, index):
+        child_path = self.list_path + _p[index]
+        return Item([Entry(
+            path=child_path + _p.name,
+            role_data={PathRole: child_path},
+            drag_enabled=True
+        )])
 
 
 class ModelAdaptor(ItemModelAdaptor):
@@ -82,16 +38,12 @@ class ModelAdaptor(ItemModelAdaptor):
 
     rowDropped = QtCore.pyqtSignal(QtCore.QModelIndex, int)
 
-    def __init__(self, model, undo_stack):
-        super().__init__(model)
-        self.undo_stack = undo_stack
-        self.set_header_labels(['Value'])
+    def __init__(self):
+        super().__init__(column_count=1)
         self.material_list = ListItem('Materials', +_p.materials)
-        self.add_item(self.material_list)
-        self.material_list.initialize()
+        self.add_top_level_item(self.material_list)
         self.texture_list = ListItem('Textures', +_p.textures)
-        self.add_item(self.texture_list)
-        self.texture_list.initialize()
+        self.add_top_level_item(self.texture_list)
 
     def get_material_index(self, row):
         item = self.material_list.get_child(row)
@@ -102,21 +54,21 @@ class ModelAdaptor(ItemModelAdaptor):
         return self.get_item_index(item)
 
     def move_material(self, from_index, to_index):
-        material = self.view.materials[from_index]
+        material = self.object_model.materials[from_index]
         self.undo_stack.beginMacro(f"Move material '{material.name}'")
-        self.undo_stack.push(RemoveItemCommand(self.view.materials, from_index))
-        self.undo_stack.push(InsertItemCommand(self.view.materials, to_index, material))
+        self.undo_stack.push(RemoveItemCommand(self.object_model.materials, from_index))
+        self.undo_stack.push(InsertItemCommand(self.object_model.materials, to_index, material))
         self.undo_stack.endMacro()
 
     def move_texture(self, from_index, to_index):
-        texture = self.view.textures[from_index]
+        texture = self.object_model.textures[from_index]
         self.undo_stack.beginMacro(f"Move texture '{texture.name}'")
-        self.undo_stack.push(RemoveItemCommand(self.view.textures, from_index))
-        self.undo_stack.push(InsertItemCommand(self.view.textures, to_index, texture))
+        self.undo_stack.push(RemoveItemCommand(self.object_model.textures, from_index))
+        self.undo_stack.push(InsertItemCommand(self.object_model.textures, to_index, texture))
         self.undo_stack.endMacro()
 
     def supportedDropActions(self):
-        return QtCore.Qt.MoveAction
+        return Qt.MoveAction
 
     def mimeTypes(self):
         return [self.MIME_TYPE]
@@ -130,7 +82,7 @@ class ModelAdaptor(ItemModelAdaptor):
         return mime_data
 
     def canDropMimeData(self, mime_data, action, row, column, parent):
-        if not action == QtCore.Qt.MoveAction:
+        if not action == Qt.MoveAction:
             return False
         if not mime_data.hasFormat(self.MIME_TYPE):
             return False
@@ -163,32 +115,32 @@ class ModelAdaptor(ItemModelAdaptor):
 
 class InsertItemCommand(QtWidgets.QUndoCommand):
 
-    def __init__(self, view, index, item):
+    def __init__(self, object_model, index, item):
         super().__init__()
-        self.view = view
+        self.object_model = object_model
         self.index = index
         self.item = item
 
     def redo(self):
-        self.view.insert(self.index, self.item)
+        self.object_model.insert(self.index, self.item)
 
     def undo(self):
-        del self.view[self.index]
+        del self.object_model[self.index]
 
 
 class RemoveItemCommand(QtWidgets.QUndoCommand):
 
-    def __init__(self, view, index):
+    def __init__(self, object_model, index):
         super().__init__()
-        self.view = view
+        self.object_model = object_model
         self.index = index
-        self.item = view[index]
+        self.item = object_model[index]
 
     def redo(self):
-        del self.view[self.index]
+        del self.object_model[self.index]
 
     def undo(self):
-        self.view.insert(self.index, self.item)
+        self.object_model.insert(self.index, self.item)
 
 
 class ExplorerWidget(QtWidgets.QWidget):
@@ -199,13 +151,18 @@ class ExplorerWidget(QtWidgets.QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = None
-        self.adaptor = None
         self.undo_stack = None
 
-        self.tree_view = QtWidgets.QTreeView()
+        self.model_adaptor = ModelAdaptor()
+        self.model_adaptor.rowsInserted.connect(self.on_rowsInserted)
+        self.model_adaptor.rowsRemoved.connect(self.on_rowsRemoved)
+        self.model_adaptor.rowDropped.connect(self.on_rowDropped)
+        self.tree_view = TreeView()
         self.tree_view.setHeaderHidden(True)
         self.tree_view.setDragEnabled(True)
         self.tree_view.setDragDropMode(QtWidgets.QTreeView.InternalMove)
+        self.tree_view.setModel(self.model_adaptor)
+        self.tree_view.selectionModel().currentRowChanged.connect(self.on_currentRowChanged)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -224,22 +181,18 @@ class ExplorerWidget(QtWidgets.QWidget):
 
     def setUndoStack(self, undo_stack):
         self.undo_stack = undo_stack
+        self.model_adaptor.setUndoStack(undo_stack)
 
     def setModel(self, model):
         self.model = model
-        self.adaptor = ModelAdaptor(model, self.undo_stack)
-        self.tree_view.setModel(self.adaptor)
-        self.adaptor.rowsInserted.connect(self.on_rowsInserted)
-        self.adaptor.rowsRemoved.connect(self.on_rowsRemoved)
-        self.adaptor.rowDropped.connect(self.on_rowDropped)
-        self.tree_view.selectionModel().currentRowChanged.connect(self.on_currentRowChanged)
+        self.model_adaptor.setObjectModel(model)
 
     def setCurrentMaterial(self, material_index):
-        index = self.adaptor.get_material_index(material_index)
+        index = self.model_adaptor.get_material_index(material_index)
         self.tree_view.setCurrentIndex(index)
 
     def setCurrentTexture(self, texture_index):
-        index = self.adaptor.get_texture_index(texture_index)
+        index = self.model_adaptor.get_texture_index(texture_index)
         self.tree_view.setCurrentIndex(index)
 
     def emit_current_changed(self):
@@ -427,7 +380,7 @@ class ExplorerWidget(QtWidgets.QWidget):
 
     @QtCore.pyqtSlot(QtCore.QModelIndex, int)
     def on_rowDropped(self, parent, row):
-        index = self.adaptor.index(row, 0, parent)
+        index = self.model_adaptor.index(row, 0, parent)
         self.tree_view.setCurrentIndex(index)
 
     @QtCore.pyqtSlot()

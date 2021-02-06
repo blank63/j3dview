@@ -84,10 +84,15 @@ class ItemPathFragment:
 
 class Path(tuple):
 
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            return Path(super().__getitem__(key))
+        return super().__getitem__(key)
+
     def __add__(self, other):
         if not isinstance(other, Path):
             return NotImplemented
-        return Path((*self, *other))
+        return Path(super().__add__(other))
 
     def __str__(self):
         return ''.join(str(fragment) for fragment in self)

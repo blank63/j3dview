@@ -1,11 +1,13 @@
 import io
 import pkgutil
 import os.path
+from PyQt5.QtCore import Qt
 from PyQt5 import QtCore, QtWidgets, QtGui, uic
 import j3d.animation
-from modelview.path import Path, PATH_BUILDER as _p
 import models.model
-from widgets.view_form import CommitViewValueCommand
+from widgets.modelview import UndoStack
+from widgets.scene_graph_dialog import SceneGraphDialog
+from widgets.advanced_material_dialog import AdvancedMaterialDialog
 
 
 FILE_OPEN_ERRORS = (FileNotFoundError, IsADirectoryError, PermissionError)
@@ -16,7 +18,7 @@ class Editor(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.undo_stack = QtWidgets.QUndoStack(self, objectName='undo_stack')
+        self.undo_stack = UndoStack(self, objectName='undo_stack')
         self.action_undo = self.undo_stack.createUndoAction(self)
         self.action_redo = self.undo_stack.createRedoAction(self)
 
@@ -36,9 +38,9 @@ class Editor(QtWidgets.QMainWindow):
         self.action_save_model_as.setShortcut(QtGui.QKeySequence.SaveAs)
         self.action_quit.setShortcut(QtGui.QKeySequence.Quit)
         self.action_undo.setShortcut(QtGui.QKeySequence.Undo)
-        self.action_undo.setShortcutContext(QtCore.Qt.ApplicationShortcut)
+        self.action_undo.setShortcutContext(Qt.ApplicationShortcut)
         self.action_redo.setShortcut(QtGui.QKeySequence.Redo)
-        self.action_redo.setShortcutContext(QtCore.Qt.ApplicationShortcut)
+        self.action_redo.setShortcutContext(Qt.ApplicationShortcut)
 
         #XXX It appears that actions have to be manually added to the widget
         # for shortcuts to work. Possibly a bug?
@@ -56,10 +58,21 @@ class Editor(QtWidgets.QMainWindow):
         self.view_settings.setViewer(self.viewer)
         self.dock_view_settings.hide()
         self.explorer.setUndoStack(self.undo_stack)
-        self.model_form.setUndoStack(self.undo_stack)
+        self.material_form.setUndoStack(self.undo_stack)
+        self.texture_form.setUndoStack(self.undo_stack)
         self.tabifyDockWidget(self.dock_model_form, self.dock_material_form)
         self.tabifyDockWidget(self.dock_material_form, self.dock_texture_form)
         self.dock_model_form.raise_()
+
+        self.scene_graph_dialog = SceneGraphDialog()
+        self.scene_graph_dialog.setUndoStack(self.undo_stack)
+        self.model_form.scene_graph_button.clicked.connect(self.on_model_form_scene_graph_button_clicked)
+        self.scene_graph_dialog.finished.connect(self.on_scene_graph_dialog_finished)
+
+        self.advanced_material_dialog = AdvancedMaterialDialog()
+        self.advanced_material_dialog.setUndoStack(self.undo_stack)
+        self.material_form.advanced_button.clicked.connect(self.on_material_form_advanced_button_clicked)
+        self.advanced_material_dialog.finished.connect(self.on_advanced_material_dialog_finished)
 
         self.setWindowFilePath('')
 
@@ -129,6 +142,8 @@ class Editor(QtWidgets.QMainWindow):
         self.model_form.clear()
         self.material_form.clear()
         self.texture_form.clear()
+        self.scene_graph_dialog.clear()
+        self.advanced_material_dialog.clear()
 
         self.viewer.makeCurrent()
         if self.model is not None:
@@ -140,6 +155,8 @@ class Editor(QtWidgets.QMainWindow):
         self.explorer.setModel(self.model)
         self.model_form.setModel(self.model)
         self.material_form.setTextures(self.model.textures)
+        if not self.scene_graph_dialog.isHidden():
+            self.scene_graph_dialog.setModel(model)
 
         self.action_open_animation.setEnabled(True)
         self.action_save_model.setEnabled(True)
@@ -173,35 +190,16 @@ class Editor(QtWidgets.QMainWindow):
         self.setWindowModified(not clean)
 
     def on_explorer_currentMaterialChanged(self, material_index):
-        self.material_form.setMaterial(self.model.materials[material_index])
+        material = self.model.materials[material_index]
+        self.material_form.setMaterial(material)
         self.dock_material_form.raise_()
+        if not self.advanced_material_dialog.isHidden():
+            self.advanced_material_dialog.setMaterial(material)
 
     def on_explorer_currentTextureChanged(self, texture_index):
         self.preview.setTexture(self.model.textures[texture_index])
         self.texture_form.setTexture(self.model.textures[texture_index])
         self.dock_texture_form.raise_()
-
-    @QtCore.pyqtSlot(str, Path, object)
-    def on_material_form_commitViewValue(self, label, path, value):
-        material = self.material_form.view
-        material_index = self.model.materials.index(material)
-        command = CommitViewValueCommand(
-            f"Changed '{label}' of '{material.name}'",
-            self.model, +_p.materials[material_index] + path,
-            value
-        )
-        self.undo_stack.push(command)
-
-    @QtCore.pyqtSlot(str, Path, object)
-    def on_texture_form_commitViewValue(self, label, path, value):
-        texture = self.texture_form.view
-        texture_index = self.model.textures.index(texture)
-        command = CommitViewValueCommand(
-            f"Changed '{label}' of '{texture.name}'",
-            self.model, +_p.textures[texture_index] + path,
-            value
-        )
-        self.undo_stack.push(command)
 
     @QtCore.pyqtSlot()
     def on_action_open_model_triggered(self):
@@ -262,6 +260,28 @@ class Editor(QtWidgets.QMainWindow):
             self.saveModel(file_name)
         except FILE_OPEN_ERRORS as error:
             self.warning_file_open_failed(error)
+
+    @QtCore.pyqtSlot(bool)
+    def on_model_form_scene_graph_button_clicked(self, checked):
+        self.scene_graph_dialog.setModel(self.model)
+        self.scene_graph_dialog.show()
+        self.scene_graph_dialog.raise_()
+        self.scene_graph_dialog.activateWindow()
+
+    @QtCore.pyqtSlot(int)
+    def on_scene_graph_dialog_finished(self, result):
+        self.scene_graph_dialog.clear()
+
+    @QtCore.pyqtSlot(bool)
+    def on_material_form_advanced_button_clicked(self, checked):
+        self.advanced_material_dialog.setMaterial(self.material_form.material)
+        self.advanced_material_dialog.show()
+        self.advanced_material_dialog.raise_()
+        self.advanced_material_dialog.activateWindow()
+
+    @QtCore.pyqtSlot(int)
+    def on_advanced_material_dialog_finished(self, result):
+        self.advanced_material_dialog.clear()
 
     @QtCore.pyqtSlot()
     def on_action_quit_triggered(self):
