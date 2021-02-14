@@ -14,6 +14,8 @@ class UndoStack(QtWidgets.QUndoStack):
         self.indexChanged.connect(self.on_indexChanged)
 
     def push(self, command):
+        if command.isObsolete():
+            return
         if self.active_command is not None:
             assert self.active_command is self.command(self.index() - 1)
             if self.active_command.mergeWith(command):
