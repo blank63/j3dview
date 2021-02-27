@@ -88,6 +88,14 @@ class Delegate(ItemDelegate):
     def clear(self):
         self.material_list_adaptor.setObjectModel(None)
 
+    def sizeHint(self, option, index):
+        option = QtWidgets.QStyleOptionViewItem(option)
+        self.initStyleOption(option, index)
+        node_type = index.data(NodeTypeRole)
+        prefix = self.prefix_table[node_type]
+        text = prefix + str(index.data())
+        return option.fontMetrics.size(0, text)
+
     def paint(self, painter, option, index):
         option = QtWidgets.QStyleOptionViewItem(option)
         self.initStyleOption(option, index)
@@ -103,6 +111,8 @@ class Delegate(ItemDelegate):
         return editor
 
     def updateEditorGeometry(self, editor, option, index):
+        option = QtWidgets.QStyleOptionViewItem(option)
+        self.initStyleOption(option, index)
         node_type = index.data(NodeTypeRole)
         prefix = self.prefix_table[node_type]
         prefix_size = option.fontMetrics.size(0, prefix)
@@ -138,6 +148,8 @@ class SceneGraphDialog(QtWidgets.QDialog):
         self.tree_view = TreeView()
         self.tree_view.setHeaderHidden(True)
         self.tree_view.header().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
+        self.tree_view.header().setStretchLastSection(False)
+        self.tree_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.tree_view.setEditTriggers(
             QtWidgets.QTreeView.CurrentChanged |
             QtWidgets.QTreeView.SelectedClicked

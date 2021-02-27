@@ -781,7 +781,7 @@ def unload_lighting_mode_array(materials, entries, array):
 
 def load_light_array(materials, entries):
     indexer = Indexer()
-    for material, entries in zip(materials, entries):
+    for material, entry in zip(materials, entries):
         for i, light in enumerate(material.lights):
             if light is not None:
                 entry.light_indices[i] = indexer[light]
@@ -825,7 +825,7 @@ def unload_texcoord_generator_array(materials, entries, array):
 
 def load_unknown2_array(materials, entries):
     indexer = Indexer()
-    for material, entries in zip(materials, entries):
+    for material, entry in zip(materials, entries):
         for i, unknown2 in enumerate(material.unknown2):
             if unknown2 is not None:
                 entry.unknown2_indices[i] = indexer[unknown2]
