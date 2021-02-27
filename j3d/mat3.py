@@ -1,16 +1,15 @@
-from math import cos,sin,radians
-import functools
-from collections import namedtuple
+import logging
+from math import cos, sin, radians
 import numpy
 from btypes.big_endian import *
 import gx
 import j3d.string_table
 
-import logging
+
 logger = logging.getLogger(__name__)
 
-offset32 = NoneableConverter(uint32, 0)
 
+offset32 = NoneableConverter(uint32, 0)
 index8 = NoneableConverter(uint8, 0xFF)
 index16 = NoneableConverter(uint16, 0xFFFF)
 
@@ -59,9 +58,9 @@ class Header(Struct):
     def unpack(cls, stream):
         header = super().unpack(stream)
         if header.magic != b'MAT3':
-            raise FormatError('invalid magic')
+            raise FormatError(f'invalid magic: {header.magic}')
         if header.unknown3_offset is not None:
-            logger.warning('unknown3_offset different from default')
+            logger.warning('unexpected unknown3_offset value %s', header.unknown3_offset)
         return header
 
 
@@ -109,14 +108,15 @@ class LightingMode(Struct):
     light_mask = uint8
     diffuse_function = EnumConverter(uint8, gx.DiffuseFunction)
     attenuation_function = EnumConverter(uint8, gx.AttenuationFunction)
-    ambient_source = EnumConverter(uint8, gx.ChannelSource)
+    # Ambient source is 0xFF in SVR0 files
+    ambient_source = EnumConverter(uint8, gx.ChannelSource, default=gx.SRC_REG)
     __padding__ = Padding(2)
 
     def __init__(self):
         self.light_enable = False
         self.material_source = gx.SRC_REG
         self.ambient_source = gx.SRC_REG
-        self.light_mask = gx.LIGHT_NULL
+        self.light_mask = 0
         self.diffuse_function = gx.DF_NONE
         self.attenuation_function = gx.AF_NONE
 
@@ -197,28 +197,28 @@ class TextureMatrix(Struct):
     def create_matrix(self):
         c = cos(radians(self.rotation))
         s = sin(radians(self.rotation))
-        R = numpy.matrix([[c,-s,0],[s,c,0],[0,0,1]])
-        S = numpy.matrix([[self.scale_s,0,0],[0,self.scale_t,0],[0,0,1]])
-        C = numpy.matrix([[1,0,self.center_s],[0,1,self.center_t],[0,0,1]])
-        T = numpy.matrix([[1,0,self.translation_s],[0,1,self.translation_t],[0,0,1]])
+        R = numpy.matrix([[c, -s, 0], [s, c, 0], [0, 0, 1]])
+        S = numpy.matrix([[self.scale_s, 0, 0], [0, self.scale_t, 0], [0, 0, 1]])
+        C = numpy.matrix([[1, 0, self.center_s], [0, 1, self.center_t], [0, 0, 1]])
+        T = numpy.matrix([[1, 0, self.translation_s], [0, 1, self.translation_t], [0, 0, 1]])
 
         # Only types 0x00, 0x06, 0x07, 0x08 and 0x09 have been tested
-        if self.matrix_type in {0x00,0x02,0x0A,0x0B,0x80}:
-            P = numpy.matrix([[1,0,0,0],[0,1,0,0],[0,0,0,1]])
+        if self.matrix_type in {0x00, 0x02, 0x0A, 0x0B, 0x80}:
+            P = numpy.matrix([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
         elif self.matrix_type == 0x06:
-            P = numpy.matrix([[0.5,0,0,0.5],[0,-0.5,0,0.5],[0,0,0,1]])
+            P = numpy.matrix([[0.5, 0, 0, 0.5], [0, -0.5, 0, 0.5], [0, 0, 0, 1]])
         elif self.matrix_type == 0x07:
-            P = numpy.matrix([[0.5,0,0.5,0],[0,-0.5,0.5,0],[0,0,1,0]])
-        elif self.matrix_type in {0x08,0x09}:
-            P = numpy.matrix([[0.5,0,0.5,0],[0,-0.5,0.5,0],[0,0,1,0]])*numpy.matrix(self.projection_matrix)
+            P = numpy.matrix([[0.5, 0, 0.5, 0], [0, -0.5, 0.5, 0], [0, 0, 1, 0]])
+        elif self.matrix_type in {0x08, 0x09}:
+            P = numpy.matrix([[0.5, 0, 0.5, 0], [0, -0.5, 0.5, 0], [0, 0, 1, 0]])*numpy.matrix(self.projection_matrix)
         else:
             logger.warning('unknown texture matrix type: %s', self.matrix_type)
-            P = numpy.matrix([[1,0,0,0],[0,1,0,0],[0,0,0,1]])
+            P = numpy.matrix([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
 
         M = T*C*S*R*C.I*P
 
         if self.shape == gx.TG_MTX2x4:
-            return M[:2,:]
+            return M[:2, :]
         elif self.shape == gx.TG_MTX3x4:
             return M
         else:
@@ -291,9 +291,9 @@ class TevCombiner(Struct):
     def unpack(cls, stream):
         tev_combiner = super().unpack(stream)
         if tev_combiner.unknown0 != 0xFF:
-            logger.warning('tev combiner unknown0 different from default')
+            logger.warning('unexpected unknown0 value: %s', tev_combiner.unknown0)
         if tev_combiner.unknown1 != 0xFF:
-            logger.warning('tev combiner unknown1 different from default')
+            logger.warning('unexpected unknown1 value: %s', tev_combiner.unknown1)
         return tev_combiner
 
 
@@ -483,7 +483,7 @@ class UnknownStruct2(Struct):
     def unpack(cls, stream):
         unknown2 = super().unpack(stream)
         if unknown2 != UnknownStruct2():
-            logger.warning('unknown2 different from default')
+            logger.warning('unexpected unknown2 value')
         return unknown2
 
 
@@ -504,7 +504,7 @@ class UnknownStruct5(Struct):
     def unpack(cls, stream):
         unknown5 = super().unpack(stream)
         if unknown5 != UnknownStruct5():
-            logger.warning('unknown5 different from default')
+            logger.warning('unexpected unknown5 value')
         return unknown5
 
 
@@ -596,8 +596,9 @@ class Entry(Struct):
     unknown3 = Array(uint16, 20)
     texture_index_indices = Array(index16, 8)
     kcolor_indices = Array(index16, 4)
-    constant_colors = Array(EnumConverter(uint8, gx.ConstantColor), 16)
-    constant_alphas = Array(EnumConverter(uint8, gx.ConstantAlpha), 16)
+    # Constant color and constant alpha can be 0xFF in SVR0 files
+    constant_colors = Array(EnumConverter(uint8, gx.ConstantColor, default=gx.TEV_KCSEL_1), 16)
+    constant_alphas = Array(EnumConverter(uint8, gx.ConstantAlpha, default=gx.TEV_KASEL_1), 16)
     tev_order_indices = Array(index16, 16)
     tev_color_indices = Array(index16, 3)
     tev_color_previous_index = index16
@@ -661,48 +662,37 @@ class IndirectEntry(Struct):
 
     @classmethod
     def unpack(cls, stream):
-        indirect_entry = super().unpack(stream)
-        if indirect_entry.unknown0 != indirect_entry.unknown1 or indirect_entry.unknown0 not in {0, 1}:
-            raise FormatError('unsuported indirect texture entry unknown0 and unknown1')
-        return indirect_entry
+        entry = super().unpack(stream)
+        if entry.unknown0 != entry.unknown1 or entry.unknown0 not in {0, 1}:
+            logger.warning('unexpected unknown0 and unknown1 values: %s, %s', entry.unknown0, entry.unknown1)
+        return entry
 
 
-class Pool: #<-?
+class Indexer:
 
-    def __init__(self, values=tuple(), equal_predicate=None):
-        self.values = list(values)
-        if equal_predicate is not None:
-            self.equal = equal_predicate
+    def __init__(self):
+        self.keys = []
 
-    def __getitem__(self, value):
-        for i in range(len(self.values)):
-            if self.equal(value, self.values[i]):
+    def __getitem__(self, key):
+        for i, k in enumerate(self.keys):
+            if self.equal_predicate(key, k):
                 return i
-
-        self.values.append(value)
-        return len(self.values) - 1
+        self.keys.append(key)
+        return len(self.keys) - 1
 
     def __iter__(self):
-        yield from self.values
+        yield from self.keys
+
+    def update(self, keys):
+        for key in keys:
+            self[key]
 
     @staticmethod
-    def equal(a, b):
+    def equal_predicate(a, b):
         return a == b
 
 
-class TypedSequence: #<-?
-
-    def __init__(self, element_type, sequence):
-        self.element_type = element_type
-        self.sequence = sequence
-
-    @staticmethod
-    def pack(stream, sequence):
-        for element in sequence.sequence:
-            sequence.element_type.pack(stream, element)
-
-
-class ArrayUnpacker: #<-?
+class ArrayUnpacker:
 
     def __init__(self, stream, offset, element_type):
         self.stream = stream
@@ -714,807 +704,632 @@ class ArrayUnpacker: #<-?
         return self.element_type.unpack(self.stream)
 
 
-def decorator_factory(function):
-    def wrapper(*args, **kwargs):
-        return functools.partial(function, *args, **kwargs)
-    return wrapper
+def load_cull_mode_array(materials, entries):
+    indexer = Indexer()
+    indexer.update([gx.CULL_BACK, gx.CULL_FRONT, gx.CULL_NONE])
+    for material, entry in zip(materials, entries):
+        entry.cull_mode_index = indexer[material.cull_mode]
+    return indexer
 
 
-@decorator_factory
-def pool_load_method(element_type, load_function, **kwargs):
-    def wrapper(materials, entries):
-        pool = Pool(**kwargs)
-        for material, entry in zip(materials, entries):
-            load_function(pool, material, entry)
-        return TypedSequence(element_type, pool)
-    return staticmethod(wrapper)
+def unload_cull_mode_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        if entry.cull_mode_index is not None:
+            material.cull_mode = array[entry.cull_mode_index]
 
 
-@decorator_factory
-def pool_unload_method(element_type, unload_function):
-    def wrapper(stream, offset, materials, entries):
-        array = ArrayUnpacker(stream, offset, element_type) if offset is not None else None
-        for material, entry in zip(materials, entries):
-            unload_function(array, material, entry)
-    return staticmethod(wrapper)
+def load_channel_count_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        entry.channel_count_index = indexer[material.channel_count]
+    return indexer
+
+
+def unload_channel_count_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        if entry.channel_count_index is not None:
+            material.channel_count = array[entry.channel_count_index]
+
+
+def load_material_color_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        for i, channel in enumerate(material.channels):
+            entry.material_color_indices[i] = indexer[channel.material_color]
+    return indexer
+
+
+def unload_material_color_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        for channel, index in zip(material.channels, entry.material_color_indices):
+            if index is not None:
+                channel.material_color = array[index]
+
+
+def load_ambient_color_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        for i, channel in enumerate(material.channels):
+            entry.ambient_color_indices[i] = indexer[channel.ambient_color]
+    return indexer
+
+
+def unload_ambient_color_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        for channel, index in zip(material.channels, entry.ambient_color_indices):
+            if index is not None:
+                channel.ambient_color = array[index]
+
+
+def load_lighting_mode_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        for channel, channel_entry in zip(material.channels, entry.channels):
+            channel_entry.color_mode_index = indexer[channel.color_mode]
+            channel_entry.alpha_mode_index = indexer[channel.alpha_mode]
+    return indexer
+
+
+def unload_lighting_mode_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        for channel, channel_entry in zip(material.channels, entry.channels):
+            if channel_entry.color_mode_index is not None:
+                channel.color_mode = array[channel_entry.color_mode_index]
+            if channel_entry.alpha_mode_index is not None:
+                channel.alpha_mode = array[channel_entry.alpha_mode_index]
+
+
+def load_light_array(materials, entries):
+    indexer = Indexer()
+    for material, entries in zip(materials, entries):
+        for i, light in enumerate(material.lights):
+            if light is not None:
+                entry.light_indices[i] = indexer[light]
+    return indexer
+
+
+def unload_light_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        for i, index in enumerate(entry.light_indices):
+            if index is not None:
+                material.lights[i] = array[index]
+
+
+def load_texcoord_generator_count_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        entry.texcoord_generator_count_index = indexer[material.texcoord_generator_count]
+    return indexer
+
+
+def unload_texcoord_generator_count_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        if entry.texcoord_generator_count_index is not None:
+            material.texcoord_generator_count = array[entry.texcoord_generator_count_index]
+
+
+def load_texcoord_generator_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        for i, generator in enumerate(material.enabled_texcoord_generators):
+            entry.texcoord_generator_indices[i] = indexer[generator]
+    return indexer
+
+
+def unload_texcoord_generator_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        for i, index in enumerate(entry.texcoord_generator_indices):
+            if index is not None:
+                material.texcoord_generators[i] = array[index]
+
+
+def load_unknown2_array(materials, entries):
+    indexer = Indexer()
+    for material, entries in zip(materials, entries):
+        for i, unknown2 in enumerate(material.unknown2):
+            if unknown2 is not None:
+                entry.unknown2_indices[i] = indexer[unknown2]
+    return indexer
+
+
+def unload_unknown2_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        for i, index in enumerate(entry.unknown2_indices):
+            if index is not None:
+                material.unknown2[i] = array[index]
+
+
+def load_texture_matrix_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        # Nintendo seems to pair up texture matrices with texcoord generators
+        # in order, and a matrix is included in the MAT3 section even if it
+        # is not used by the generator. We want to stay as close to what
+        # Nintendo does, but also allow users to assign arbitrary texture
+        # matrices to texcoord generators.
+        use_matrix = [False]*10
+        for generator in material.enabled_texcoord_generators:
+            if generator.matrix != gx.IDENTITY:
+                use_matrix[gx.TEXMTX.index(generator.matrix)] = True
+        for i, matrix in enumerate(material.texture_matrices):
+            if i < material.texcoord_generator_count or use_matrix[i]:
+                entry.texture_matrix_indices[i] = indexer[matrix]
+    return indexer
+
+
+def unload_texture_matrix_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        for i, index in enumerate(entry.texture_matrix_indices):
+            if index is not None:
+                material.texture_matrices[i] = array[index]
+
+
+def load_texture_index_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        for i, index in enumerate(material.texture_indices):
+            if index is not None:
+                entry.texture_index_indices[i] = indexer[index]
+    return indexer
+
+
+def unload_texture_index_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        for i, index in enumerate(entry.texture_index_indices):
+            if index is not None:
+                material.texture_indices[i] = array[index]
+
+
+def load_tev_stage_count_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        entry.tev_stage_count_index = indexer[material.tev_stage_count]
+    return indexer
+
+
+def unload_tev_stage_count_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        if entry.tev_stage_count_index is not None:
+            material.tev_stage_count = array[entry.tev_stage_count_index]
+
+
+def load_tev_order_array(materials, entries):
+    indexer = Indexer()
+    indexer.equal_predicate = TevOrder.__eq__
+    for material, entry in zip(materials, entries):
+        for i, stage in enumerate(material.enabled_tev_stages):
+            entry.tev_order_indices[i] = indexer[stage]
+    return indexer
+
+
+def unload_tev_order_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        for stage, index in zip(material.tev_stages, entry.tev_order_indices):
+            if index is not None:
+                order = array[index]
+                stage.texcoord = order.texcoord
+                stage.texture = order.texture
+                stage.color = order.color
 
 
 def equal_tev_combiner_and_swap_mode(a, b):
     return TevCombiner.__eq__(a, b) and SwapMode.__eq__(a, b)
 
 
-class SectionPacker:
-
-    entry_type = Entry
-
-    def pack(self, stream, materials):
-        entries = [self.entry_type() for _ in range(len(materials))]
-
-        for material, entry in zip(materials, entries):
-            entry.unknown0 = material.unknown0
-            entry.unknown3 = material.unknown3
-            entry.unknown4 = material.unknown4
-            self.load_constant_colors(material, entry)
-            self.load_constant_alphas(material, entry)
-
-        indirect_entries = self.create_indirect_entries(materials)
-
-        def pool(pool_function): #<-?
-            return pool_function(materials, entries)
-
-        cull_mode_pool = pool(self.pool_cull_mode)
-        channel_count_pool = pool(self.pool_channel_count)
-        material_color_pool = pool(self.pool_material_color)
-        ambient_color_pool = pool(self.pool_ambient_color)
-        lighting_mode_pool = pool(self.pool_lighting_mode)
-        light_pool = pool(self.pool_light)
-        texcoord_generator_count_pool = pool(self.pool_texcoord_generator_count)
-        texcoord_generator_pool = pool(self.pool_texcoord_generator)
-        unknown2_pool = pool(self.pool_unknown2)
-        texture_matrix_pool = pool(self.pool_texture_matrix)
-        texture_index_pool = pool(self.pool_texture_index)
-        tev_stage_count_pool = pool(self.pool_tev_stage_count)
-        tev_order_pool = pool(self.pool_tev_order)
-        tev_combiner_pool = pool(self.pool_tev_combiner)
-        swap_mode_pool = pool(self.pool_swap_mode)
-        tev_color_pool = pool(self.pool_tev_color)
-        kcolor_pool = pool(self.pool_kcolor)
-        swap_table_pool = pool(self.pool_swap_table)
-        fog_pool = pool(self.pool_fog)
-        alpha_test_pool = pool(self.pool_alpha_test)
-        blend_mode_pool = pool(self.pool_blend_mode)
-        depth_mode_pool = pool(self.pool_depth_mode)
-        depth_test_early_pool = pool(self.pool_depth_test_early)
-        dither_pool = pool(self.pool_dither)
-        unknown5_pool = pool(self.pool_unknown5)
-
-        entry_pool = Pool()
-        entry_indices = [entry_pool[entry] for entry in entries]
-
-        base = stream.tell()
-        header = Header()
-        header.material_count = len(materials)
-        stream.write(b'\x00'*Header.sizeof())
-
-        header.entry_offset = stream.tell() - base
-        for entry in entry_pool:
-            self.entry_type.pack(stream, entry)
-
-        header.entry_index_offset = stream.tell() - base
-        for index in entry_indices:
-            uint16.pack(stream, index)
-
-        align(stream, 4)
-        header.name_offset = stream.tell() - base
-        j3d.string_table.pack(stream, (material.name for material in materials))
-
-        def pack_pool(pool): #<-?
-            if pool is None: return None
-            offset = stream.tell() - base
-            TypedSequence.pack(stream, pool)
-            return offset
-
-        align(stream, 4)
-        header.indirect_entry_offset = pack_pool(indirect_entries)
-
-        align(stream, 4)
-        header.cull_mode_offset = pack_pool(cull_mode_pool)
-        header.material_color_offset = pack_pool(material_color_pool)
-        header.channel_count_offset = pack_pool(channel_count_pool)
-        align(stream, 4)
-        header.lighting_mode_offset = pack_pool(lighting_mode_pool)
-        header.ambient_color_offset = pack_pool(ambient_color_pool)
-        header.light_offset = pack_pool(light_pool)
-        header.texcoord_generator_count_offset = pack_pool(texcoord_generator_count_pool)
-        align(stream, 4)
-        header.texcoord_generator_offset = pack_pool(texcoord_generator_pool)
-        header.unknown2_offset = pack_pool(unknown2_pool)
-        header.texture_matrix_offset = pack_pool(texture_matrix_pool)
-        header.texture_index_offset = pack_pool(texture_index_pool)
-        align(stream, 4)
-        header.tev_order_offset = pack_pool(tev_order_pool)
-        header.tev_color_offset = pack_pool(tev_color_pool)
-        header.kcolor_offset = pack_pool(kcolor_pool)
-        header.tev_stage_count_offset = pack_pool(tev_stage_count_pool)
-        align(stream, 4)
-        header.tev_combiner_offset = pack_pool(tev_combiner_pool)
-        header.swap_mode_offset = pack_pool(swap_mode_pool)
-        header.swap_table_offset = pack_pool(swap_table_pool)
-        header.fog_offset = pack_pool(fog_pool)
-        header.alpha_test_offset = pack_pool(alpha_test_pool)
-        header.blend_mode_offset = pack_pool(blend_mode_pool)
-        header.depth_mode_offset = pack_pool(depth_mode_pool)
-        header.depth_test_early_offset = pack_pool(depth_test_early_pool)
-        align(stream, 4)
-        header.dither_offset = pack_pool(dither_pool)
-        align(stream, 4)
-        header.unknown5_offset = pack_pool(unknown5_pool)
-
-        align(stream, 0x20)
-        header.section_size = stream.tell() - base
-        stream.seek(base)
-        Header.pack(stream, header)
-        stream.seek(base + header.section_size)
-
-    def load_constant_colors(self, material, entry):
-        for i, stage in enumerate(material.tev_stages):
-            entry.constant_colors[i] = stage.constant_color
-
-    def load_constant_alphas(self, material, entry):
-        for i, stage in enumerate(material.tev_stages):
-            entry.constant_alphas[i] = stage.constant_alpha
-
-    def create_indirect_entries(self, materials):
-        return TypedSequence(IndirectEntry, [self.create_indirect_entry(material) for material in materials])
-
-    def create_indirect_entry(self, material):
-        entry = IndirectEntry()
-
-        entry.unknown0 = material.indirect_stage_count
-        entry.unknown1 = material.indirect_stage_count
-
-        for stage, tev_indirect in zip(material.tev_stages, entry.tev_indirects):
-            tev_indirect.indirect_stage = stage.indirect_stage
-            tev_indirect.indirect_format = stage.indirect_format
-            tev_indirect.indirect_bias_components = stage.indirect_bias_components
-            tev_indirect.indirect_matrix = stage.indirect_matrix
-            tev_indirect.wrap_s = stage.wrap_s
-            tev_indirect.wrap_t = stage.wrap_t
-            tev_indirect.add_previous_texcoord = stage.add_previous_texcoord
-            tev_indirect.use_original_lod = stage.use_original_lod
-            tev_indirect.bump_alpha = stage.bump_alpha
-
-        for stage, order in zip(material.indirect_stages, entry.indirect_orders):
-            order.texcoord = stage.texcoord
-            order.texture = stage.texture
-
-        for stage, texcoord_scale in zip(material.indirect_stages, entry.indirect_texcoord_scales):
-            texcoord_scale.scale_s = stage.scale_s
-            texcoord_scale.scale_t = stage.scale_t
-
-        entry.indirect_matrices = material.indirect_matrices
-
-        return entry
-
-    @pool_load_method(EnumConverter(uint32, gx.CullMode), values=(gx.CULL_BACK, gx.CULL_FRONT, gx.CULL_NONE))
-    def pool_cull_mode(pool, material, entry):
-        entry.cull_mode_index = pool[material.cull_mode]
-
-    @pool_load_method(uint8)
-    def pool_channel_count(pool, material, entry):
-        entry.channel_count_index = pool[material.channel_count]
-
-    @pool_load_method(Color)
-    def pool_material_color(pool, material, entry):
-        for i, channel in enumerate(material.channels):
-            entry.material_color_indices[i] = pool[channel.material_color]
-
-    @pool_load_method(Color)
-    def pool_ambient_color(pool, material, entry):
-        for i, channel in enumerate(material.channels):
-            entry.ambient_color_indices[i] = pool[channel.ambient_color]
-
-    @pool_load_method(LightingMode)
-    def pool_lighting_mode(pool, material, entry):
-        for channel, channel_entry in zip(material.channels, entry.channels):
-            channel_entry.color_mode_index = pool[channel.color_mode]
-            channel_entry.alpha_mode_index = pool[channel.alpha_mode]
-
-    @pool_load_method(Light)
-    def pool_light(pool, material, entry):
-        for i, light in enumerate(material.lights):
-            if light is None: continue
-            entry.light_indices[i] = pool[light]
-
-    @pool_load_method(uint8)
-    def pool_texcoord_generator_count(pool, material, entry):
-        entry.texcoord_generator_count_index = pool[material.texcoord_generator_count]
-
-    @pool_load_method(TexCoordGenerator)
-    def pool_texcoord_generator(pool, material, entry):
-        for i, generator in enumerate(material.enabled_texcoord_generators):
-            entry.texcoord_generator_indices[i] = pool[generator]
-
-    @pool_load_method(UnknownStruct2)
-    def pool_unknown2(pool, material, entry):
-        for i, unknown2 in enumerate(material.unknown2):
-            if unknown2 is None: continue
-            entry.unknown2_indices[i] = pool[unknown2]
-
-    @pool_load_method(TextureMatrix)
-    def pool_texture_matrix(pool, material, entry):
-        # Nintendo seems to pair up texture matrices with texcoord generators in
-        # order, and a matrix is included in the MAT3 section even if it is not
-        # used by the generator. We want to stay as close to what Nintendo does,
-        # but also allow users to assign arbitrary texture matrices to texcoord
-        # generators.
-        use_matrix = [False]*10
-        for generator in material.enabled_texcoord_generators:
-            if generator.matrix != gx.IDENTITY:
-                use_matrix[gx.TEXMTX.index(generator.matrix)] = True
-        for i, matrix in enumerate(material.texture_matrices):
-            if i >= material.texcoord_generator_count and not use_matrix[i]:
-                continue
-            entry.texture_matrix_indices[i] = pool[matrix]
-
-    @pool_load_method(uint16)
-    def pool_texture_index(pool, material, entry):
-        for i, index in enumerate(material.texture_indices):
-            if index is None: continue
-            entry.texture_index_indices[i] = pool[index]
-
-    @pool_load_method(uint8)
-    def pool_tev_stage_count(pool, material, entry):
-        entry.tev_stage_count_index = pool[material.tev_stage_count]
-
-    @pool_load_method(TevOrder, equal_predicate=TevOrder.__eq__)
-    def pool_tev_order(pool, material, entry):
+def load_tev_combiner_array(materials, entries):
+    indexer = Indexer()
+    # It looks like tev combiner and swap mode are indexed together for some reason
+    indexer.equal_predicate = equal_tev_combiner_and_swap_mode
+    for material, entry in zip(materials, entries):
         for i, stage in enumerate(material.enabled_tev_stages):
-            entry.tev_order_indices[i] = pool[stage]
+            entry.tev_combiner_indices[i] = indexer[stage]
+    return indexer
 
-    @pool_load_method(TevCombiner, equal_predicate=equal_tev_combiner_and_swap_mode)
-    def pool_tev_combiner(pool, material, entry):
+
+def unload_tev_combiner_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        for stage, index in zip(material.tev_stages, entry.tev_combiner_indices):
+            if index is not None:
+                combiner = array[index]
+                stage.unknown0 = combiner.unknown0
+                stage.color_mode = combiner.color_mode
+                stage.alpha_mode = combiner.alpha_mode
+                stage.unknown1 = combiner.unknown1
+
+
+def load_swap_mode_array(materials, entries):
+    indexer = Indexer()
+    # It looks like tev combiner and swap mode are indexed together for some reason
+    indexer.equal_predicate = equal_tev_combiner_and_swap_mode
+    for material, entry in zip(materials, entries):
         for i, stage in enumerate(material.enabled_tev_stages):
-            entry.tev_combiner_indices[i] = pool[stage]
+            entry.swap_mode_indices[i] = indexer[stage]
+    return indexer
 
-    @pool_load_method(SwapMode, equal_predicate=equal_tev_combiner_and_swap_mode)
-    def pool_swap_mode(pool, material, entry):
-        for i, stage in enumerate(material.enabled_tev_stages):
-            entry.swap_mode_indices[i] = pool[stage]
 
-    @pool_load_method(ColorS16)
-    def pool_tev_color(pool, material, entry):
+def unload_swap_mode_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        for stage, index in zip(material.tev_stages, entry.swap_mode_indices):
+            if index is not None:
+                swap_mode = array[index]
+                stage.color_swap_table = swap_mode.color_swap_table
+                stage.texture_swap_table = swap_mode.texture_swap_table
+
+
+def load_tev_color_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
         for i, color in enumerate(material.tev_colors):
-            entry.tev_color_indices[i] = pool[color]
-
-        entry.tev_color_previous_index = pool[material.tev_color_previous]
-
-    @pool_load_method(Color)
-    def pool_kcolor(pool, material, entry):
-        for i, color in enumerate(material.kcolors):
-            entry.kcolor_indices[i] = pool[color]
-
-    @pool_load_method(SwapTable)
-    def pool_swap_table(pool, material, entry):
-        for i, table in enumerate(material.swap_tables):
-            entry.swap_table_indices[i] = pool[table]
-
-    @pool_load_method(Fog)
-    def pool_fog(pool, material, entry):
-        entry.fog_index = pool[material.fog]
-
-    @pool_load_method(AlphaTest)
-    def pool_alpha_test(pool, material, entry):
-        entry.alpha_test_index = pool[material.alpha_test]
-
-    @pool_load_method(BlendMode)
-    def pool_blend_mode(pool, material, entry):
-        entry.blend_mode_index = pool[material.blend_mode]
-
-    @pool_load_method(DepthMode)
-    def pool_depth_mode(pool, material, entry):
-        entry.depth_mode_index = pool[material.depth_mode]
-
-    @pool_load_method(bool8, values=(False, True))
-    def pool_depth_test_early(pool, material, entry):
-        entry.depth_test_early_index = pool[material.depth_test_early]
-
-    @pool_load_method(bool8, values=(False, True))
-    def pool_dither(pool, material, entry):
-        entry.dither_index = pool[material.dither]
-
-    @pool_load_method(UnknownStruct5)
-    def pool_unknown5(pool, material, entry):
-        entry.unknown5_index = pool[material.unknown5]
+            entry.tev_color_indices[i] = indexer[color]
+        entry.tev_color_previous_index = indexer[material.tev_color_previous]
+    return indexer
 
 
-class SectionUnpacker:
-
-    entry_type = Entry
-
-    def unpack(self, stream):
-        base = stream.tell()
-        header = Header.unpack(stream)
-
-        materials = [Material() for _ in range(header.material_count)]
-
-        stream.seek(base + header.entry_index_offset)
-        entry_indices = [uint16.unpack(stream) for _ in range(header.material_count)]
-
-        entry_count = max(entry_indices) + 1
-        stream.seek(base + header.entry_offset)
-        entries = [self.entry_type.unpack(stream) for _ in range(entry_count)]
-        entries = [entries[i] for i in entry_indices]
-
-        for material, entry in zip(materials, entries):
-            material.unknown0 = entry.unknown0
-            material.unknown3 = entry.unknown3
-            material.unknown4 = entry.unknown4
-            self.unload_constant_colors(material, entry)
-            self.unload_constant_alphas(material, entry)
-
-        stream.seek(base + header.name_offset)
-        names = j3d.string_table.unpack(stream)
-        for material, name in zip(materials, names):
-            material.name = name
-
-        def unpack_pool(offset, unpack_function): #<-?
-            unpack_function(stream, base + offset if offset is not None else None, materials, entries)
-
-        unpack_pool(header.indirect_entry_offset, self.unpack_indirect_entry)
-
-        unpack_pool(header.cull_mode_offset, self.unpack_cull_mode)
-        unpack_pool(header.channel_count_offset, self.unpack_channel_count)
-        unpack_pool(header.material_color_offset, self.unpack_material_color)
-        unpack_pool(header.ambient_color_offset, self.unpack_ambient_color)
-        unpack_pool(header.lighting_mode_offset, self.unpack_lighting_mode)
-        unpack_pool(header.light_offset, self.unpack_light)
-        unpack_pool(header.texcoord_generator_count_offset, self.unpack_texcoord_generator_count)
-        unpack_pool(header.texcoord_generator_offset, self.unpack_texcoord_generator)
-        unpack_pool(header.unknown2_offset, self.unpack_unknown2)
-        unpack_pool(header.texture_matrix_offset, self.unpack_texture_matrix)
-        unpack_pool(header.texture_index_offset, self.unpack_texture_index)
-        unpack_pool(header.tev_stage_count_offset, self.unpack_tev_stage_count)
-        unpack_pool(header.tev_order_offset, self.unpack_tev_order)
-        unpack_pool(header.tev_combiner_offset, self.unpack_tev_combiner)
-        unpack_pool(header.swap_mode_offset, self.unpack_swap_mode)
-        unpack_pool(header.tev_color_offset, self.unpack_tev_color)
-        unpack_pool(header.kcolor_offset, self.unpack_kcolor)
-        unpack_pool(header.swap_table_offset, self.unpack_swap_table)
-        unpack_pool(header.fog_offset, self.unpack_fog)
-        unpack_pool(header.alpha_test_offset, self.unpack_alpha_test)
-        unpack_pool(header.blend_mode_offset, self.unpack_blend_mode)
-        unpack_pool(header.depth_mode_offset, self.unpack_depth_mode)
-        unpack_pool(header.depth_test_early_offset, self.unpack_depth_test_early)
-        unpack_pool(header.dither_offset, self.unpack_dither)
-        unpack_pool(header.unknown5_offset, self.unpack_unknown5)
-
-        stream.seek(base + header.section_size)
-        return materials
-
-    def unload_constant_colors(self, material, entry):
-        for stage, constant_color in zip(material.tev_stages, entry.constant_colors):
-            stage.constant_color = constant_color
-
-    def unload_constant_alphas(self, material, entry):
-        for stage, constant_alpha in zip(material.tev_stages, entry.constant_alphas):
-            stage.constant_alpha = constant_alpha
-
-    def unpack_indirect_entry(self, stream, offset, materials, entries):
-        stream.seek(offset)
-        for material in materials:
-            self.unload_indirect_entry(material, IndirectEntry.unpack(stream))
-
-    def unload_indirect_entry(self, material, entry):
-        material.indirect_stage_count = entry.unknown0
-
-        for tev_stage, tev_indirect in zip(material.tev_stages, entry.tev_indirects):
-            tev_stage.indirect_stage = tev_indirect.indirect_stage
-            tev_stage.indirect_format = tev_indirect.indirect_format
-            tev_stage.indirect_bias_components = tev_indirect.indirect_bias_components
-            tev_stage.indirect_matrix = tev_indirect.indirect_matrix
-            tev_stage.wrap_s = tev_indirect.wrap_s
-            tev_stage.wrap_t = tev_indirect.wrap_t
-            tev_stage.add_previous_texcoord = tev_indirect.add_previous_texcoord
-            tev_stage.use_original_lod = tev_indirect.use_original_lod
-            tev_stage.bump_alpha = tev_indirect.bump_alpha
-
-        for indirect_stage, indirect_order in zip(material.indirect_stages, entry.indirect_orders):
-            indirect_stage.texcoord = indirect_order.texcoord
-            indirect_stage.texture = indirect_order.texture
-
-        for indirect_stage, indirect_texcoord_scale in zip(material.indirect_stages, entry.indirect_texcoord_scales):
-            indirect_stage.scale_s = indirect_texcoord_scale.scale_s
-            indirect_stage.scale_t = indirect_texcoord_scale.scale_t
-
-        material.indirect_matrices = entry.indirect_matrices
-
-    @pool_unload_method(EnumConverter(uint32, gx.CullMode))
-    def unpack_cull_mode(array, material, entry):
-        material.cull_mode = array[entry.cull_mode_index]
-
-    @pool_unload_method(uint8)
-    def unpack_channel_count(array, material, entry):
-        material.channel_count = array[entry.channel_count_index]
-
-    @pool_unload_method(Color)
-    def unpack_material_color(array, material, entry):
-        for channel, index in zip(material.channels, entry.material_color_indices):
-            channel.material_color = array[index]
-
-    @pool_unload_method(Color)
-    def unpack_ambient_color(array, material, entry):
-        for channel, index in zip(material.channels, entry.ambient_color_indices):
-            channel.ambient_color = array[index]
-
-    @pool_unload_method(LightingMode)
-    def unpack_lighting_mode(array, material, entry):
-        for channel, channel_entry in zip(material.channels, entry.channels):
-            channel.color_mode = array[channel_entry.color_mode_index]
-            channel.alpha_mode = array[channel_entry.alpha_mode_index]
-
-    @pool_unload_method(Light)
-    def unpack_light(array, material, entry):
-        for i, index in enumerate(entry.light_indices):
-            if index is None: continue
-            material.lights[i] = array[index]
-
-    @pool_unload_method(uint8)
-    def unpack_texcoord_generator_count(array, material, entry):
-        material.texcoord_generator_count = array[entry.texcoord_generator_count_index]
-
-    @pool_unload_method(TexCoordGenerator)
-    def unpack_texcoord_generator(array, material, entry):
-        for i in range(material.texcoord_generator_count):
-            material.texcoord_generators[i] = array[entry.texcoord_generator_indices[i]]
-
-    @pool_unload_method(UnknownStruct2)
-    def unpack_unknown2(array, material, entry):
-        for i, index in enumerate(entry.unknown2_indices):
-            if index is None: continue
-            material.unknown2[i] = array[index]
-
-    @pool_unload_method(TextureMatrix)
-    def unpack_texture_matrix(array, material, entry):
-        for i, index in enumerate(entry.texture_matrix_indices):
-            if index is None: continue
-            material.texture_matrices[i] = array[index]
-
-    @pool_unload_method(uint16)
-    def unpack_texture_index(array, material, entry):
-        for i, index in enumerate(entry.texture_index_indices):
-            if index is None: continue
-            material.texture_indices[i] = array[index]
-
-    @pool_unload_method(uint8)
-    def unpack_tev_stage_count(array, material, entry):
-        material.tev_stage_count = array[entry.tev_stage_count_index]
-
-    @pool_unload_method(TevOrder)
-    def unpack_tev_order(array, material, entry):
-        for stage, index in zip(material.enabled_tev_stages, entry.tev_order_indices):
-            tev_order = array[index]
-            stage.texcoord = tev_order.texcoord
-            stage.texture = tev_order.texture
-            stage.color = tev_order.color
-
-    @pool_unload_method(TevCombiner)
-    def unpack_tev_combiner(array, material, entry):
-        for stage, index in zip(material.enabled_tev_stages, entry.tev_combiner_indices):
-            tev_combiner = array[index]
-            stage.unknown0 = tev_combiner.unknown0
-            stage.color_mode = tev_combiner.color_mode
-            stage.alpha_mode = tev_combiner.alpha_mode
-            stage.unknown1 = tev_combiner.unknown1
-
-    @pool_unload_method(SwapMode)
-    def unpack_swap_mode(array, material, entry):
-        for stage, index in zip(material.enabled_tev_stages, entry.swap_mode_indices):
-            swap_mode = array[index]
-            stage.color_swap_table = swap_mode.color_swap_table
-            stage.texture_swap_table = swap_mode.texture_swap_table
-
-    @pool_unload_method(ColorS16)
-    def unpack_tev_color(array, material, entry):
+def unload_tev_color_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
         for i, index in enumerate(entry.tev_color_indices):
-            material.tev_colors[i] = array[index]
-
-        material.tev_color_previous = array[entry.tev_color_previous_index]
-
-    @pool_unload_method(Color)
-    def unpack_kcolor(array, material, entry):
-        for i, index in enumerate(entry.kcolor_indices):
-            material.kcolors[i] = array[index]
-
-    @pool_unload_method(SwapTable)
-    def unpack_swap_table(array, material, entry):
-        for i, index in enumerate(entry.swap_table_indices):
-            material.swap_tables[i] = array[index]
-
-    @pool_unload_method(Fog)
-    def unpack_fog(array, material, entry):
-        material.fog = array[entry.fog_index]
-
-    @pool_unload_method(AlphaTest)
-    def unpack_alpha_test(array, material, entry):
-        material.alpha_test = array[entry.alpha_test_index]
-
-    @pool_unload_method(BlendMode)
-    def unpack_blend_mode(array, material, entry):
-        material.blend_mode = array[entry.blend_mode_index]
-
-    @pool_unload_method(DepthMode)
-    def unpack_depth_mode(array, material, entry):
-        material.depth_mode = array[entry.depth_mode_index]
-
-    @pool_unload_method(bool8)
-    def unpack_depth_test_early(array, material, entry):
-        material.depth_test_early = array[entry.depth_test_early_index]
-
-    @pool_unload_method(bool8)
-    def unpack_dither(array, material, entry):
-        material.dither = array[entry.dither_index]
-
-    @pool_unload_method(UnknownStruct5)
-    def unpack_unknown5(array, material, entry):
-        material.unknown5 = array[entry.unknown5_index]
-
-
-class AmbientSourceSVR0:
-
-    @staticmethod
-    def pack(stream, value):
-        uint8.pack(stream, 0xFF)
-
-    @staticmethod
-    def unpack(stream):
-        if uint8.unpack(stream) != 0xFF:
-            raise FormatError('invalid ambient source for SVR0')
-        return gx.SRC_REG
-
-    @staticmethod
-    def sizeof():
-        return uint8.sizeof()
-
-
-class ConstantColorSVR0:
-
-    @staticmethod
-    def pack(stream, value):
-        uint8.pack(stream, value if value is not None else 0xFF)
-
-    @staticmethod
-    def unpack(stream):
-        value = uint8.unpack(stream)
-        return gx.ConstantColor(value) if value != 0xFF else gx.TEV_KCSEL_1
-
-    @staticmethod
-    def sizeof():
-        return uint8.sizeof()
-
-
-class ConstantAlphaSVR0:
-
-    @staticmethod
-    def pack(stream, value):
-        uint8.pack(stream, value if value is not None else 0xFF)
-
-    @staticmethod
-    def unpack(stream):
-        value = uint8.unpack(stream)
-        return gx.ConstantAlpha(value) if value != 0xFF else gx.TEV_KASEL_1
-
-    @staticmethod
-    def sizeof():
-        return uint8.sizeof()
-
-
-class LightingModeSVR0(LightingMode, replace_fields=True):
-    ambient_source = AmbientSourceSVR0
-
-
-class EntrySVR0(Entry, replace_fields=True):
-    constant_colors = Array(ConstantColorSVR0, 16)
-    constant_alphas = Array(ConstantAlphaSVR0, 16)
-
-    def __init__(self):
-        super().__init__()
-        self.kcolor_indices = [0, 1, 2, 3]
-        self.constant_colors = [None]*16
-        self.constant_alphas = [None]*16
-
-    @classmethod
-    def unpack(cls, stream):
-        entry = super().unpack(stream)
-
-        if entry.ambient_color_indices != [None]*2:
-            raise FormatError('invalid ambient color indices for SVR0')
-        if entry.light_indices != [None]*8:
-            raise FormatError('invalid light indices for SVR0')
-        if entry.unknown2_indices != [None]*8:
-            raise FormatError('invalid unknown2 indices for SVR0')
-        if entry.texture_matrix_indices != [None]*10:
-            raise FormatError('invalid texture matrix indices for SVR0')
-        if entry.swap_mode_indices != [None]*16:
-            raise FormatError('invalid swap mode indices for SVR0')
-        if entry.tev_color_indices != [None]*3:
-            raise FormatError('invalid tev color indices for SVR0')
+            if index is not None:
+                material.tev_colors[i] = array[index]
         if entry.tev_color_previous_index is not None:
-            raise FormatError('invalid tev color previous index for SVR0')
-        if entry.kcolor_indices != [0, 1, 2, 3]:
-            raise FormatError('invalid kcolor indices for SVR0')
-        if entry.swap_table_indices != [None]*4:
-            raise FormatError('invalid swap table indices for SVR0')
+            material.tev_color_previous = array[entry.tev_color_previous_index]
+
+
+def load_kcolor_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        for i, color in enumerate(material.kcolors):
+            entry.kcolor_indices[i] = indexer[color]
+    return indexer
+
+
+def unload_kcolor_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        for i, index in enumerate(entry.kcolor_indices):
+            if index is not None:
+                material.kcolors[i] = array[index]
+
+
+def load_swap_table_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        for i, table in enumerate(material.swap_tables):
+            entry.swap_table_indices[i] = indexer[table]
+    return indexer
+
+
+def unload_swap_table_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        for i, index in enumerate(entry.swap_table_indices):
+            if index is not None:
+                material.swap_tables[i] = array[index]
+
+
+def load_fog_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        entry.fog_index = indexer[material.fog]
+    return indexer
+
+
+def unload_fog_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
         if entry.fog_index is not None:
-            raise FormatError('invalid fog index  for SVR0')
+            material.fog = array[entry.fog_index]
+
+
+def load_alpha_test_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        entry.alpha_test_index = indexer[material.alpha_test]
+    return indexer
+
+
+def unload_alpha_test_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        if entry.alpha_test_index is not None:
+            material.alpha_test = array[entry.alpha_test_index]
+
+
+def load_blend_mode_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        entry.blend_mode_index = indexer[material.blend_mode]
+    return indexer
+
+
+def unload_blend_mode_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        if entry.blend_mode_index is not None:
+            material.blend_mode = array[entry.blend_mode_index]
+
+
+def load_depth_mode_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        entry.depth_mode_index = indexer[material.depth_mode]
+    return indexer
+
+
+def unload_depth_mode_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        if entry.depth_mode_index is not None:
+            material.depth_mode = array[entry.depth_mode_index]
+
+
+def load_depth_test_early_array(materials, entries):
+    indexer = Indexer()
+    indexer.update([False, True])
+    for material, entry in zip(materials, entries):
+        entry.depth_test_early_index = indexer[material.depth_test_early]
+    return indexer
+
+
+def unload_depth_test_early_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
+        if entry.depth_test_early_index is not None:
+            material.depth_test_early = array[entry.depth_test_early_index]
+
+
+def load_dither_array(materials, entries):
+    indexer = Indexer()
+    indexer.update([False, True])
+    for material, entry in zip(materials, entries):
+        entry.dither_index = indexer[material.dither]
+    return indexer
+
+
+def unload_dither_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
         if entry.dither_index is not None:
-            raise FormatError('invalid dither index for SVR0')
+            material.dither = array[entry.dither_index]
+
+
+def load_unknown5_array(materials, entries):
+    indexer = Indexer()
+    for material, entry in zip(materials, entries):
+        entry.unknown5_index = indexer[material.unknown5]
+    return indexer
+
+
+def unload_unknown5_array(materials, entries, array):
+    for material, entry in zip(materials, entries):
         if entry.unknown5_index is not None:
-            raise FormatError('invalid unknown5 index for SVR0')
-
-        if entry.unknown3 != [0xFFFF]*20:
-            logger.warning('unknown3 different from default for SVR0')
-
-        return entry
+            material.unknown5 = array[entry.unknown5_index]
 
 
-class SectionPackerSVR0(SectionPacker):
+def load_indirect_entry(material):
+    entry = IndirectEntry()
 
-    entry_type = EntrySVR0
+    entry.unknown0 = material.indirect_stage_count
+    entry.unknown1 = material.indirect_stage_count
 
-    def load_constant_colors(self, material, entry):
-        for i, stage in enumerate(material.enabled_tev_stages):
+    for stage, tev_indirect in zip(material.tev_stages, entry.tev_indirects):
+        tev_indirect.indirect_stage = stage.indirect_stage
+        tev_indirect.indirect_format = stage.indirect_format
+        tev_indirect.indirect_bias_components = stage.indirect_bias_components
+        tev_indirect.indirect_matrix = stage.indirect_matrix
+        tev_indirect.wrap_s = stage.wrap_s
+        tev_indirect.wrap_t = stage.wrap_t
+        tev_indirect.add_previous_texcoord = stage.add_previous_texcoord
+        tev_indirect.use_original_lod = stage.use_original_lod
+        tev_indirect.bump_alpha = stage.bump_alpha
+
+    for stage, order in zip(material.indirect_stages, entry.indirect_orders):
+        order.texcoord = stage.texcoord
+        order.texture = stage.texture
+
+    for stage, texcoord_scale in zip(material.indirect_stages, entry.indirect_texcoord_scales):
+        texcoord_scale.scale_s = stage.scale_s
+        texcoord_scale.scale_t = stage.scale_t
+
+    entry.indirect_matrices = material.indirect_matrices
+
+    return entry
+
+
+def unload_indirect_entry(material, entry):
+    material.indirect_stage_count = entry.unknown0
+
+    for stage, tev_indirect in zip(material.tev_stages, entry.tev_indirects):
+        stage.indirect_stage = tev_indirect.indirect_stage
+        stage.indirect_format = tev_indirect.indirect_format
+        stage.indirect_bias_components = tev_indirect.indirect_bias_components
+        stage.indirect_matrix = tev_indirect.indirect_matrix
+        stage.wrap_s = tev_indirect.wrap_s
+        stage.wrap_t = tev_indirect.wrap_t
+        stage.add_previous_texcoord = tev_indirect.add_previous_texcoord
+        stage.use_original_lod = tev_indirect.use_original_lod
+        stage.bump_alpha = tev_indirect.bump_alpha
+
+    for stage, order in zip(material.indirect_stages, entry.indirect_orders):
+        stage.texcoord = order.texcoord
+        stage.texture = order.texture
+
+    for stage, texcoord_scale in zip(material.indirect_stages, entry.indirect_texcoord_scales):
+        stage.scale_s = texcoord_scale.scale_s
+        stage.scale_t = texcoord_scale.scale_t
+
+    material.indirect_matrices = entry.indirect_matrices
+
+
+def pack(stream, materials):
+    entries = [Entry() for _ in materials]
+
+    for material, entry in zip(materials, entries):
+        for i, stage in enumerate(material.tev_stages):
             entry.constant_colors[i] = stage.constant_color
-
-    def load_constant_alphas(self, material, entry):
-        for i, stage in enumerate(material.enabled_tev_stages):
             entry.constant_alphas[i] = stage.constant_alpha
+        entry.unknown0 = material.unknown0
+        entry.unknown3 = material.unknown3
+        entry.unknown4 = material.unknown4
 
-    def create_indirect_entries(self, materials):
-        return None
+    def _l(load_function):
+        return load_function(materials, entries)
 
-    def pool_ambient_color(self, materials, entries):
-        return None
+    cull_mode_array = _l(load_cull_mode_array)
+    channel_count_array = _l(load_channel_count_array)
+    material_color_array = _l(load_material_color_array)
+    ambient_color_array = _l(load_ambient_color_array)
+    lighting_mode_array = _l(load_lighting_mode_array)
+    light_array = _l(load_light_array)
+    texcoord_generator_count_array = _l(load_texcoord_generator_count_array)
+    texcoord_generator_array = _l(load_texcoord_generator_array)
+    unknown2_array = _l(load_unknown2_array)
+    texture_matrix_array = _l(load_texture_matrix_array)
+    texture_index_array = _l(load_texture_index_array)
+    tev_stage_count_array = _l(load_tev_stage_count_array)
+    tev_order_array = _l(load_tev_order_array)
+    tev_combiner_array = _l(load_tev_combiner_array)
+    swap_mode_array = _l(load_swap_mode_array)
+    tev_color_array = _l(load_tev_color_array)
+    kcolor_array = _l(load_kcolor_array)
+    swap_table_array = _l(load_swap_table_array)
+    fog_array = _l(load_fog_array)
+    alpha_test_array = _l(load_alpha_test_array)
+    blend_mode_array = _l(load_blend_mode_array)
+    depth_mode_array = _l(load_depth_mode_array)
+    depth_test_early_array = _l(load_depth_test_early_array)
+    dither_array = _l(load_dither_array)
+    unknown5_array = _l(load_unknown5_array)
 
-    def pool_light(self, materials, entries):
-        return None
+    entry_indexer = Indexer()
+    entry_indices = [entry_indexer[entry] for entry in entries]
 
-    def pool_unknown2(self, materials, entries):
-        return None
+    base = stream.tell()
+    header = Header()
+    header.material_count = len(materials)
+    stream.write(b'\x00'*Header.sizeof())
 
-    def pool_texture_matrix(self, materials, entries):
-        return None
+    header.entry_offset = stream.tell() - base
+    for entry in entry_indexer:
+        Entry.pack(stream, entry)
 
-    def pool_swap_mode(self, materials, entries):
-        return None
+    header.entry_index_offset = stream.tell() - base
+    for index in entry_indices:
+        uint16.pack(stream, index)
 
-    def pool_tev_color(self, materials, entries):
-        return None
+    align(stream, 4)
+    header.name_offset = stream.tell() - base
+    j3d.string_table.pack(stream, (material.name for material in materials))
 
-    def pool_swap_table(self, materials, entries):
-        return None
+    align(stream, 4)
+    header.indirect_entry_offset = stream.tell() - base
+    for material in materials:
+        indirect_entry = load_indirect_entry(material)
+        IndirectEntry.pack(stream, indirect_entry)
 
-    def pool_fog(self, materials, entries):
-        return None
+    def _p(array, element_type):
+        offset = stream.tell() - base
+        for element in array:
+            element_type.pack(stream, element)
+        return offset
 
-    def pool_dither(self, materials, entries):
-        return None
+    align(stream, 4)
+    header.cull_mode_offset = _p(cull_mode_array, EnumConverter(uint32, gx.CullMode))
+    header.material_color_offset = _p(material_color_array, Color)
+    header.channel_count_offset = _p(channel_count_array, uint8)
+    align(stream, 4)
+    header.lighting_mode_offset = _p(lighting_mode_array, LightingMode)
+    header.ambient_color_offset = _p(ambient_color_array, Color)
+    header.light_offset = _p(light_array, Light)
+    header.texcoord_generator_count_offset = _p(texcoord_generator_count_array, uint8)
+    align(stream, 4)
+    header.texcoord_generator_offset = _p(texcoord_generator_array, TexCoordGenerator)
+    header.unknown2_offset = _p(unknown2_array, UnknownStruct2)
+    header.texture_matrix_offset = _p(texture_matrix_array, TextureMatrix)
+    header.texture_index_offset = _p(texture_index_array, uint16)
+    align(stream, 4)
+    header.tev_order_offset = _p(tev_order_array, TevOrder)
+    header.tev_color_offset = _p(tev_color_array, ColorS16)
+    header.kcolor_offset = _p(kcolor_array, Color)
+    header.tev_stage_count_offset = _p(tev_stage_count_array, uint8)
+    align(stream, 4)
+    header.tev_combiner_offset = _p(tev_combiner_array, TevCombiner)
+    header.swap_mode_offset = _p(swap_mode_array, SwapMode)
+    header.swap_table_offset = _p(swap_table_array, SwapTable)
+    header.fog_offset = _p(fog_array, Fog)
+    header.alpha_test_offset = _p(alpha_test_array, AlphaTest)
+    header.blend_mode_offset = _p(blend_mode_array, BlendMode)
+    header.depth_mode_offset = _p(depth_mode_array, DepthMode)
+    header.depth_test_early_offset = _p(depth_test_early_array, bool8)
+    align(stream, 4)
+    header.dither_offset = _p(dither_array, bool8)
+    align(stream, 4)
+    header.unknown5_offset = _p(unknown5_array, UnknownStruct5)
 
-    def pool_unknown5(self, materials, entries):
-        return None
-
-    @pool_load_method(TevCombiner, equal_predicate=TevCombiner.__eq__)
-    def pool_tev_combiner(pool, material, entry):
-        for i, stage in enumerate(material.enabled_tev_stages):
-            entry.tev_combiner_indices[i] = pool[stage]
-
-    @pool_load_method(EnumConverter(uint32, gx.CullMode))
-    def pool_cull_mode(pool, material, entry):
-        entry.cull_mode_index = pool[material.cull_mode]
-
-    @pool_load_method(Color)
-    def pool_material_color(pool, material, entry):
-        for i, channel in enumerate(material.enabled_channels):
-            entry.material_color_indices[i] = pool[channel.material_color]
-
-    @pool_load_method(LightingModeSVR0)
-    def pool_lighting_mode(pool, material, entry):
-        for channel, channel_entry in zip(material.enabled_channels, entry.channels):
-            channel_entry.color_mode_index = pool[channel.color_mode]
-            channel_entry.alpha_mode_index = pool[channel.alpha_mode]
-
-    def pool_kcolor(self, materials, entries):
-        return Pool(Color, values=(Color(0xFF, 0xFF, 0xFF, 0xFF),)*4)
-
-    @pool_load_method(bool8)
-    def pool_depth_test_early(pool, material, entry):
-        entry.depth_test_early_index = pool[material.depth_test_early]
-
-
-class SectionUnpackerSVR0(SectionUnpacker):
-
-    entry_type = EntrySVR0
-
-    def unpack_indirect_entry(self, stream, offset, materials, entries):
-        if offset is not None:
-            raise FormatError('invalid indirect entry offset for SVR0')
-
-    def unpack_ambient_color(self, stream, offset, materials, entries):
-        if offset is not None:
-            raise FormatError('invalid ambient color offset for SVR0')
-
-    def unpack_light(self, stream, offset, materials, entries):
-        if offset is not None:
-            raise FormatError('invalid light offset for SVR0')
-
-    def unpack_unknown2(self, stream, offset, materials, entries):
-        if offset is not None:
-            raise FormatError('invalid unknown2 offset for SVR0')
-
-    def unpack_texture_matrix(self, stream, offset, materials, entries):
-        if offset is not None:
-            raise FormatError('invalid texture matrix offset for SVR0')
-
-    def unpack_swap_mode(self, stream, offset, material, entries):
-        if offset is not None:
-            raise FormatError('invalid swap mode offset for SVR0')
-
-    def unpack_tev_color(self, stream, offset, material, entries):
-        if offset is not None:
-            raise FormatError('invalid tev color offset for SVR0')
-
-    def unpack_swap_table(self, stream, offset, material, entries):
-        if offset is not None:
-            raise FormatError('invalid swap table offset for SVR0')
-
-    def unpack_fog(self, stream, offset, material, entries):
-        if offset is not None:
-            raise FormatError('invalid fog offset for SVR0')
-
-    def unpack_dither(self, stream, offset, material, entries):
-        if offset is not None:
-            raise FormatError('invalid dither offset for SVR0')
-
-    def unpack_unknown5(self, stream, offset, material, entries):
-        if offset is not None:
-            raise FormatError('invalid unknown5 offset for SVR0')
-
-    @pool_unload_method(Color)
-    def unpack_material_color(array, material, entry):
-        for channel, index in zip(material.enabled_channels, entry.material_color_indices):
-            channel.material_color = array[index]
-
-    @pool_unload_method(LightingModeSVR0)
-    def unpack_lighting_mode(array, material, entry):
-        for channel, channel_entry in zip(material.enabled_channels, entry.channels):
-            channel.color_mode = array[channel_entry.color_mode_index]
-            channel.alpha_mode = array[channel_entry.alpha_mode_index]
-
-    def unpack_kcolor(self, stream, offset, materials, entries):
-        stream.seek(offset)
-        for _ in range(4):
-            if Color.unpack(stream) != Color(0xFF, 0xFF, 0xFF, 0xFF):
-                raise FormatError('invalid kcolor for SVR0')
+    align(stream, 0x20)
+    header.section_size = stream.tell() - base
+    stream.seek(base)
+    Header.pack(stream, header)
+    stream.seek(base + header.section_size)
 
 
-def pack(stream, materials, subversion):
-    if subversion == b'SVR3':
-        packer = SectionPacker()
-    elif subversion == b'\xFF\xFF\xFF\xFF':
-        packer = SectionPackerSVR0()
-    else:
-        raise ValueError('invalid subversion')
+def unpack(stream):
+    base = stream.tell()
+    header = Header.unpack(stream)
 
-    packer.pack(stream, materials)
+    materials = [Material() for _ in range(header.material_count)]
 
+    stream.seek(base + header.entry_index_offset)
+    entry_indices = [uint16.unpack(stream) for _ in range(header.material_count)]
 
-def unpack(stream, subversion):
-    if subversion == b'SVR3':
-        unpacker = SectionUnpacker()
-    elif subversion == b'\xFF\xFF\xFF\xFF':
-        unpacker = SectionUnpackerSVR0()
-    else:
-        raise FormatError('invalid subversion')
+    entry_count = max(entry_indices) + 1
+    stream.seek(base + header.entry_offset)
+    entries = [Entry.unpack(stream) for _ in range(entry_count)]
+    entries = [entries[i] for i in entry_indices]
 
-    return unpacker.unpack(stream)
+    for material, entry in zip(materials, entries):
+        for i, stage in enumerate(material.tev_stages):
+            stage.constant_color = entry.constant_colors[i]
+            stage.constant_alpha = entry.constant_alphas[i]
+        material.unknown0 = entry.unknown0
+        material.unknown3 = entry.unknown3
+        material.unknown4 = entry.unknown4
+
+    stream.seek(base + header.name_offset)
+    names = j3d.string_table.unpack(stream)
+    for material, name in zip(materials, names):
+        material.name = name
+
+    if header.indirect_entry_offset is not None:
+        stream.seek(base + header.indirect_entry_offset)
+        for material in materials:
+            indirect_entry = IndirectEntry.unpack(stream)
+            unload_indirect_entry(material, indirect_entry)
+
+    def _u(offset, unload_function, element_type):
+        if offset is None:
+            array = None
+        else:
+            array = ArrayUnpacker(stream, base + offset, element_type)
+        unload_function(materials, entries, array)
+
+    _u(header.cull_mode_offset, unload_cull_mode_array, EnumConverter(uint32, gx.CullMode))
+    _u(header.channel_count_offset, unload_channel_count_array, uint8)
+    _u(header.material_color_offset, unload_material_color_array, Color)
+    _u(header.ambient_color_offset, unload_ambient_color_array, Color)
+    _u(header.lighting_mode_offset, unload_lighting_mode_array, LightingMode)
+    _u(header.light_offset, unload_light_array, Light)
+    _u(header.texcoord_generator_count_offset, unload_texcoord_generator_count_array, uint8)
+    _u(header.texcoord_generator_offset, unload_texcoord_generator_array, TexCoordGenerator)
+    _u(header.unknown2_offset, unload_unknown2_array, UnknownStruct2)
+    _u(header.texture_matrix_offset, unload_texture_matrix_array, TextureMatrix)
+    _u(header.texture_index_offset, unload_texture_index_array, uint16)
+    _u(header.tev_stage_count_offset, unload_tev_stage_count_array, uint8)
+    _u(header.tev_order_offset, unload_tev_order_array, TevOrder)
+    _u(header.tev_combiner_offset, unload_tev_combiner_array, TevCombiner)
+    _u(header.swap_mode_offset, unload_swap_mode_array, SwapMode)
+    _u(header.tev_color_offset, unload_tev_color_array, ColorS16)
+    _u(header.kcolor_offset, unload_kcolor_array, Color)
+    _u(header.swap_table_offset, unload_swap_table_array, SwapTable)
+    _u(header.fog_offset, unload_fog_array, Fog)
+    _u(header.alpha_test_offset, unload_alpha_test_array, AlphaTest)
+    _u(header.blend_mode_offset, unload_blend_mode_array, BlendMode)
+    _u(header.depth_mode_offset, unload_depth_mode_array, DepthMode)
+    _u(header.depth_test_early_offset, unload_depth_test_early_array, bool8)
+    _u(header.dither_offset, unload_dither_array, bool8)
+    _u(header.unknown5_offset, unload_unknown5_array, UnknownStruct5)
+
+    stream.seek(base + header.section_size)
+    return materials
 

@@ -1,5 +1,9 @@
 import copy
+import logging
 from struct import Struct as _Struct
+
+
+logger = logging.getLogger(__name__)
 
 
 class BasicType:
@@ -41,15 +45,26 @@ class FixedPointConverter:
 
 class EnumConverter:
 
-    def __init__(self, integer_type, enumeration):
+    NO_DEFAULT = object()
+
+    def __init__(self, integer_type, enumeration, default=NO_DEFAULT):
         self.integer_type = integer_type
         self.enumeration = enumeration
+        self.default = default
 
     def pack(self, stream, member):
         self.integer_type.pack(stream, member.value)
 
     def unpack(self, stream):
-        return self.enumeration(self.integer_type.unpack(stream))
+        integer_value = self.integer_type.unpack(stream)
+        try:
+            value = self.enumeration(integer_value)
+        except ValueError:
+            if self.default is self.NO_DEFAULT:
+                raise
+            logger.warning('invalid %s value %s, using default %s', self.enumeration, integer_value, self.default)
+            value = self.default
+        return value
 
     def sizeof(self):
         return self.integer_type.sizeof()

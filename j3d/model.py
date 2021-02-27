@@ -1,5 +1,5 @@
+import logging
 from btypes.big_endian import *
-import gx
 import j3d.inf1
 import j3d.vtx1
 import j3d.evp1
@@ -9,6 +9,9 @@ import j3d.shp1
 import j3d.mat3
 import j3d.mdl3
 import j3d.tex1
+
+
+logger = logging.getLogger(__name__)
 
 
 class Header(Struct):
@@ -69,7 +72,7 @@ def pack(stream, model):
     j3d.drw1.pack(stream, model.matrix_definitions)
     j3d.jnt1.pack(stream, model.joints)
     j3d.shp1.pack(stream, model.shapes)
-    j3d.mat3.pack(stream, model.materials, model.subversion)
+    j3d.mat3.pack(stream, model.materials)
     if model.file_type == b'bdl4':
         j3d.mdl3.pack(stream, model.materials, model.textures)
     j3d.tex1.pack(stream, model.textures)
@@ -90,7 +93,7 @@ def unpack(stream):
     matrix_definitions = j3d.drw1.unpack(stream)
     joints = j3d.jnt1.unpack(stream)
     shapes = j3d.shp1.unpack(stream)
-    materials = j3d.mat3.unpack(stream, header.subversion)
+    materials = j3d.mat3.unpack(stream)
     if header.file_type == b'bdl4':
         skip_section(stream, b'MDL3')
     textures = j3d.tex1.unpack(stream)
