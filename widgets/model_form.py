@@ -23,29 +23,11 @@ class ModelForm(QtWidgets.QWidget):
 
         self.unknown0.setText(str(model.scene_graph.unknown0))
 
-        self.add_vertex_array(model.position_array)
-        self.add_vertex_array(model.normal_array)
-        for array in model.color_arrays:
-            self.add_vertex_array(array)
-        for array in model.texcoord_arrays:
-            self.add_vertex_array(array)
-
         self.setEnabled(True)
-
-    def add_vertex_array(self, array):
-        if array is None:
-            return
-        info = ', '.join((
-            array.attribute.name,
-            array.component_type.name,
-            array.component_count.name
-        ))
-        self.vertex_array_info.appendPlainText(info)
 
     def clear(self):
         self.model = None
         self.subversion.clear()
         self.unknown0.clear()
-        self.vertex_array_info.clear()
         self.setEnabled(False)
 
