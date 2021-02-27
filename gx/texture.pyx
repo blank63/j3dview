@@ -765,7 +765,7 @@ class ImageCI4(ImageBase):
 
     def decode_to_direct_color(self, source_palette, destination_image=None):
         if destination_image is None:
-            destination_image = numpy.empty((self.width, self.height) + source_palette.shape[1:], source_palette.dtype)
+            destination_image = numpy.empty((self.height, self.width) + source_palette.shape[1:], source_palette.dtype)
 
         cdef numpy.uint8_t[:,:,:,:] source = self
         cdef numpy.uint8_t[:,:] palette = reinterpret_elements(source_palette, numpy.uint8, 1)
@@ -823,9 +823,9 @@ class ImageCI8(ImageBase):
 
         return destination_image
 
-    def decode_to_direct_color(self, source_palette, destination_image):
+    def decode_to_direct_color(self, source_palette, destination_image=None):
         if destination_image is None:
-            destination_image = numpy.empty((self.width, self.height) + source_palette.shape[1:], source_palette.dtype)
+            destination_image = numpy.empty((self.height, self.width) + source_palette.shape[1:], source_palette.dtype)
 
         cdef numpy.uint8_t[:,:,:,:] source = self
         cdef numpy.uint8_t[:,:] palette = reinterpret_elements(source_palette, numpy.uint8, 1)
@@ -847,9 +847,9 @@ class ImageCI14(ImageBase):
     tile_height = 4
     tile_type = numpy.dtype((numpy.uint16, (4, 4))).newbyteorder('>')
 
-    def decode_to_direct_color(self, source_palette, destination_image):
+    def decode_to_direct_color(self, source_palette, destination_image=None):
         if destination_image is None:
-            destination_image = numpy.empty((self.width, self.height) + source_palette.shape[1:], source_palette.dtype)
+            destination_image = numpy.empty((self.height, self.witdh) + source_palette.shape[1:], source_palette.dtype)
 
         cdef numpy.uint16_t[:,:,:,:] source = reinterpret_native_endian(self)
         cdef numpy.uint8_t[:,:] palette = reinterpret_elements(source_palette, numpy.uint8, 1)
