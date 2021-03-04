@@ -20,7 +20,11 @@ PathRole = Qt.UserRole + 1
 class ListItem(AbstractListItem):
 
     def __init__(self, label, list_path):
-        super().__init__([Entry(data=label, drop_enabled=True)])
+        super().__init__([Entry(
+            data=label,
+            role_data={PathRole: list_path},
+            drop_enabled=True
+        )])
         self.list_path = list_path
 
     def create_child(self, index):

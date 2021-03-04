@@ -41,7 +41,7 @@ class MaterialArchive:
 def pack(stream, material_archive):
     header = Header()
     stream.write(b'\x00'*Header.sizeof())
-    j3d.mat3.pack(stream, material_archive.materials, header.subversion)
+    j3d.mat3.pack(stream, material_archive.materials)
     j3d.tex1.pack(stream, material_archive.textures)
     header.file_size = stream.tell()
     stream.seek(0)
@@ -50,7 +50,7 @@ def pack(stream, material_archive):
 
 def unpack(stream):
     header = Header.unpack(stream)
-    materials = j3d.mat3.unpack(stream, header.subversion)
+    materials = j3d.mat3.unpack(stream)
     textures = j3d.tex1.unpack(stream)
     return MaterialArchive(materials, textures)
 

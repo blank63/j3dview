@@ -77,7 +77,7 @@ class Delegate(ItemDelegate):
         super().__init__()
         self.material_list_adaptor = ItemModelAdaptor(root_item=MaterialListItem())
         self.prefix_table = {
-            NodeType.JOINT: 'Join: ',
+            NodeType.JOINT: 'Joint: ',
             NodeType.MATERIAL: 'Material: ',
             NodeType.SHAPE: 'Shape: '
         }
@@ -137,6 +137,20 @@ class Delegate(ItemDelegate):
         self.editingFinished.emit(self.sender())
 
 
+class DeepTreeView(TreeView):
+
+    def scrollTo(self, index, hint=TreeView.EnsureVisible):
+        # The default implementation uses the horizontal header to find the
+        # horizontal start of an item. This does not work very well when the
+        # tree is very deep, and the item is indented several levels. This is an
+        # issue in particular because scrollTo is called when editing of an item
+        # starts. We override this behaviour, and simply keep the previous
+        # horizontal scroll position.
+        horizontal_scroll = self.horizontalScrollBar().value()
+        super().scrollTo(index, hint)
+        self.horizontalScrollBar().setValue(horizontal_scroll)
+
+
 class SceneGraphDialog(QtWidgets.QDialog):
 
     def __init__(self, *args, **kwargs):
@@ -145,7 +159,7 @@ class SceneGraphDialog(QtWidgets.QDialog):
 
         root_item = NodeItem(column_count=1, node_path=+_p.scene_graph)
         self.model_adaptor = ItemModelAdaptor(root_item=root_item)
-        self.tree_view = TreeView()
+        self.tree_view = DeepTreeView()
         self.tree_view.setHeaderHidden(True)
         self.tree_view.header().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
         self.tree_view.header().setStretchLastSection(False)

@@ -677,8 +677,8 @@ class MaterialArchive:
 
     def save(self, file_path):
         self.sync_reference_indices()
-        materials = [material.viewed_object for material in self.materials]
-        textures = [texture.viewed_object for texture in self.textures]
+        materials = [material.wrapped_object for material in self.materials]
+        textures = [texture.wrapped_object for texture in self.textures]
         material_archive = j3d.material_archive.MaterialArchive(materials, textures)
         with open(file_path, 'wb') as stream:
             j3d.material_archive.pack(stream, material_archive)
