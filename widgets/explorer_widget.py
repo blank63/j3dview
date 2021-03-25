@@ -149,8 +149,8 @@ class RemoveItemCommand(QtWidgets.QUndoCommand):
 
 class ExplorerWidget(QtWidgets.QWidget):
 
-    currentMaterialChanged = QtCore.pyqtSignal(int)
-    currentTextureChanged = QtCore.pyqtSignal(int)
+    currentMaterialChanged = QtCore.pyqtSignal(models.material.Material)
+    currentTextureChanged = QtCore.pyqtSignal(models.texture.Texture)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -158,8 +158,6 @@ class ExplorerWidget(QtWidgets.QWidget):
         self.undo_stack = None
 
         self.model_adaptor = ModelAdaptor()
-        self.model_adaptor.rowsInserted.connect(self.on_rowsInserted)
-        self.model_adaptor.rowsRemoved.connect(self.on_rowsRemoved)
         self.model_adaptor.rowDropped.connect(self.on_rowDropped)
         self.tree_view = TreeView()
         self.tree_view.setHeaderHidden(True)
@@ -198,18 +196,6 @@ class ExplorerWidget(QtWidgets.QWidget):
     def setCurrentTexture(self, texture_index):
         index = self.model_adaptor.get_texture_index(texture_index)
         self.tree_view.setCurrentIndex(index)
-
-    def emit_current_changed(self):
-        current = self.tree_view.currentIndex()
-        path = current.data(PathRole)
-        if path is None:
-            return
-        if path.match(+_p.materials[...]):
-            index = path[-1].key
-            self.currentMaterialChanged.emit(index)
-        elif path.match(+_p.textures[...]):
-            index = path[-1].key
-            self.currentTextureChanged.emit(index)
 
     def import_materials(self):
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -362,25 +348,15 @@ class ExplorerWidget(QtWidgets.QWidget):
 
     @QtCore.pyqtSlot(QtCore.QModelIndex, QtCore.QModelIndex)
     def on_currentRowChanged(self, current, previous):
-        self.emit_current_changed()
-
-    @QtCore.pyqtSlot(QtCore.QModelIndex, int, int)
-    def on_rowsInserted(self, parent, first, last):
-        current = self.tree_view.currentIndex()
-        if current.parent() != parent:
+        path = current.data(PathRole)
+        if path is None:
             return
-        if current.row() < first or current.row() > last:
-            return
-        self.emit_current_changed()
-
-    @QtCore.pyqtSlot(QtCore.QModelIndex, int, int)
-    def on_rowsRemoved(self, parent, first, last):
-        current = self.tree_view.currentIndex()
-        if current.parent() != parent:
-            return
-        if current.row() < first or current.row() > last:
-            return
-        self.emit_current_changed()
+        if path.match(+_p.materials[...]):
+            material = path.get_value(self.model)
+            self.currentMaterialChanged.emit(material)
+        elif path.match(+_p.textures[...]):
+            texture = path.get_value(self.model)
+            self.currentTextureChanged.emit(texture)
 
     @QtCore.pyqtSlot(QtCore.QModelIndex, int)
     def on_rowDropped(self, parent, row):

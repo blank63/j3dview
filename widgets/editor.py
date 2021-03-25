@@ -193,16 +193,15 @@ class Editor(QtWidgets.QMainWindow):
     def on_undo_stack_cleanChanged(self, clean):
         self.setWindowModified(not clean)
 
-    def on_explorer_currentMaterialChanged(self, material_index):
-        material = self.model.materials[material_index]
+    def on_explorer_currentMaterialChanged(self, material):
         self.material_form.setMaterial(material)
         self.dock_material_form.raise_()
         if self.advanced_material_dialog is not None:
             self.advanced_material_dialog.setMaterial(material)
 
-    def on_explorer_currentTextureChanged(self, texture_index):
-        self.preview.setTexture(self.model.textures[texture_index])
-        self.texture_form.setTexture(self.model.textures[texture_index])
+    def on_explorer_currentTextureChanged(self, texture):
+        self.preview.setTexture(texture)
+        self.texture_form.setTexture(texture)
         self.dock_texture_form.raise_()
 
     @QtCore.pyqtSlot()

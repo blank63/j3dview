@@ -250,11 +250,14 @@ class Item(AbstractItem):
     def child_count(self):
         return len(self.children)
 
-    def add_child(self, child):
+    def insert_child(self, index, child):
         child.set_parent(self)
-        self.children.append(child)
+        self.children.insert(index, child)
         if self.model is not None:
             child.attach_model(self.model)
+
+    def add_child(self, child):
+        self.insert_child(self.child_count, child)
 
     def take_child(self, row):
         child = self.children[row]
@@ -310,8 +313,21 @@ class AbstractListItem(Item):
         elif isinstance(event, ItemRemoveEvent):
             row = event.index
             index = self.model.get_item_index(self)
+            # At this point, the item has already been removed from the
+            # originating object. But beginRemoveRows assumes that rows has not
+            # yet been removed, and might therefore cause attempts to access the
+            # removed item. As a workaround, before calling beginRemoveRows, we
+            # remove the child item and instead insert a dummy child item that
+            # doesn't reference anything. We then remove the dummy item between
+            # calling beginRemoveRows and endRemoveRows.
+            # There might be persistent model indices referencing the removed
+            # child, so we keep a reference to it to prevent it from being
+            # garbage collected until after endRemoveRows has been called.
+            removed_child = self.take_child(self.child_count - 1)
+            dummy = Item(column_count=0)
+            self.insert_child(row, dummy)
             self.model.beginRemoveRows(index, row, row)
-            self.take_child(self.child_count - 1)
+            self.take_child(row)
             self.model.endRemoveRows()
 
 
